@@ -1,0 +1,182 @@
+/* GroupsAndAccess.gs
+   وظائف مساعدة لقراءة قائمة المجموعات وإدارة الأعضاء (باستخدام AdminDirectory Advanced Service).
+*/
+
+function getGroupsMap() {
+  // يرجع كائن { "GroupName": "group@domain", ... }
+  const domain = Session.getActiveUser().getEmail().split('@')[1] || 'dtgsa.com';
+  const groups = {};
+  try {
+    const res = AdminDirectory.Groups.list({ domain: domain, maxResults: 200 });
+    const items = res.groups || [];
+    items.forEach(g => {
+      // name may contain spaces; we return map by displayName => email
+      groups[g.name || g.email] = g.email;
+    });
+  } catch (e) {
+    // إذا لم يكن لديك صلاحية AdminDirectory، نعيد قائمة افتراضية من Properties policy
+    const policy = getAccessPolicy();
+    if (policy && policy.groups) {
+      Object.keys(policy.groups).forEach(k => {
+        // try to form group email
+        const em = k.includes('@') ? k : `${k.replace(/\s+/g, '-').toLowerCase()}@${domain}`;
+        groups[k] = em;
+      });
+    }
+  }
+  return groups;
+}
+
+function listGroupMembers(groupDisplayOrEmail) {
+  // groupDisplayOrEmail might be email or display name; try to resolve
+  let groupEmail = groupDisplayOrEmail;
+  if (!groupEmail.includes('@')) {
+    // resolve from getGroupsMap
+    const map = getGroupsMap();
+    groupEmail = map[groupDisplayOrEmail] || groupDisplayOrEmail + '@' + (Session.getActiveUser().getEmail().split('@')[1] || 'dtgsa.com');
+  }
+  try {
+    const res = AdminDirectory.Members.list(groupEmail, { maxResults: 500 });
+    const members = (res.members || []).map(m => ({ email: m.email, role: m.role, status: m.status || '' }));
+    return { members: members };
+  } catch (e) {
+    throw new Error('Cannot list group members: ' + e.message);
+  }
+}
+
+function addGroupMember(groupDisplayOrEmail, memberEmail, role) {
+  let groupEmail = groupDisplayOrEmail;
+  if (!groupEmail.includes('@')) {
+    const map = getGroupsMap();
+    groupEmail = map[groupDisplayOrEmail] || groupDisplayOrEmail + '@' + (Session.getActiveUser().getEmail().split('@')[1] || 'dtgsa.com');
+  }
+  try {
+    const body = { email: memberEmail, role: role || 'MEMBER' };
+    AdminDirectory.Members.insert(body, groupEmail);
+    return 'Member added';
+  } catch (e) {
+    throw new Error('Failed to add member: ' + e.message);
+  }
+}
+
+function removeGroupMember(groupDisplayOrEmail, memberEmail) {
+  let groupEmail = groupDisplayOrEmail;
+  if (!groupEmail.includes('@')) {
+    const map = getGroupsMap();
+    groupEmail = map[groupDisplayOrEmail] || groupDisplayOrEmail + '@' + (Session.getActiveUser().getEmail().split('@')[1] || 'dtgsa.com');
+  }
+  try {
+    AdminDirectory.Members.remove(groupEmail, memberEmail);
+    return 'Member removed';
+  } catch (e) {
+    throw new Error('Failed to remove member: ' + e.message);
+  }
+}
+
+/* Get all users from domain - returns array of {email, name, fullName, suspended} */
+function getAllDomainUsers() {
+  const domain = Session.getActiveUser().getEmail().split('@')[1] || 'dtgsa.com';
+  const users = [];
+  
+  try {
+    let pageToken = null;
+    do {
+      const params = {
+        domain: domain,
+        maxResults: 500
+      };
+      if (pageToken) {
+        params.pageToken = pageToken;
+      }
+      
+      const res = AdminDirectory.Users.list(params);
+      const items = res.users || [];
+      
+      items.forEach(user => {
+        // Skip service accounts and deleted users
+        if (user.suspended === false || user.suspended === true) {
+          users.push({
+            email: user.primaryEmail,
+            name: user.name ? (user.name.givenName || user.name.fullName || user.primaryEmail.split('@')[0]) : user.primaryEmail.split('@')[0],
+            fullName: user.name ? (user.name.fullName || `${user.name.givenName || ''} ${user.name.familyName || ''}`.trim()) : '',
+            suspended: user.suspended || false
+          });
+        }
+      });
+      
+      pageToken = res.nextPageToken;
+    } while (pageToken);
+    
+    // Sort by email
+    users.sort((a, b) => a.email.localeCompare(b.email));
+    
+    return users;
+  } catch (e) {
+    throw new Error('Failed to get domain users: ' + e.message);
+  }
+}
+
+/* Get all users with their groups - returns array of {email, name, fullName, groups: [groupName, ...], suspended} */
+function getAllUsersWithGroups() {
+  const domain = Session.getActiveUser().getEmail().split('@')[1] || 'dtgsa.com';
+  const usersMap = {}; // {email: {email, name, fullName, groups: [], suspended}}
+  
+  try {
+    // First, get all domain users
+    const allUsers = getAllDomainUsers();
+    allUsers.forEach(user => {
+      usersMap[user.email] = {
+        email: user.email,
+        name: user.name,
+        fullName: user.fullName,
+        groups: [],
+        suspended: user.suspended
+      };
+    });
+    
+    // Then, get all groups and their members
+    const groupsMap = getGroupsMap();
+    const groupNames = Object.keys(groupsMap);
+    
+    // For each group, get its members
+    for (let i = 0; i < groupNames.length; i++) {
+      const groupName = groupNames[i];
+      const groupEmail = groupsMap[groupName];
+      
+      try {
+        const res = AdminDirectory.Members.list(groupEmail, { maxResults: 500 });
+        const members = res.members || [];
+        
+        members.forEach(member => {
+          const email = member.email;
+          // If user exists in map, add group to their list
+          if (usersMap[email]) {
+            if (usersMap[email].groups.indexOf(groupName) === -1) {
+              usersMap[email].groups.push(groupName);
+            }
+          } else {
+            // User not in domain users list (might be external), add them
+            usersMap[email] = {
+              email: email,
+              name: email.split('@')[0],
+              fullName: '',
+              groups: [groupName],
+              suspended: false
+            };
+          }
+        });
+      } catch (e) {
+        // Skip groups that can't be accessed
+        Logger.log('Cannot access group ' + groupName + ': ' + e.message);
+      }
+    }
+    
+    // Convert map to array and sort
+    const usersArray = Object.values(usersMap);
+    usersArray.sort((a, b) => a.email.localeCompare(b.email));
+    
+    return usersArray;
+  } catch (e) {
+    throw new Error('Failed to get users with groups: ' + e.message);
+  }
+}

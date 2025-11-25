@@ -1,0 +1,1552 @@
+/* Code.gs
+   منشور: نسخة معدلة لتوليد PR numbers، إنشاء مجلدات طبق القالب، وتطبيق صلاحيات المجموعات.
+   متطلبات: Drive (Advanced Service - v2) مفعّل، AdminDirectory مفعّل (إذا أردت استخدام إدارة الأعضاء).
+*/
+
+// إعدادات ثابتة
+const ROOT_SHARED_DRIVE_ID = PropertiesService.getScriptProperties().getProperty('SHARED_DRIVE_ID') || '1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W'; // Shared Drive ID
+const TEMPLATE_PROP = 'PROJECT_FOLDER_TEMPLATE';
+const ACCESS_POLICY_PROP = 'ACCESS_POLICY';
+const LAST_PR_PROP = 'LAST_PR_NUMBER';
+
+// --- Utilities ---
+/** Entry point for the Web App */
+function doGet(e) {
+  var p = (e && e.parameter) || {};
+  var action = (p.action || '').toLowerCase();
+
+  if (action === 'approve') {
+    // تنفيذ الموافقة وإنشاء المجلدات
+    try {
+      var pr_param = p.pr || ''; // e.g., 'PRJ-004'
+      var pr = pr_param.startsWith('PRJ-') ? pr_param.substring(4) : pr_param; // e.g., '004'
+      var projectName = p.name || '';
+      
+      // تنظيف projectName - إزالة أي PRJ-XXX- من البداية
+      if (projectName) {
+        const prPrefixMatch = projectName.match(/^PRJ-\d+-(.+)$/);
+        if (prPrefixMatch) {
+          projectName = prPrefixMatch[1]; // استخراج الاسم فقط بدون PRJ-XXX-
+        }
+      }
+      
+      var phase = p.phase || '';
+      
+      var result = '';
+      if (phase === 'bidding') {
+        // فحص وجود المشروع أولاً
+        const existingProjectRoot = getProjectRootFolder(pr, projectName);
+        if (existingProjectRoot) {
+          throw new Error(`Project folder '${existingProjectRoot.title}' already exists.`);
+        }
+        result = createRFPProject(pr, projectName);
+      } else if (phase === 'project_delivery') {
+        // فحص وجود مجلد PD أولاً
+        const projectRootFolder = getProjectRootFolder(pr, projectName);
+        if (!projectRootFolder) {
+          throw new Error(`Project folder 'PRJ-${pr}-${projectName}' not found for PD approval.`);
+        }
+        const existingPDFolder = getPDFolder(projectRootFolder.id, pr);
+        if (existingPDFolder) {
+          throw new Error(`PD folder '${existingPDFolder.title}' already exists within project '${projectRootFolder.title}'.`);
+        }
+        result = createPDFolder(pr, projectName);
+      } else {
+        throw new Error('Invalid phase');
+      }
+      
+      // عرض صفحة نجاح الموافقة
+      return renderTemplate('ApprovalSuccess', {
+        projectNumber: pr,
+        projectName: projectName,
+        phase: phase,
+        result: result
+      }).setTitle('Approval Successful')
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    } catch (err) {
+      return HtmlService.createHtmlOutput(`
+        <html><body>
+          <h2>Error</h2>
+          <p>${err.message}</p>
+          <a href="${ScriptApp.getService().getUrl()}">Back to Home</a>
+        </body></html>
+      `).setTitle('Error');
+    }
+  }
+
+  // الواجهة الرئيسية
+  return HtmlService.createTemplateFromFile('Ui_Combined')
+    .evaluate()
+    .setTitle('Project Folder Management')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/** Helper: render HTML file with data */
+function renderTemplate(fileName, data) {
+  var t = HtmlService.createTemplateFromFile(fileName);
+  if (data && typeof data === 'object') {
+    Object.keys(data).forEach(function (k) { t[k] = data[k]; });
+  }
+  return t.evaluate();
+}
+
+/** (اختياري) تضمين ملفات HTML أخرى عند الحاجة: <?!= include('PartialName'); ?> */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+function logRow(level, action, message, meta) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) return;
+  const sh = ss.getSheetByName('DTG_Logs') || ss.insertSheet('DTG_Logs');
+  sh.appendRow([new Date().toISOString(), level, action, message, meta || '']);
+}
+function getNextPRNumber() {
+  const props = PropertiesService.getScriptProperties();
+  let last = parseInt(props.getProperty(LAST_PR_PROP) || '0', 10);
+  last = last + 1;
+  props.setProperty(LAST_PR_PROP, String(last));
+  // format to 3 digits
+  return ('000' + last).slice(-3);
+}
+
+/* getAuthInfo - returns info about current user (isAdmin inferred trivially) */
+function getAuthInfo() {
+  var me = Session.getActiveUser().getEmail();
+  // Rudimentary admin test - you can refine by checking groups or admin API
+  var isAdmin = true; // assume admin for current deployment or implement check
+  return { user: me, userEmail: me, isAdmin: isAdmin };
+}
+
+/* Template functions - store and retrieve tree template in PropertiesService */
+function getTemplateTree() {
+  const raw = PropertiesService.getScriptProperties().getProperty(TEMPLATE_PROP);
+  if (!raw) {
+    // default template with Bidding and Project Delivery nodes
+    const defaultTemplate = [
+      { 
+        text: 'Bidding', 
+        nodes: [
+          { text: 'SOW' },
+          { 
+            text: 'Technical', 
+            nodes: [
+              { text: 'TBE' },
+              { text: 'Technical Proposal' }
+            ]
+          },
+          { 
+            text: 'Vendors Quotations', 
+            nodes: [
+              { text: 'Civil and Finishes' },
+              { text: 'Mechanical' },
+              { text: 'E&I' },
+              { text: 'IT' }
+            ]
+          },
+          { text: 'Commercial' }
+        ]
+      },
+      { 
+        text: 'Project Delivery', 
+        nodes: [
+          { text: 'Document Control' },
+          { text: 'Quality Control' },
+          { text: 'HSE' },
+          { text: 'Project Control' },
+          { text: 'IFC Drawings' },
+          { text: 'Engineering (ONLY FOR EPC PROJECTS)' }
+        ]
+      }
+    ];
+    return defaultTemplate;
+  }
+  return JSON.parse(raw);
+}
+function saveConfig(obj) {
+  PropertiesService.getScriptProperties().setProperty(TEMPLATE_PROP, JSON.stringify(obj));
+  return 'Template saved';
+}
+function resetTemplateConfig() {
+  PropertiesService.getScriptProperties().deleteProperty(TEMPLATE_PROP);
+  return 'Template reset to default';
+}
+
+/* Access policy - save / get */
+function getAccessPolicy() {
+  const raw = PropertiesService.getScriptProperties().getProperty(ACCESS_POLICY_PROP);
+  if (!raw) {
+    // لا توجد صلاحيات افتراضية - سياسة فارغة
+    const defaultPolicy = {
+      groups: {},
+      protection: {
+        viewersCanCopyContent: false,
+        copyRequiresWriterPermission: false
+      }
+    };
+    return defaultPolicy;
+  }
+  return JSON.parse(raw);
+}
+function saveAccessPolicy(policy) {
+  PropertiesService.getScriptProperties().setProperty(ACCESS_POLICY_PROP, JSON.stringify(policy));
+  return 'Access policy saved';
+}
+
+/* Request approval - called from UI to create project structure */
+function requestApproval(projectName, phase) {
+  try {
+    if (!projectName) throw new Error('Project name required');
+    
+    if (phase === 'bidding') {
+      return requestRFPApproval(projectName);
+    } else if (phase === 'project_delivery') {
+      return requestPDApproval(projectName);
+    } else {
+      throw new Error('Invalid phase. Must be "bidding" or "project_delivery"');
+    }
+  } catch (err) {
+    logRow('ERROR', 'requestApproval', err.message);
+    throw err;
+  }
+}
+
+/* Request RFP approval - create new project */
+function requestRFPApproval(projectName) {
+  // فحص تكرار اسم المشروع
+  if (isProjectNameExists(projectName)) {
+    throw new Error('Project name already exists: ' + projectName);
+  }
+  
+    const pr = getNextPRNumber();
+  const projectFolderName = `PRJ-${pr}-${projectName}`;
+  
+  // إرسال الإيميل للموافقة على إنشاء RFP
+  sendApprovalEmail(pr, projectName, 'bidding');
+  return 'RFP approval request sent for: ' + projectFolderName + ' to: ' + getApprovalRecipient();
+}
+
+/* Check if project name already exists */
+function isProjectNameExists(projectName) {
+    const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  if (!rootDriveId) return false;
+  
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 500 });
+  const items = res.items || [];
+  
+  // البحث عن مشاريع تحتوي على نفس الاسم
+  return items.some(item => {
+    const title = item.title || '';
+    // استخراج اسم المشروع من العنوان (بعد PRJ-XXX-)
+    const match = title.match(/PRJ-\d+-(.+)$/);
+    if (match) {
+      const existingProjectName = match[1];
+      return existingProjectName.toLowerCase() === projectName.toLowerCase();
+    }
+    return false;
+  });
+}
+
+/* Request PD approval - upgrade existing project */
+function requestPDApproval(projectName) {
+  // البحث عن المشروع الموجود
+  const existingProject = findProjectByName(projectName);
+  if (!existingProject) {
+    throw new Error('Project not found: ' + projectName);
+  }
+  
+  // التحقق من وجود مجلد PD
+  if (hasPDFolder(existingProject.id)) {
+    throw new Error('Project already has PD folder: ' + projectName);
+  }
+  
+  const pr = extractPRNumber(existingProject.title);
+  
+  // استخراج اسم المشروع النظيف من عنوان المشروع (بدون PRJ-XXX-)
+  let cleanProjectName = projectName;
+  const titleMatch = existingProject.title.match(/PRJ-\d+-(.+)$/);
+  if (titleMatch) {
+    cleanProjectName = titleMatch[1]; // الاسم النظيف بدون PRJ-XXX-
+  }
+  
+  sendApprovalEmail(pr, cleanProjectName, 'project_delivery');
+  return 'PD approval request sent for: ' + existingProject.title + ' to: ' + getApprovalRecipient();
+}
+
+/* Create RFP project after approval */
+function createRFPProject(pr, projectName) {
+  try {
+    const projectFolderName = `PRJ-${pr}-${projectName}`;
+    const rootDriveId = ROOT_SHARED_DRIVE_ID;
+    
+    if (!rootDriveId) {
+      throw new Error('Shared Drive ID not configured');
+    }
+    
+    // إنشاء المجلد الرئيسي
+    const rootFolder = Drive.Files.insert({
+      title: projectFolderName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [{ id: rootDriveId }]
+    }, null, { supportsAllDrives: true });
+    
+    // إنشاء مجلد RFP
+    const rfpFolder = Drive.Files.insert({
+      title: `PRJ-${pr}-RFP`,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [{ id: rootFolder.id }]
+    }, null, { supportsAllDrives: true });
+
+    // إنشاء المجلدات الفرعية حسب القالب
+    createSubfoldersFromTemplate(rfpFolder.id, 'RFP', pr);
+    
+    // تطبيق الصلاحيات
+    const accessPolicy = getAccessPolicy();
+    applyPolicyToFolderAndChildren(rootFolder.id, accessPolicy);
+    
+    logRow('INFO', 'createRFPProject', `Created RFP project: ${projectFolderName}`);
+    return `RFP project created: ${projectFolderName}`;
+  } catch (err) {
+    logRow('ERROR', 'createRFPProject', err.message);
+    throw err;
+  }
+}
+
+/* Create PD folder after approval */
+function createPDFolder(pr, projectName) {
+  try {
+    // تنظيف projectName - إزالة أي PRJ-XXX- من البداية كإجراء احتياطي
+    let cleanProjectName = projectName;
+    const prPrefixMatch = projectName.match(/^PRJ-\d+-(.+)$/);
+    if (prPrefixMatch) {
+      cleanProjectName = prPrefixMatch[1]; // استخراج الاسم فقط بدون PRJ-XXX-
+    }
+    
+    const projectFolderName = `PRJ-${pr}-${cleanProjectName}`;
+    const rootFolder = findProjectByName(projectFolderName);
+    
+    if (!rootFolder) {
+      throw new Error('Project not found: ' + projectFolderName);
+    }
+    
+    // إنشاء مجلد PD
+    const pdFolder = Drive.Files.insert({
+      title: `PRJ-${pr}-PD`,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [{ id: rootFolder.id }]
+    }, null, { supportsAllDrives: true });
+
+    // إنشاء المجلدات الفرعية حسب القالب
+    createSubfoldersFromTemplate(pdFolder.id, 'PD', pr);
+    
+    // تطبيق الصلاحيات
+    const accessPolicy = getAccessPolicy();
+    applyPolicyToFolderAndChildren(pdFolder.id, accessPolicy);
+
+    logRow('INFO', 'createPDFolder', `Created PD folder for: ${projectFolderName}`);
+    return `PD folder created for: ${projectFolderName}`;
+  } catch (err) {
+    logRow('ERROR', 'createPDFolder', err.message);
+    throw err;
+  }
+}
+
+/* Create subfolders from template */
+function createSubfoldersFromTemplate(parentFolderId, folderType, pr) {
+    const template = getTemplateTree();
+  
+    template.forEach(node => {
+    if (folderType === 'RFP' && /bidding/i.test(node.text)) {
+      (node.nodes || []).forEach((childNode, index) => {
+        const folderTitle = `${index + 1}-PRJ-${pr}-RFP-${childNode.text}`;
+        const newFolder = Drive.Files.insert({
+          title: folderTitle,
+            mimeType: 'application/vnd.google-apps.folder',
+          parents: [{ id: parentFolderId }]
+          }, null, { supportsAllDrives: true });
+        createSubfoldersRecursively(childNode.nodes || [], newFolder.id);
+      });
+    } else if (folderType === 'PD' && /project delivery/i.test(node.text)) {
+      (node.nodes || []).forEach((childNode, index) => {
+        const folderTitle = `${index + 1}-PRJ-${pr}-PD-${childNode.text}`;
+        const newFolder = Drive.Files.insert({
+          title: folderTitle,
+            mimeType: 'application/vnd.google-apps.folder',
+          parents: [{ id: parentFolderId }]
+          }, null, { supportsAllDrives: true });
+        createSubfoldersRecursively(childNode.nodes || [], newFolder.id);
+      });
+    }
+  });
+}
+
+/* Create subfolders recursively to support multiple depth levels */
+function createSubfoldersRecursively(nodes, parentFolderId) {
+  if (!nodes || nodes.length === 0) return;
+  
+  nodes.forEach(node => {
+    // إنشاء المجلد الحالي
+    const newFolder = Drive.Files.insert({
+      title: node.text,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [{ id: parentFolderId }]
+    }, null, { supportsAllDrives: true });
+    
+    // إنشاء المجلدات الفرعية بشكل متكرر
+    if (node.nodes && node.nodes.length > 0) {
+      createSubfoldersRecursively(node.nodes, newFolder.id);
+    }
+  });
+}
+
+/* Helper functions */
+function findProjectByName(projectName) {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false and title contains '${projectName}'`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 10 });
+  return res.items && res.items.length > 0 ? res.items[0] : null;
+}
+
+function hasPDFolder(projectFolderId) {
+  const q = `'${projectFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false and title contains 'PRJ-' and title contains '-PD'`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 1 });
+  return res.items && res.items.length > 0;
+}
+
+function extractPRNumber(projectTitle) {
+  const match = projectTitle.match(/PRJ-(\d+)/);
+  return match ? match[1] : null;
+}
+
+/* Helper to get root project folder by PR number and project name */
+function getProjectRootFolder(pr_number, projectName) {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  if (!rootDriveId) return null;
+
+  const folderName = `PRJ-${pr_number}-${projectName}`;
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false and title = '${folderName}'`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 1 });
+  return res.items && res.items.length > 0 ? res.items[0] : null;
+}
+
+/* Helper to get PD folder within a project root folder */
+function getPDFolder(projectRootFolderId, pr_number) {
+  const pdFolderName = `PRJ-${pr_number}-PD`;
+  const q = `'${projectRootFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false and title = '${pdFolderName}'`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 1 });
+  return res.items && res.items.length > 0 ? res.items[0] : null;
+}
+
+/* Apply policy recursively to folder and its immediate child folders (depth-limited to avoid huge runs) */
+function applyPolicyToFolderAndChildren(folderId, policy, depthLimit) {
+  depthLimit = depthLimit || 5;
+  // apply to root
+  applyAccessPolicyToFile(folderId, policy);
+  if (depthLimit <= 0) return;
+  // list children folders
+  const q = `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 500 });
+  const items = res.items || [];
+  items.forEach(child => {
+    // apply to child
+    applyAccessPolicyToFile(child.id, policy);
+    // recurse one level
+    applyPolicyToFolderAndChildren(child.id, policy, depthLimit - 1);
+  });
+}
+
+/* applyAccessPolicyToFile - uses Drive.Permissions.insert for groups */
+function applyAccessPolicyToFile(fileId, policy) {
+  try {
+    const groups = policy.groups || {};
+    Object.keys(groups).forEach(groupName => {
+      const role = groups[groupName].role || 'reader';
+      // We expect group emails as keys or we try to convert groupName to group email by appending domain
+      let groupEmail = groupName;
+      if (!groupEmail.includes('@')) {
+        // If groupName has spaces, replace with hyphen? We'll attempt domain @dtgsa.com by default
+        groupEmail = `${groupName.replace(/\s+/g, '-').toLowerCase()}@dtgsa.com`;
+      }
+      const body = {
+        type: 'group',
+        role: role,
+        value: groupEmail
+      };
+      try {
+        Drive.Permissions.insert(body, fileId, { supportsAllDrives: true, sendNotificationEmails: false });
+      } catch (e) {
+        // Log and continue
+        logRow('WARN', 'applyAccessPolicyToFile', `Failed to set permission ${groupEmail} on ${fileId}: ${e.message}`);
+      }
+    });
+
+    // Apply protection flags (for files that support it). Drive v2 supports copyRequiresWriterPermission when updating file metadata
+    try {
+      const patch = {};
+      if (policy.protection) {
+        if (typeof policy.protection.copyRequiresWriterPermission !== 'undefined') {
+          patch.copyRequiresWriterPermission = !!policy.protection.copyRequiresWriterPermission;
+        }
+        // viewersCanCopyContent is a Drive UI option; implement by keeping copyRequiresWriterPermission false/true accordingly.
+      }
+      if (Object.keys(patch).length) {
+        Drive.Files.patch(patch, fileId, { supportsAllDrives: true });
+      }
+    } catch (e) {
+      logRow('WARN', 'applyAccessPolicyToFile', `Failed to patch protection flags on ${fileId}: ${e.message}`);
+    }
+
+    return true;
+  } catch (err) {
+    logRow('ERROR', 'applyAccessPolicyToFile', err.message);
+    return false;
+  }
+}
+
+/* cronSyncRecent - apply access to recent projects only (new ones) */
+function cronSyncRecent() {
+  // Simple strategy: read last N folders in shared drive root and re-apply policy
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  if (!rootDriveId) throw new Error('Shared Drive ID not configured');
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 50, orderBy: 'createdDate desc' });
+  const items = res.items || [];
+  const policy = getAccessPolicy();
+  items.forEach(item => {
+    applyPolicyToFolderAndChildren(item.id, policy, 3); // depth 3
+  });
+  return 'Sync recent completed';
+}
+
+/* cronAuditAll - reapply to all projects (careful: may be heavy) */
+function cronAuditAll() {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  if (!rootDriveId) throw new Error('Shared Drive ID not configured');
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  // paginate
+  let pageToken = null;
+  const policy = getAccessPolicy();
+  do {
+    const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 100, pageToken: pageToken });
+    const items = res.items || [];
+    items.forEach(item => applyPolicyToFolderAndChildren(item.id, policy, 5));
+    pageToken = res.nextPageToken;
+  } while (pageToken);
+  return 'Audit complete';
+}
+
+/* getBiddingProjects - list available projects (simple list of root folder names) */
+function getBiddingProjects() {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  if (!rootDriveId) return [];
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 500 });
+  const items = res.items || [];
+  // return array of titles
+  return items.map(i => i.title || i.name);
+}
+
+/* getProjectsWithoutPD - list projects that don't have PD folder */
+function getProjectsWithoutPD() {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  if (!rootDriveId) return [];
+  
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 500 });
+  const items = res.items || [];
+  
+  const projectsWithoutPD = [];
+  items.forEach(project => {
+    // التحقق من وجود مجلد PD
+    if (!hasPDFolder(project.id)) {
+      projectsWithoutPD.push(project.title);
+    }
+  });
+  
+  return projectsWithoutPD;
+}
+
+/* Email functions */
+function getWebAppUrl() {
+  try { return ScriptApp.getService().getUrl() || ''; }
+  catch (e) { return ''; }
+}
+
+function getApprovalRecipient() {
+  // إن أردت تحديد مستلم ثابت، احفظه في Script Properties باسم APPROVER_EMAIL
+  var props = PropertiesService.getScriptProperties();
+  var cfg = props.getProperty('APPROVER_EMAIL');
+  if (cfg && cfg.indexOf('@') > -1) return cfg;
+  // افتراضيًا: إلى المستخدم الحالي
+  return (Session.getActiveUser().getEmail() || '').trim();
+}
+
+function renderHtmlFileToString(fileName, data) {
+  var t = HtmlService.createTemplateFromFile(fileName);
+  if (data && typeof data === 'object') {
+    Object.keys(data).forEach(function (k) { t[k] = data[k]; });
+  }
+  return t.evaluate().getContent();
+}
+
+function sendApprovalEmail(pr, projectName, phase) {
+  var to = getApprovalRecipient();
+  if (!to) throw new Error('No approval recipient (set APPROVER_EMAIL or ensure user email available).');
+
+  var base = getWebAppUrl();
+  var approveLink = base ? (base + '?action=approve&pr=' + encodeURIComponent('PRJ-' + pr)
+    + '&name=' + encodeURIComponent(projectName)
+    + '&phase=' + encodeURIComponent(phase)) : '';
+
+  var html = renderHtmlFileToString('EmailTemplate', {
+    projectNumber: 'PRJ-' + pr,
+    projectName: projectName,
+    phase: phase,
+    approveLink: approveLink
+  });
+
+  var subject = 'Approval Request: PRJ-' + pr + ' - ' + projectName;
+  // يتطلب scope gmail.send (موجود عندك في appsscript.json)
+  GmailApp.sendEmail(to, subject, 'Please view this email in HTML.', { htmlBody: html });
+}
+
+/* Apply config to all projects in shared drive */
+function applyConfigToAllProjectsSharedDrive() {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  if (!rootDriveId) throw new Error('Shared Drive ID not configured');
+  const template = getTemplateTree();
+  const accessPolicy = getAccessPolicy();
+  
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  let pageToken = null;
+  let count = 0;
+  
+  do {
+    const res = Drive.Files.list({ 
+      q: q, 
+      supportsAllDrives: true, 
+      includeItemsFromAllDrives: true, 
+      maxResults: 100, 
+      pageToken: pageToken 
+    });
+    const items = res.items || [];
+    items.forEach(item => {
+      applyPolicyToFolderAndChildren(item.id, accessPolicy, 5);
+      count++;
+    });
+    pageToken = res.nextPageToken;
+  } while (pageToken);
+  
+  return 'Applied to ' + count + ' projects';
+}
+
+/* Dynamic template management functions */
+function addFolderToTemplate(parentPath, folderName, folderType) {
+  const template = getTemplateTree();
+  const parentNode = getNodeByPath(template, parentPath);
+  
+  if (!parentNode) {
+    throw new Error('Parent node not found');
+  }
+  
+  if (!parentNode.nodes) {
+    parentNode.nodes = [];
+  }
+  
+  // إضافة المجلد الجديد
+  parentNode.nodes.push({
+    text: folderName,
+    nodes: [],
+    folderType: folderType || 'general'
+  });
+  
+  // حفظ القالب
+  saveConfig(template);
+  
+  // تطبيق على المشاريع السابقة
+  applyNewFolderToExistingProjects(parentPath, folderName, folderType);
+  
+  return 'Folder added to template and applied to existing projects';
+}
+
+function removeFolderFromTemplate(nodePath) {
+  const template = getTemplateTree();
+  const nodeToRemove = getNodeByPath(template, nodePath);
+  
+  if (!nodeToRemove) {
+    throw new Error('Node not found');
+  }
+  
+  // حذف من القالب
+  const parentPath = nodePath.slice(0, -1);
+  const parentNode = getNodeByPath(template, parentPath);
+  
+  if (parentNode && parentNode.nodes) {
+    const index = nodePath[nodePath.length - 1];
+    parentNode.nodes.splice(index, 1);
+  }
+  
+  // حفظ القالب
+  saveConfig(template);
+  
+  return 'Folder removed from template (existing projects unchanged)';
+}
+
+function renameFolderInTemplate(nodePath, newName) {
+  const template = getTemplateTree();
+  const nodeToRename = getNodeByPath(template, nodePath);
+  
+  if (!nodeToRename) {
+    throw new Error('Node not found');
+  }
+  
+  const oldName = nodeToRename.text;
+  
+  // فحص المجلدات الموجودة فعلياً بالاسم الحالي من Folder Structure
+  const existingFolders = checkExistingFoldersForRename(nodePath, oldName);
+  
+  if (existingFolders.length === 0) {
+    // لا توجد مجلدات لإعادة تسميتها، فقط تحديث القالب
+    nodeToRename.text = newName;
+    saveConfig(template);
+    return `✅ Folder renamed in template only. No existing folders found with name '${oldName}' to rename.`;
+  }
+  
+  nodeToRename.text = newName;
+  
+  // حفظ القالب
+  saveConfig(template);
+  
+  // تطبيق التغيير على المشاريع السابقة - البحث عن المجلدات الفعلية
+  const result = applyRenameToExistingProjectsByPath(nodePath, oldName, newName);
+  
+  return `✅ Folder renamed successfully!\n\n📁 Template: ${oldName} → ${newName}\n🔄 Shared Drive: ${existingFolders.length} folders updated\n\n${result}`;
+}
+
+/* Check existing folders before rename - Enhanced with position-based and fallback search */
+function checkExistingFoldersForRename(nodePath, folderName) {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 500 });
+  const projects = res.items || [];
+  
+  const existingFolders = [];
+  projects.forEach(project => {
+    try {
+      const pr = extractPRNumber(project.title);
+      if (!pr) return;
+      
+      // البحث بالموقع أولاً (الأولوية العالية)
+      let foldersToRename = mapTreeToDriveFolders(project.id, nodePath, pr);
+      
+      // إذا لم يجد بالموقع، استخدم البحث الاحتياطي بالاسم الجزئي
+      if (foldersToRename.length === 0) {
+        foldersToRename = findFoldersByPartialName(project.id, nodePath, folderName, pr);
+      }
+      
+      existingFolders.push(...foldersToRename);
+    } catch (e) {
+      // تجاهل الأخطاء في الفحص
+    }
+  });
+  
+  return existingFolders;
+}
+
+/* Fallback search by partial name matching */
+function findFoldersByPartialName(projectId, nodePath, folderName, pr) {
+  // تحديد نوع المجلد الرئيسي (RFP أو PD)
+  let mainFolderType;
+  if (nodePath[0] === 0) {
+    mainFolderType = 'RFP';
+  } else if (nodePath[0] === 1) {
+    mainFolderType = 'PD';
+  } else {
+    return [];
+  }
+  
+  // البحث عن المجلد الرئيسي
+  const projectFolders = getAllProjectFolders(projectId);
+  const mainFolder = projectFolders.find(folder => {
+    if (mainFolderType === 'RFP') {
+      return folder.title === `PRJ-${pr}-RFP`;
+    } else {
+      return folder.title === `PRJ-${pr}-PD`;
+    }
+  });
+  
+  if (!mainFolder) {
+    return [];
+  }
+  
+  // البحث عن المجلدات الفرعية
+  const subFolders = getAllProjectFolders(mainFolder.id);
+  
+  // البحث عن المجلدات التي تحتوي على الاسم الجزئي
+  const matchingFolders = subFolders.filter(folder => {
+    const match = folder.title.match(/^\d+-PRJ-\d+-(RFP|PD)-(.+)$/);
+    if (match) {
+      const actualFolderName = match[2];
+      // البحث بالاسم الجزئي (يحتوي على الاسم المطلوب)
+      return actualFolderName.includes(folderName) || folderName.includes(actualFolderName);
+    }
+    return false;
+  });
+  
+  return matchingFolders;
+}
+
+/* Get all folders in a parent folder recursively */
+function getAllProjectFolders(parentFolderId) {
+  const q = `'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 100 });
+  return res.items || [];
+}
+
+/* Find folders by actual name from template - Enhanced with better tree-to-drive mapping */
+function findFoldersByActualName(projectId, nodePath, folderName, pr) {
+  // البحث في المجلدات الفرعية للمشروع
+  const q = `'${projectId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 100 });
+  const folders = res.items || [];
+  
+  const foldersToRename = [];
+  folders.forEach(folder => {
+    // البحث عن المجلدات التي تحتوي على اسم المجلد الفعلي في المكان الصحيح
+    if (nodePath[0] === 0) { // Bidding/RFP
+      // البحث عن مجلدات RFP التي تحتوي على اسم المجلد الفعلي
+      if (folder.title.includes(`PRJ-${pr}-RFP`) && folder.title.includes(folderName)) {
+        foldersToRename.push(folder);
+      }
+    } else if (nodePath[0] === 1) { // Project Delivery/PD
+      // البحث عن مجلدات PD التي تحتوي على اسم المجلد الفعلي
+      if (folder.title.includes(`PRJ-${pr}-PD`) && folder.title.includes(folderName)) {
+        foldersToRename.push(folder);
+      }
+    }
+  });
+  
+  return foldersToRename;
+}
+
+/* Enhanced function to map tree structure to actual drive folders - Position-based search */
+function mapTreeToDriveFolders(projectId, nodePath, pr) {
+  // الحصول على الهيكل الكامل للمجلدات في المشروع
+  const projectFolders = getAllProjectFolders(projectId);
+  
+  // تحديد نوع المجلد الرئيسي (RFP أو PD)
+  let mainFolderType;
+  if (nodePath[0] === 0) {
+    mainFolderType = 'RFP';
+  } else if (nodePath[0] === 1) {
+    mainFolderType = 'PD';
+  } else {
+    return [];
+  }
+  
+  // البحث عن المجلد الرئيسي (RFP أو PD)
+  const mainFolder = projectFolders.find(folder => {
+    if (mainFolderType === 'RFP') {
+      return folder.title === `PRJ-${pr}-RFP`;
+    } else {
+      return folder.title === `PRJ-${pr}-PD`;
+    }
+  });
+  
+  if (!mainFolder) {
+    return [];
+  }
+  
+  // البحث عن المجلدات الفرعية داخل المجلد الرئيسي
+  const subFolders = getAllProjectFolders(mainFolder.id);
+  
+  // البحث عن المجلدات التي تطابق المسار في الشجرة
+  const targetFolders = findFoldersByTreePath(subFolders, nodePath, pr, mainFolderType);
+  
+  return targetFolders;
+}
+
+/* Find folders by tree path structure - Enhanced with position-based search */
+function findFoldersByTreePath(folders, nodePath, pr, mainFolderType) {
+  const targetFolders = [];
+  
+  // تحديد موقع المجلد في الشجرة (الفهرس)
+  const folderIndex = nodePath[nodePath.length - 1];
+  
+  folders.forEach(folder => {
+    // البحث بالموقع أولاً (الأولوية العالية)
+    if (matchesPositionInTree(folder, folderIndex, pr, mainFolderType)) {
+      targetFolders.push(folder);
+    }
+  });
+  
+  return targetFolders;
+}
+
+/* Check if folder matches position in tree structure */
+function matchesPositionInTree(folder, expectedIndex, pr, mainFolderType) {
+  // التحقق من التنسيق الصحيح للمجلد
+  let expectedPattern;
+  if (mainFolderType === 'RFP') {
+    expectedPattern = new RegExp(`^\\d+-PRJ-${pr}-RFP-.+$`);
+  } else {
+    expectedPattern = new RegExp(`^\\d+-PRJ-${pr}-PD-.+$`);
+  }
+  
+  if (!expectedPattern.test(folder.title)) {
+    return false;
+  }
+  
+  // استخراج رقم المجلد من العنوان
+  const match = folder.title.match(/^(\d+)-PRJ-\d+-(RFP|PD)-(.+)$/);
+  if (!match) {
+    return false;
+  }
+  
+  const folderNumber = parseInt(match[1]);
+  const folderName = match[3];
+  
+  // التحقق من أن رقم المجلد يطابق الموقع المتوقع في الشجرة
+  // نستخدم الفهرس + 1 لأن الترقيم يبدأ من 1
+  return folderNumber === (expectedIndex + 1);
+}
+
+/* Apply rename by searching for actual folders in Shared Drive */
+function applyRenameToExistingProjectsByPath(nodePath, oldName, newName) {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 500 });
+  const projects = res.items || [];
+  
+  let count = 0;
+  projects.forEach(project => {
+    try {
+      const pr = extractPRNumber(project.title);
+      if (!pr) return;
+      
+      // البحث بالموقع أولاً (الأولوية العالية)
+      let foldersToRename = mapTreeToDriveFolders(project.id, nodePath, pr);
+      
+      // إذا لم يجد بالموقع، استخدم البحث الاحتياطي بالاسم الجزئي
+      if (foldersToRename.length === 0) {
+        foldersToRename = findFoldersByPartialName(project.id, nodePath, oldName, pr);
+      }
+      
+      foldersToRename.forEach(folder => {
+        // إنشاء الاسم الجديد حسب نوع المجلد
+        let newTitle;
+        if (nodePath[0] === 0) { // Bidding/RFP
+          const match = folder.title.match(/^(\d+)-PRJ-(\d+)-RFP-(.+)$/);
+          if (match) {
+            const number = match[1];
+            const prNum = match[2];
+            const remainingName = match[3].replace(oldName, newName);
+            newTitle = `${number}-PRJ-${prNum}-RFP-${remainingName}`;
+          } else {
+            newTitle = folder.title.replace(oldName, newName);
+          }
+        } else if (nodePath[0] === 1) { // Project Delivery/PD
+          const match = folder.title.match(/^(\d+)-PRJ-(\d+)-PD-(.+)$/);
+          if (match) {
+            const number = match[1];
+            const prNum = match[2];
+            const remainingName = match[3].replace(oldName, newName);
+            newTitle = `${number}-PRJ-${prNum}-PD-${remainingName}`;
+          } else {
+            newTitle = folder.title.replace(oldName, newName);
+          }
+        } else {
+          newTitle = folder.title.replace(oldName, newName);
+        }
+        
+        Drive.Files.patch({ title: newTitle }, folder.id, { supportsAllDrives: true });
+        count++;
+      });
+    } catch (e) {
+      logRow('WARN', 'applyRenameToExistingProjectsByPath', `Failed to rename folder in project ${project.title}: ${e.message}`);
+    }
+  });
+  
+  return `Renamed folders in ${count} existing projects`;
+}
+
+/* Find folders by path and name in project */
+function findFoldersByPathAndName(projectId, nodePath, oldName, pr) {
+  // البحث في المجلدات الفرعية للمشروع
+  const q = `'${projectId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 100 });
+  const folders = res.items || [];
+  
+  const foldersToRename = [];
+  folders.forEach(folder => {
+    // البحث عن المجلدات التي تحتوي على الاسم القديم في المكان الصحيح
+    if (nodePath[0] === 0) { // Bidding/RFP
+      // البحث عن مجلدات RFP التي تحتوي على الاسم القديم
+      if (folder.title.includes(`PRJ-${pr}-RFP`) && folder.title.includes(oldName)) {
+        foldersToRename.push(folder);
+      }
+    } else if (nodePath[0] === 1) { // Project Delivery/PD
+      // البحث عن مجلدات PD التي تحتوي على الاسم القديم
+      if (folder.title.includes(`PRJ-${pr}-PD`) && folder.title.includes(oldName)) {
+        foldersToRename.push(folder);
+      }
+    }
+  });
+  
+  return foldersToRename;
+}
+
+function getNodeByPath(template, path) {
+  let current = template;
+  for (let i = 0; i < path.length; i++) {
+    if (!current[path[i]]) return null;
+    current = current[path[i]];
+    if (i < path.length - 1 && current.nodes) {
+      current = current.nodes;
+    }
+  }
+  return current;
+}
+
+function applyNewFolderToExistingProjects(parentPath, folderName, folderType) {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 500 });
+  const projects = res.items || [];
+  
+  let count = 0;
+  projects.forEach(project => {
+    try {
+      const pr = extractPRNumber(project.title);
+      if (!pr) return;
+      
+      // البحث عن المجلد المناسب لإضافة المجلد الجديد
+      const targetFolder = findTargetFolderForNewSubfolder(project.id, parentPath, pr);
+      if (targetFolder) {
+        // تحديد رقم المجلد الجديد
+        const existingFolders = getFoldersInParent(targetFolder.id);
+        const nextNumber = getNextFolderNumber(existingFolders);
+        
+        // تحديد نوع المجلد ونوع التسمية
+        let folderTitle;
+        if (folderType === 'RFP') {
+          folderTitle = `${nextNumber}-PRJ-${pr}-RFP-${folderName}`;
+        } else if (folderType === 'PD') {
+          folderTitle = `${nextNumber}-PRJ-${pr}-PD-${folderName}`;
+        } else {
+          folderTitle = `${nextNumber}- ${folderName}`;
+        }
+        
+        // إنشاء المجلد الجديد مع المجلدات الفرعية
+        const newFolder = Drive.Files.insert({
+          title: folderTitle,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [{ id: targetFolder.id }]
+        }, null, { supportsAllDrives: true });
+        
+        // إضافة المجلدات الفرعية إذا كانت موجودة في القالب
+        const template = getTemplateTree();
+        const templateNode = findTemplateNodeByPath(template, parentPath);
+        if (templateNode && templateNode.nodes) {
+          const newNode = templateNode.nodes.find(n => n.text === folderName);
+          if (newNode && newNode.nodes) {
+            createSubfoldersRecursively(newNode.nodes, newFolder.id);
+          }
+        }
+        
+        count++;
+      }
+    } catch (e) {
+      logRow('WARN', 'applyNewFolderToExistingProjects', `Failed to add folder to project ${project.title}: ${e.message}`);
+    }
+  });
+  
+  return `Added folder to ${count} existing projects`;
+}
+
+/* Get folders in a parent folder */
+function getFoldersInParent(parentFolderId) {
+  const q = `'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 100 });
+  return res.items || [];
+}
+
+/* Get next folder number based on existing numbered folders */
+function getNextFolderNumber(existingFolders) {
+  let maxNumber = 0;
+  existingFolders.forEach(folder => {
+    const match = folder.title.match(/^(\d+)-/);
+    if (match) {
+      const number = parseInt(match[1]);
+      if (number > maxNumber) {
+        maxNumber = number;
+      }
+    }
+  });
+  return maxNumber + 1;
+}
+
+/* Find template node by path */
+function findTemplateNodeByPath(template, path) {
+  let current = template;
+  for (let i = 0; i < path.length; i++) {
+    if (!current[path[i]]) return null;
+    current = current[path[i]];
+    if (i < path.length - 1 && current.nodes) {
+      current = current.nodes;
+    }
+  }
+  return current;
+}
+
+function applyRenameToExistingProjects(nodePath, oldName, newName) {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 500 });
+  const projects = res.items || [];
+  
+  let count = 0;
+  projects.forEach(project => {
+    try {
+      const pr = extractPRNumber(project.title);
+      if (!pr) return;
+      
+      // البحث عن المجلدات التي تحتوي على الاسم القديم في المشروع
+      const foldersToRename = findFoldersToRenameInProject(project.id, oldName);
+      foldersToRename.forEach(folder => {
+        // استبدال الاسم القديم بالجديد في العنوان
+        let newTitle = folder.title.replace(oldName, newName);
+        
+        // إذا كان المجلد مرقماً، تأكد من الحفاظ على الترقيم
+        const match = folder.title.match(/^(\d+)-PRJ-(\d+)-(RFP|PD)-(.+)$/);
+        if (match) {
+          const number = match[1];
+          const prNum = match[2];
+          const type = match[3];
+          const remainingName = match[4].replace(oldName, newName);
+            newTitle = `${number}-PRJ-${prNum}-${type}-${remainingName}`;
+        }
+        
+        Drive.Files.patch({ title: newTitle }, folder.id, { supportsAllDrives: true });
+        count++;
+      });
+    } catch (e) {
+      logRow('WARN', 'applyRenameToExistingProjects', `Failed to rename folder in project ${project.title}: ${e.message}`);
+    }
+  });
+  
+  return `Renamed folders in ${count} existing projects`;
+}
+
+function findTargetFolderForNewSubfolder(projectId, parentPath, pr) {
+  // البحث عن المجلد المناسب حسب المسار
+  const q = `'${projectId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 100 });
+  const folders = res.items || [];
+  
+  // البحث عن مجلد RFP أو PD حسب المسار
+  for (let i = 0; i < parentPath.length; i++) {
+    const pathNode = parentPath[i];
+    // منطق مبسط للبحث عن المجلد المناسب
+    if (pathNode === 0) { // Bidding
+      return folders.find(f => f.title.includes(`PRJ-${pr}-RFP`) && !f.title.includes('-'));
+    } else if (pathNode === 1) { // Project Delivery
+      return folders.find(f => f.title.includes(`PRJ-${pr}-PD`) && !f.title.includes('-'));
+    }
+  }
+  
+  return null;
+}
+
+function findFoldersToRename(projectId, oldName, pr) {
+  // البحث في جميع المجلدات الفرعية للمشروع
+  const q = `'${projectId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 100 });
+  const folders = res.items || [];
+  
+  // البحث عن المجلدات التي تحتوي على الاسم القديم
+  const foldersToRename = [];
+  folders.forEach(folder => {
+    if (folder.title.includes(oldName)) {
+      foldersToRename.push(folder);
+    }
+  });
+  
+  return foldersToRename;
+}
+
+/* UI Helper functions for template management */
+function addFolderToTemplateFromUI(parentPath, folderName, folderType) {
+  try {
+    return addFolderToTemplate(parentPath, folderName, folderType);
+  } catch (err) {
+    logRow('ERROR', 'addFolderToTemplateFromUI', err.message);
+    throw err;
+  }
+}
+
+function removeFolderFromTemplateFromUI(nodePath) {
+  try {
+    return removeFolderFromTemplate(nodePath);
+  } catch (err) {
+    logRow('ERROR', 'removeFolderFromTemplateFromUI', err.message);
+    throw err;
+  }
+}
+
+function renameFolderInTemplateFromUI(nodePath, newName) {
+  try {
+    return renameFolderInTemplate(nodePath, newName);
+  } catch (err) {
+    logRow('ERROR', 'renameFolderInTemplateFromUI', err.message);
+    throw err;
+  }
+}
+
+/* Scan and check for duplicate projects */
+function scanForDuplicateProjects() {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  if (!rootDriveId) return { duplicates: [], summary: 'Shared Drive ID not configured' };
+  
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 500 });
+  const items = res.items || [];
+  
+  const projectMap = new Map();
+  const duplicates = [];
+  
+  items.forEach(item => {
+    const title = item.title || '';
+    const match = title.match(/PRJ-(\d+)-(.+)$/);
+    if (match) {
+      const prNumber = match[1];
+      const projectName = match[2].toLowerCase();
+      
+      if (projectMap.has(projectName)) {
+        duplicates.push({
+          projectName: match[2],
+          projects: [projectMap.get(projectName), { pr: prNumber, title: title, id: item.id }]
+        });
+      } else {
+        projectMap.set(projectName, { pr: prNumber, title: title, id: item.id });
+      }
+    }
+  });
+  
+  return {
+    duplicates: duplicates,
+    summary: `Found ${duplicates.length} duplicate project names out of ${items.length} total projects`,
+    totalProjects: items.length
+  };
+}
+
+/* Update existing project folder names to new format */
+function updateExistingProjectFolderNames() {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  if (!rootDriveId) return { updated: 0, errors: 0, summary: 'Shared Drive ID not configured' };
+  
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 500 });
+  const projects = res.items || [];
+  
+  let updated = 0;
+  let errors = 0;
+  
+  projects.forEach(project => {
+    try {
+      const pr = extractPRNumber(project.title);
+      if (!pr) return;
+      
+      // البحث عن مجلدات RFP و PD في المشروع
+      const projectFolders = getFoldersInParent(project.id);
+      
+      projectFolders.forEach(folder => {
+        try {
+          let newTitle = folder.title;
+          
+          // تحديث مجلدات RFP
+          if (folder.title.includes('PR-') && folder.title.includes('RFP') && !folder.title.match(/^\d+-PRJ-/)) {
+            const match = folder.title.match(/PR-(\d+)-RFP-(.+)$/);
+            if (match) {
+              const prNum = match[1];
+              const folderName = match[2];
+              // إعادة ترقيم
+              const existingFolders = getFoldersInParent(folder.parents[0].id);
+              const nextNumber = getNextFolderNumberForRename(existingFolders, folder.id);
+              newTitle = `${nextNumber}-PRJ-${prNum}-RFP-${folderName}`;
+            }
+          }
+          
+          // تحديث مجلدات PD - تحويل من PD-PR-XXX إلى PRJ-XXX-PD
+          if (folder.title.includes('PD-PR-') && !folder.title.match(/^\d+-PRJ-/)) {
+            const match = folder.title.match(/PD-PR-(\d+)-(.+)$/);
+            if (match) {
+              const prNum = match[1];
+              const folderName = match[2];
+              // إعادة ترقيم
+              const existingFolders = getFoldersInParent(folder.parents[0].id);
+              const nextNumber = getNextFolderNumberForRename(existingFolders, folder.id);
+              newTitle = `${nextNumber}-PRJ-${prNum}-PD-${folderName}`;
+            }
+          }
+          
+          // تحديث المجلدات الرئيسية RFP و PD
+          // PR-XXX-RFP → PRJ-XXX-RFP
+          if (folder.title.match(/^PR-(\d+)-RFP$/)) {
+            const match = folder.title.match(/^PR-(\d+)-RFP$/);
+            if (match) {
+              newTitle = `PRJ-${match[1]}-RFP`;
+            }
+          }
+          // PD-PR-XXX → PRJ-XXX-PD
+          else if (folder.title.match(/^PD-PR-(\d+)$/)) {
+            const match = folder.title.match(/^PD-PR-(\d+)$/);
+            if (match) {
+              newTitle = `PRJ-${match[1]}-PD`;
+            }
+          }
+          
+          // تطبيق التغيير إذا كان مختلفاً
+          if (newTitle !== folder.title) {
+            Drive.Files.patch({ title: newTitle }, folder.id, { supportsAllDrives: true });
+            updated++;
+          }
+        } catch (e) {
+          errors++;
+          logRow('WARN', 'updateExistingProjectFolderNames', `Failed to update folder ${folder.title}: ${e.message}`);
+        }
+      });
+    } catch (e) {
+      errors++;
+      logRow('WARN', 'updateExistingProjectFolderNames', `Failed to process project ${project.title}: ${e.message}`);
+    }
+  });
+  
+  return {
+    updated: updated,
+    errors: errors,
+    summary: `Updated ${updated} folders, ${errors} errors`
+  };
+}
+
+/* Get next folder number for rename (excluding current folder) */
+function getNextFolderNumberForRename(existingFolders, excludeFolderId) {
+  let maxNumber = 0;
+  existingFolders.forEach(folder => {
+    if (folder.id === excludeFolderId) return; // تجاهل المجلد الحالي
+    
+    const match = folder.title.match(/^(\d+)-(PRJ|PR)-/);
+    if (match) {
+      const number = parseInt(match[1]);
+      if (number > maxNumber) {
+        maxNumber = number;
+      }
+    }
+  });
+  return maxNumber + 1;
+}
+
+/* Test function to debug tree-to-drive mapping - Enhanced with position-based search */
+function testTreeToDriveMapping(nodePath, folderName) {
+  const rootDriveId = ROOT_SHARED_DRIVE_ID;
+  const q = `'${rootDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  
+  const res = Drive.Files.list({ q: q, supportsAllDrives: true, includeItemsFromAllDrives: true, maxResults: 10 });
+  const projects = res.items || [];
+  
+  const results = [];
+  projects.forEach(project => {
+    try {
+      const pr = extractPRNumber(project.title);
+      if (!pr) return;
+      
+      // البحث بالموقع أولاً
+      const foldersByPosition = mapTreeToDriveFolders(project.id, nodePath, pr);
+      
+      // البحث الاحتياطي بالاسم الجزئي
+      const foldersByPartialName = findFoldersByPartialName(project.id, nodePath, folderName, pr);
+      
+      // إضافة معلومات تشخيصية
+      const projectFolders = getAllProjectFolders(project.id);
+      const mainFolderType = nodePath[0] === 0 ? 'RFP' : 'PD';
+      const mainFolder = projectFolders.find(folder => {
+        if (mainFolderType === 'RFP') {
+          return folder.title === `PRJ-${pr}-RFP`;
+        } else {
+          return folder.title === `PRJ-${pr}-PD`;
+        }
+      });
+      
+      let subFolders = [];
+      if (mainFolder) {
+        subFolders = getAllProjectFolders(mainFolder.id);
+      }
+      
+      results.push({
+        project: project.title,
+        pr: pr,
+        nodePath: nodePath,
+        folderName: folderName,
+        searchMethod: foldersByPosition.length > 0 ? 'Position-based' : 'Partial name',
+        foundFolders: foldersByPosition.length > 0 ? foldersByPosition.map(f => f.title) : foldersByPartialName.map(f => f.title),
+        allFolders: foldersByPosition.map(f => f.title),
+        fallbackFolders: foldersByPartialName.map(f => f.title),
+        debug: {
+          mainFolder: mainFolder ? mainFolder.title : 'Not found',
+          subFolders: subFolders.map(f => f.title),
+          expectedIndex: nodePath[nodePath.length - 1],
+          mainFolderType: mainFolderType
+        }
+      });
+    } catch (e) {
+      results.push({
+        project: project.title,
+        error: e.message
+      });
+    }
+  });
+  
+  return results;
+}
+
+/* Generate removal log based on selected features */
+function generateFeatureRemovalLog(selectedFeatures) {
+  // Feature to function mapping
+  const featureMap = {
+    // Project Management
+    'create-rfp': ['createRFPProject', 'requestRFPApproval', 'getNextPRNumber', 'isProjectNameExists', 'getProjectRootFolder', 'getRFPFolder'],
+    'create-pd': ['createPDFolder', 'requestPDApproval', 'hasPDFolder', 'getPDFolder'],
+    'approval-system': ['doGet', 'renderTemplate', 'sendApprovalEmail', 'getWebAppUrl', 'getApprovalRecipient'],
+    'pr-number': ['getNextPRNumber', 'extractPRNumber'],
+    'check-duplicates': ['scanForDuplicateProjects', 'findProjectByName'],
+    'list-projects': ['getBiddingProjects', 'getProjectsWithoutPD'],
+    
+    // Template Management
+    'folder-template': ['getTemplateTree', 'saveConfig', 'resetTemplateConfig'],
+    'add-folder': ['addFolderToTemplate', 'addFolderToTemplateFromUI', 'applyNewFolderToExistingProjects', 'findTargetFolderForNewSubfolder', 'getNextFolderNumber'],
+    'remove-folder': ['removeFolderFromTemplate', 'removeFolderFromTemplateFromUI'],
+    'rename-folder': ['renameFolderInTemplate', 'renameFolderInTemplateFromUI', 'applyRenameToExistingProjects', 'applyRenameToExistingProjectsByPath', 'checkExistingFoldersForRename', 'findFoldersByPartialName', 'findFoldersByActualName', 'findFoldersByPathAndName', 'findFoldersToRename', 'findFoldersToRenameInProject', 'mapTreeToDriveFolders', 'getNextFolderNumberForRename'],
+    'save-template': ['saveConfig', 'resetTemplateConfig'],
+    'apply-to-existing': ['applyConfigToAllProjectsSharedDrive', 'applyNewFolderToExistingProjects', 'applyRenameToExistingProjects'],
+    
+    // Permissions & Security
+    'limited-access': ['applyLimitedAccessToFolder', 'applyLimitedAccessToProject', 'applyLimitedAccessToPhaseFolder', 'applyLimitedAccessToSubfolders', 'applyLimitedAccessToAllProjects'],
+    'group-permissions': ['applyLimitedAccessToFolder', 'getGroupsMap', 'normalizeGroupEmail'],
+    'apply-permissions': ['applyPermissionsToFolder', 'resolveFolderByPath'],
+    'apply-to-all': ['applyLimitedAccessToAllProjects'],
+    'test-permissions': ['testFolderPermissions'],
+    'access-policy': ['getAccessPolicy', 'saveAccessPolicy', 'collectGroupsFromTemplate'],
+    'domain-sharing': ['shareFolderWithDomain', 'shareAllFoldersRecursively', 'shareAllFoldersRecursivelyWithTemplate'],
+    
+    // Groups & Members
+    'list-users': ['getAllDomainUsers'],
+    'users-with-groups': ['getAllUsersWithGroups'],
+    'manage-members': ['listGroupMembers', 'addGroupMember', 'removeGroupMember'],
+    'list-groups': ['getGroupsMap', 'listGroupMembers'],
+    'group-roles': ['getAccessPolicy', 'saveAccessPolicy'],
+    
+    // File Restrictions
+    'block-files': ['getFileRestrictions', 'addBlockedExtension', 'removeBlockedExtension', 'isFileBlocked', 'saveFileRestrictions'],
+    'allow-files': ['getFileRestrictions', 'addAllowedExtension', 'removeAllowedExtension', 'setWhitelistEnabled', 'saveFileRestrictions'],
+    'file-monitoring': ['monitorAndDeleteBlockedFiles', 'getFileMonitoringStatus'],
+    'monitoring-trigger': ['setupFileMonitoring', 'getFileMonitoringStatus'],
+    
+    // Logging
+    'log-system': ['logRow'],
+    'view-logs': ['getLogs', 'getRecentLogs'],
+    
+    // Email
+    'approval-email': ['sendApprovalEmail', 'renderHtmlFileToString', 'getWebAppUrl'],
+    'email-recipients': ['getApprovalRecipients', 'saveApprovalRecipients', 'getApprovalRecipient'],
+    'email-templates': ['renderHtmlFileToString', 'renderTemplate'],
+    
+    // Utilities
+    'scan-duplicates': ['scanForDuplicateProjects'],
+    'update-names': ['updateExistingProjectFolderNames'],
+    'sync-recent': ['cronSyncRecent'],
+    'audit-all': ['cronAuditAll'],
+    'test-mapping': ['testTreeToDriveMapping']
+  };
+  
+  // Helper functions that are used by multiple features (should be kept)
+  const coreHelpers = [
+    'doGet', 'renderTemplate', 'include', 'getAuthInfo',
+    'getDefaultGroupDomain', 'normalizeGroupEmail',
+    'getTemplateTree', 'getTemplatePathNodes', 'getFolderTypeFromPath',
+    'buildNumberedFolderTitle', 'parseNumberedFolder',
+    'getFoldersInParent', 'getProjectRootFolder',
+    'getRFPFolder', 'getPDFolder',
+    'createSubfoldersRecursively', 'createSubfoldersFromTemplate',
+    'listDescendantFolders', 'getAllProjectFolders',
+    'findNodeByPath', 'findTemplateNodeByPath', 'getNodeByPath',
+    'resolveFolderByPath', 'requestApproval'
+  ];
+  
+  // Collect all functions to keep
+  const functionsToKeep = new Set(coreHelpers);
+  selectedFeatures.forEach(feature => {
+    if (featureMap[feature]) {
+      featureMap[feature].forEach(func => functionsToKeep.add(func));
+    }
+  });
+  
+  // Collect all functions to remove
+  const allFunctions = new Set();
+  Object.values(featureMap).forEach(funcs => {
+    funcs.forEach(func => allFunctions.add(func));
+  });
+  
+  const functionsToRemove = Array.from(allFunctions).filter(func => !functionsToKeep.has(func));
+  
+  // Generate log
+  let log = '=== FEATURE REMOVAL LOG ===\n\n';
+  log += `Generated: ${new Date().toISOString()}\n`;
+  log += `Selected Features: ${selectedFeatures.length}\n`;
+  log += `Functions to Keep: ${functionsToKeep.size}\n`;
+  log += `Functions to Remove: ${functionsToRemove.length}\n\n`;
+  
+  log += '=== SELECTED FEATURES ===\n';
+  selectedFeatures.forEach(feature => {
+    log += `✓ ${feature}\n`;
+    if (featureMap[feature]) {
+      featureMap[feature].forEach(func => {
+        log += `  → ${func}\n`;
+      });
+    }
+  });
+  
+  log += '\n=== FUNCTIONS TO REMOVE ===\n';
+  if (functionsToRemove.length === 0) {
+    log += 'None - all functions are needed for selected features.\n';
+  } else {
+    functionsToRemove.sort().forEach(func => {
+      log += `✗ ${func}\n`;
+    });
+  }
+  
+  log += '\n=== FUNCTIONS TO KEEP ===\n';
+  Array.from(functionsToKeep).sort().forEach(func => {
+    log += `✓ ${func}\n`;
+  });
+  
+  log += '\n=== FILES TO CHECK ===\n';
+  log += 'Code.gs - Check and remove unused functions listed above\n';
+  log += 'GroupsAndAccess.gs - Check if getAllDomainUsers, getAllUsersWithGroups, getGroupsMap, listGroupMembers, addGroupMember, removeGroupMember are needed\n';
+  log += 'Ui_Combined.html - Check and remove unused UI functions and buttons\n';
+  log += 'EmailTemplate.html - Check if used by approval-email feature\n';
+  log += 'ApprovalSuccess.html - Check if used by approval-system feature\n';
+  
+  log += '\n=== NOTES ===\n';
+  log += '1. Review each function before removing - some may be used indirectly\n';
+  log += '2. Check for function calls in UI (Ui_Combined.html)\n';
+  log += '3. Check for function calls in other files\n';
+  log += '4. Test the application after removing code\n';
+  log += '5. Keep helper functions that are used by multiple features\n';
+  
+  return log;
+}
