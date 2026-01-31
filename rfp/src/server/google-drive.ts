@@ -240,15 +240,19 @@ export async function isProtectedPermission(
 }
 
 /**
- * Get all projects (top-level folders in Shared Drive)
+ * Get all projects (folders in the Projects folder)
  */
 export async function getAllProjects(): Promise<drive_v3.Schema$File[]> {
     const drive = await getDriveClient();
 
-    console.log('getAllProjects: Starting with sharedDriveId:', APP_CONFIG.sharedDriveId);
+    // Use projectsFolderId as the parent for project folders
+    const parentFolderId = APP_CONFIG.projectsFolderId;
+
+    console.log('getAllProjects: Starting with projectsFolderId:', parentFolderId);
+    console.log('getAllProjects: sharedDriveId:', APP_CONFIG.sharedDriveId);
 
     const response = await drive.files.list({
-        q: `'${APP_CONFIG.sharedDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        q: `'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
         driveId: APP_CONFIG.sharedDriveId,

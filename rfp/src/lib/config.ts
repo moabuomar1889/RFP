@@ -24,6 +24,7 @@ export const SUPABASE_CONFIG = {
 // App configuration
 export const APP_CONFIG = {
     sharedDriveId: process.env.SHARED_DRIVE_ID!,
+    projectsFolderId: process.env.PROJECTS_FOLDER_ID || process.env.SHARED_DRIVE_ID!, // Where projects are stored
     adminEmail: process.env.ADMIN_EMAIL || 'mo.abuomar@dtgsa.com',
     tokenEncryptionKey: process.env.TOKEN_ENCRYPTION_KEY!,
 };
