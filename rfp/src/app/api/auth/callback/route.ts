@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { APP_CONFIG } from '@/lib/config';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { encrypt } from '@/lib/crypto';
 
@@ -62,61 +61,34 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(new URL('/login?error=unauthorized', request.url));
         }
 
-        // Prepare token data - handle null refresh_token (subsequent logins may not return it)
         const supabase = getSupabaseAdmin();
 
-        // First, check if user already exists
-        const { data: existingUser } = await supabase
-            .schema('rfp')
-            .from('user_tokens')
-            .select('refresh_token_encrypted')
-            .eq('email', email)
-            .single();
-
-        const tokenData: any = {
-            email,
-            access_token_encrypted: encrypt(tokens.access_token!),
-            token_expiry: tokens.expiry_date
+        // Use RPC function to store tokens (bypasses schema issue)
+        console.log('[Auth Callback] Storing tokens via RPC...');
+        const { error: rpcError } = await supabase.rpc('upsert_user_token', {
+            p_email: email,
+            p_access_token: encrypt(tokens.access_token!),
+            p_refresh_token: tokens.refresh_token ? encrypt(tokens.refresh_token) : null,
+            p_token_expiry: tokens.expiry_date
                 ? new Date(tokens.expiry_date).toISOString()
                 : null,
-            updated_at: new Date().toISOString(),
-        };
+        });
 
-        // Only update refresh token if we received a new one
-        if (tokens.refresh_token) {
-            tokenData.refresh_token_encrypted = encrypt(tokens.refresh_token);
-        } else if (!existingUser) {
-            // First time login but no refresh token - this is an error
-            console.error('[Auth Callback] No refresh token on first login');
-            return NextResponse.redirect(new URL('/login?error=no_refresh_token', request.url));
-        }
-        // If no new refresh token and user exists, keep the old one
-
-        // Store encrypted tokens with proper error checking
-        console.log('[Auth Callback] Storing tokens...', { email, hasAccess: !!tokenData.access_token_encrypted });
-        const { error: upsertError } = await supabase
-            .schema('rfp')
-            .from('user_tokens')
-            .upsert(tokenData, { onConflict: 'email' });
-
-        if (upsertError) {
-            console.error('[Auth Callback] Token storage error:', JSON.stringify(upsertError));
-            const errorMsg = encodeURIComponent(upsertError.message || 'unknown');
+        if (rpcError) {
+            console.error('[Auth Callback] Token storage error:', JSON.stringify(rpcError));
+            const errorMsg = encodeURIComponent(rpcError.message || 'unknown');
             return NextResponse.redirect(new URL(`/login?error=storage_failed&detail=${errorMsg}`, request.url));
         }
         console.log('[Auth Callback] Tokens stored successfully');
 
-        // Log audit (use type assertion for schema compatibility)
-        await supabase
-            .schema('rfp')
-            .from('audit_log')
-            .insert({
-                action: 'user_login',
-                entity_type: 'user',
-                entity_id: email,
-                details: { ip: request.headers.get('x-forwarded-for') },
-                performed_by: email,
-            } as any);
+        // Log audit via RPC
+        await supabase.rpc('log_audit', {
+            p_action: 'user_login',
+            p_entity_type: 'user',
+            p_entity_id: email,
+            p_details: { ip: request.headers.get('x-forwarded-for') },
+            p_performed_by: email,
+        });
 
         // Set session cookie and redirect to dashboard
         const response = NextResponse.redirect(new URL('/dashboard', request.url));
@@ -134,4 +106,5 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL('/login?error=auth_failed', request.url));
     }
 }
+
 

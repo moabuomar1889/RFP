@@ -11,15 +11,11 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        // Verify token exists and is valid
-        const { data: tokenData } = await getSupabaseAdmin()
-            .schema('rfp')
-            .from('user_tokens')
-            .select('email, token_expiry, updated_at')
-            .eq('email', session.value)
-            .single();
+        // Verify token exists and is valid via RPC
+        const { data: tokenData, error } = await getSupabaseAdmin()
+            .rpc('get_user_token', { p_email: session.value });
 
-        if (!tokenData) {
+        if (error || !tokenData) {
             return NextResponse.json({ authenticated: false, user: null });
         }
 
@@ -35,3 +31,4 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ authenticated: false, user: null });
     }
 }
+
