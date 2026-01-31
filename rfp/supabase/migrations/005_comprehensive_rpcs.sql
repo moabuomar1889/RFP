@@ -3,6 +3,23 @@
 -- Run this in Supabase SQL Editor after running previous migrations
 -- ============================================================================
 
+-- Drop existing functions first to allow signature changes
+DROP FUNCTION IF EXISTS public.get_projects(TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_pending_requests();
+DROP FUNCTION IF EXISTS public.get_request_history(INTEGER);
+DROP FUNCTION IF EXISTS public.create_project_request(TEXT, TEXT, TEXT, UUID);
+DROP FUNCTION IF EXISTS public.approve_request(UUID, TEXT);
+DROP FUNCTION IF EXISTS public.reject_request(UUID, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_audit_log(INTEGER);
+DROP FUNCTION IF EXISTS public.log_audit(TEXT, TEXT, TEXT, TEXT, JSONB);
+DROP FUNCTION IF EXISTS public.get_active_template();
+DROP FUNCTION IF EXISTS public.save_template(JSONB, TEXT);
+DROP FUNCTION IF EXISTS public.get_dashboard_stats();
+DROP FUNCTION IF EXISTS public.upsert_project(TEXT, TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.get_project_by_id(UUID);
+DROP FUNCTION IF EXISTS public.get_app_setting(TEXT);
+DROP FUNCTION IF EXISTS public.set_app_setting(TEXT, JSONB, TEXT);
+
 -- ============================================================================
 -- PROJECTS RPCs
 -- ============================================================================
