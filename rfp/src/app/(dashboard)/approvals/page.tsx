@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,84 +13,103 @@ import {
     FolderPlus,
     ArrowUpCircle,
     AlertCircle,
+    Loader2,
+    RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
 
-// Mock data for pending requests
-const mockRequests = [
-    {
-        id: "1",
-        request_type: "new_project",
-        project_name: "King Abdullah Financial District",
-        pr_number: "PR-035",
-        status: "pending",
-        requested_by: "ahmad@dtgsa.com",
-        requested_at: "2026-01-27T10:00:00Z",
-    },
-    {
-        id: "2",
-        request_type: "new_project",
-        project_name: "Riyadh Metro Station",
-        pr_number: "PR-036",
-        status: "pending",
-        requested_by: "omar@dtgsa.com",
-        requested_at: "2026-01-27T09:30:00Z",
-    },
-    {
-        id: "3",
-        request_type: "upgrade_to_pd",
-        project_name: "Al Madinah Tower",
-        pr_number: "PR-001",
-        project_id: "abc123",
-        status: "pending",
-        requested_by: "ahmed@dtgsa.com",
-        requested_at: "2026-01-27T08:00:00Z",
-    },
-];
-
-const mockHistory = [
-    {
-        id: "4",
-        request_type: "new_project",
-        project_name: "Jeddah Waterfront",
-        pr_number: "PR-034",
-        status: "approved",
-        requested_by: "sara@dtgsa.com",
-        requested_at: "2026-01-26T14:00:00Z",
-        reviewed_by: "mo.abuomar@dtgsa.com",
-        reviewed_at: "2026-01-26T15:00:00Z",
-    },
-    {
-        id: "5",
-        request_type: "new_project",
-        project_name: "Test Project",
-        pr_number: "PR-033",
-        status: "rejected",
-        requested_by: "test@dtgsa.com",
-        requested_at: "2026-01-25T10:00:00Z",
-        reviewed_by: "mo.abuomar@dtgsa.com",
-        reviewed_at: "2026-01-25T11:00:00Z",
-        rejection_reason: "Duplicate project name",
-    },
-];
+interface Request {
+    id: string;
+    request_type: string;
+    project_name: string;
+    pr_number: string | null;
+    project_id: string | null;
+    status: string;
+    requested_by: string;
+    requested_at: string;
+    reviewed_by?: string;
+    reviewed_at?: string;
+    rejection_reason?: string;
+}
 
 export default function ApprovalsPage() {
-    const [pendingRequests, setPendingRequests] = useState(mockRequests);
-    const [historyRequests] = useState(mockHistory);
+    const [loading, setLoading] = useState(true);
+    const [pendingRequests, setPendingRequests] = useState<Request[]>([]);
+    const [historyRequests, setHistoryRequests] = useState<Request[]>([]);
     const [rejectReason, setRejectReason] = useState("");
     const [rejectingId, setRejectingId] = useState<string | null>(null);
+    const [processingId, setProcessingId] = useState<string | null>(null);
+
+    const fetchRequests = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch('/api/requests');
+            const data = await res.json();
+
+            if (data.success) {
+                setPendingRequests(data.pending || []);
+                setHistoryRequests(data.history || []);
+            }
+        } catch (error) {
+            console.error('Error fetching requests:', error);
+            toast.error('Failed to load requests');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchRequests();
+    }, []);
 
     const handleApprove = async (id: string) => {
-        // In real implementation, call API
-        setPendingRequests(prev => prev.filter(r => r.id !== id));
-        // Show success toast
+        try {
+            setProcessingId(id);
+            const res = await fetch(`/api/requests/${id}/approve`, {
+                method: 'POST',
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                toast.success('Request approved successfully');
+                fetchRequests();
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            console.error('Error approving request:', error);
+            toast.error('Failed to approve request');
+        } finally {
+            setProcessingId(null);
+        }
     };
 
     const handleReject = async (id: string) => {
         if (!rejectReason.trim()) return;
-        // In real implementation, call API
-        setPendingRequests(prev => prev.filter(r => r.id !== id));
-        setRejectingId(null);
-        setRejectReason("");
+
+        try {
+            setProcessingId(id);
+            const res = await fetch(`/api/requests/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: rejectReason }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                toast.success('Request rejected');
+                fetchRequests();
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            console.error('Error rejecting request:', error);
+            toast.error('Failed to reject request');
+        } finally {
+            setProcessingId(null);
+            setRejectingId(null);
+            setRejectReason("");
+        }
     };
 
     const formatDate = (dateStr: string) => {
@@ -102,61 +121,50 @@ export default function ApprovalsPage() {
         });
     };
 
+    const getRequestIcon = (type: string) => {
+        switch (type) {
+            case "new_project":
+                return <FolderPlus className="h-5 w-5 text-primary" />;
+            case "upgrade_to_pd":
+                return <ArrowUpCircle className="h-5 w-5 text-blue-500" />;
+            default:
+                return <AlertCircle className="h-5 w-5 text-amber-500" />;
+        }
+    };
+
+    const getRequestBadge = (type: string) => {
+        switch (type) {
+            case "new_project":
+                return <Badge>New Project</Badge>;
+            case "upgrade_to_pd":
+                return <Badge variant="secondary">Upgrade to PD</Badge>;
+            default:
+                return <Badge variant="outline">{type}</Badge>;
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             {/* Page Header */}
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Approval Queue</h1>
-                <p className="text-muted-foreground">
-                    Review and approve project requests
-                </p>
-            </div>
-
-            {/* Stats */}
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-500/10">
-                                <Clock className="h-6 w-6 text-amber-500" />
-                            </div>
-                            <div>
-                                <div className="text-2xl font-bold">{pendingRequests.length}</div>
-                                <p className="text-sm text-muted-foreground">Pending</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-500/10">
-                                <CheckCircle2 className="h-6 w-6 text-green-500" />
-                            </div>
-                            <div>
-                                <div className="text-2xl font-bold">
-                                    {historyRequests.filter(r => r.status === "approved").length}
-                                </div>
-                                <p className="text-sm text-muted-foreground">Approved (today)</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-500/10">
-                                <XCircle className="h-6 w-6 text-red-500" />
-                            </div>
-                            <div>
-                                <div className="text-2xl font-bold">
-                                    {historyRequests.filter(r => r.status === "rejected").length}
-                                </div>
-                                <p className="text-sm text-muted-foreground">Rejected (today)</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Approvals</h1>
+                    <p className="text-muted-foreground">
+                        Review and approve project requests
+                    </p>
+                </div>
+                <Button variant="outline" onClick={fetchRequests}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Refresh
+                </Button>
             </div>
 
             <Tabs defaultValue="pending">
@@ -168,143 +176,148 @@ export default function ApprovalsPage() {
                     <TabsTrigger value="history">History</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="pending" className="mt-6 space-y-4">
+                <TabsContent value="pending" className="space-y-4 mt-6">
                     {pendingRequests.length === 0 ? (
                         <Card>
                             <CardContent className="py-12 text-center">
-                                <CheckCircle2 className="mx-auto h-12 w-12 text-green-500 mb-4" />
-                                <p className="text-lg font-medium">All caught up!</p>
-                                <p className="text-muted-foreground">No pending requests</p>
+                                <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                                <h3 className="font-semibold text-lg">No Pending Requests</h3>
+                                <p className="text-muted-foreground">
+                                    All requests have been processed
+                                </p>
                             </CardContent>
                         </Card>
                     ) : (
                         pendingRequests.map((request) => (
                             <Card key={request.id}>
-                                <CardContent className="pt-6">
-                                    <div className="flex items-start justify-between gap-4">
+                                <CardHeader>
+                                    <div className="flex items-start justify-between">
                                         <div className="flex items-start gap-4">
-                                            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${request.request_type === "new_project"
-                                                    ? "bg-blue-500/10"
-                                                    : "bg-purple-500/10"
-                                                }`}>
-                                                {request.request_type === "new_project" ? (
-                                                    <FolderPlus className="h-5 w-5 text-blue-500" />
-                                                ) : (
-                                                    <ArrowUpCircle className="h-5 w-5 text-purple-500" />
-                                                )}
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                                                {getRequestIcon(request.request_type)}
                                             </div>
                                             <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-medium">{request.pr_number}</span>
-                                                    <Badge variant={request.request_type === "new_project" ? "default" : "secondary"}>
-                                                        {request.request_type === "new_project" ? "New Project" : "Upgrade to PD"}
-                                                    </Badge>
-                                                </div>
-                                                <p className="text-lg font-semibold mt-1">{request.project_name}</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    Requested by {request.requested_by} • {formatDate(request.requested_at)}
-                                                </p>
+                                                <CardTitle className="text-lg">
+                                                    {request.project_name}
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    Requested by {request.requested_by} on{" "}
+                                                    {formatDate(request.requested_at)}
+                                                </CardDescription>
                                             </div>
                                         </div>
-
-                                        <div className="flex flex-col gap-2">
-                                            {rejectingId === request.id ? (
-                                                <div className="flex flex-col gap-2">
-                                                    <Input
-                                                        placeholder="Rejection reason"
-                                                        value={rejectReason}
-                                                        onChange={(e) => setRejectReason(e.target.value)}
-                                                        className="w-64"
-                                                    />
-                                                    <div className="flex gap-2">
-                                                        <Button
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            onClick={() => handleReject(request.id)}
-                                                            disabled={!rejectReason.trim()}
-                                                        >
-                                                            Confirm Reject
-                                                        </Button>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => {
-                                                                setRejectingId(null);
-                                                                setRejectReason("");
-                                                            }}
-                                                        >
-                                                            Cancel
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        className="bg-green-600 hover:bg-green-700"
-                                                        onClick={() => handleApprove(request.id)}
-                                                    >
-                                                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                                                        Approve
-                                                    </Button>
-                                                    <Button
-                                                        variant="destructive"
-                                                        onClick={() => setRejectingId(request.id)}
-                                                    >
-                                                        <XCircle className="mr-2 h-4 w-4" />
-                                                        Reject
-                                                    </Button>
-                                                </div>
-                                            )}
-                                        </div>
+                                        {getRequestBadge(request.request_type)}
                                     </div>
+                                </CardHeader>
+                                <CardContent>
+                                    {rejectingId === request.id ? (
+                                        <div className="space-y-3">
+                                            <Input
+                                                placeholder="Enter rejection reason..."
+                                                value={rejectReason}
+                                                onChange={(e) => setRejectReason(e.target.value)}
+                                            />
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="destructive"
+                                                    onClick={() => handleReject(request.id)}
+                                                    disabled={!rejectReason.trim() || processingId === request.id}
+                                                >
+                                                    {processingId === request.id ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : null}
+                                                    Confirm Reject
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() => {
+                                                        setRejectingId(null);
+                                                        setRejectReason("");
+                                                    }}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <Button
+                                                onClick={() => handleApprove(request.id)}
+                                                disabled={processingId === request.id}
+                                            >
+                                                {processingId === request.id ? (
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                                                )}
+                                                Approve
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setRejectingId(request.id)}
+                                            >
+                                                <XCircle className="mr-2 h-4 w-4" />
+                                                Reject
+                                            </Button>
+                                        </div>
+                                    )}
                                 </CardContent>
                             </Card>
                         ))
                     )}
                 </TabsContent>
 
-                <TabsContent value="history" className="mt-6 space-y-4">
-                    {historyRequests.map((request) => (
-                        <Card key={request.id} className="opacity-80">
-                            <CardContent className="pt-6">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex items-start gap-4">
-                                        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${request.status === "approved"
-                                                ? "bg-green-500/10"
-                                                : "bg-red-500/10"
-                                            }`}>
-                                            {request.status === "approved" ? (
-                                                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                            ) : (
-                                                <XCircle className="h-5 w-5 text-red-500" />
-                                            )}
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-medium">{request.pr_number}</span>
-                                                <Badge variant={request.status === "approved" ? "default" : "destructive"}>
-                                                    {request.status === "approved" ? "Approved" : "Rejected"}
-                                                </Badge>
-                                            </div>
-                                            <p className="text-lg font-semibold mt-1">{request.project_name}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Requested by {request.requested_by} • Reviewed by {request.reviewed_by}
-                                            </p>
-                                            {request.rejection_reason && (
-                                                <div className="mt-2 flex items-center gap-2 text-sm text-red-500">
-                                                    <AlertCircle className="h-4 w-4" />
-                                                    {request.rejection_reason}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="text-sm text-muted-foreground">
-                                        {formatDate(request.reviewed_at!)}
-                                    </div>
-                                </div>
+                <TabsContent value="history" className="space-y-4 mt-6">
+                    {historyRequests.length === 0 ? (
+                        <Card>
+                            <CardContent className="py-12 text-center text-muted-foreground">
+                                No history yet
                             </CardContent>
                         </Card>
-                    ))}
+                    ) : (
+                        historyRequests.map((request) => (
+                            <Card key={request.id} className="opacity-75">
+                                <CardHeader>
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-start gap-4">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                                                {request.status === "approved" ? (
+                                                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                                ) : (
+                                                    <XCircle className="h-5 w-5 text-red-500" />
+                                                )}
+                                            </div>
+                                            <div>
+                                                <CardTitle className="text-lg">
+                                                    {request.project_name}
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    {request.status === "approved" ? "Approved" : "Rejected"} by{" "}
+                                                    {request.reviewed_by} on{" "}
+                                                    {request.reviewed_at ? formatDate(request.reviewed_at) : ""}
+                                                </CardDescription>
+                                            </div>
+                                        </div>
+                                        <Badge
+                                            variant={
+                                                request.status === "approved" ? "default" : "destructive"
+                                            }
+                                        >
+                                            {request.status}
+                                        </Badge>
+                                    </div>
+                                </CardHeader>
+                                {request.rejection_reason && (
+                                    <CardContent>
+                                        <p className="text-sm text-muted-foreground">
+                                            <span className="font-medium">Reason:</span>{" "}
+                                            {request.rejection_reason}
+                                        </p>
+                                    </CardContent>
+                                )}
+                            </Card>
+                        ))
+                    )}
                 </TabsContent>
             </Tabs>
         </div>

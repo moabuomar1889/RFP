@@ -6,33 +6,44 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/requests
  * List project requests (admin only)
- * Query params: status (pending|approved|rejected|all)
+ * Returns both pending and history
  */
 export async function GET(request: NextRequest) {
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || 'pending';
-
     try {
         const supabase = getSupabaseAdmin();
 
-        let query = supabase
+        // Get pending requests
+        const { data: pending, error: pendingError } = await supabase
             .schema('rfp')
             .from('project_requests')
             .select('*')
-            .order('created_at', { ascending: false });
+            .eq('status', 'pending')
+            .order('requested_at', { ascending: false });
 
-        if (status !== 'all') {
-            query = query.eq('status', status);
+        if (pendingError) {
+            throw pendingError;
         }
 
-        const { data, error } = await query;
+        // Get history (approved/rejected)
+        const { data: history, error: historyError } = await supabase
+            .schema('rfp')
+            .from('project_requests')
+            .select('*')
+            .neq('status', 'pending')
+            .order('reviewed_at', { ascending: false })
+            .limit(50);
 
-        if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500 });
+        if (historyError) {
+            throw historyError;
         }
 
-        return NextResponse.json({ requests: data });
+        return NextResponse.json({
+            success: true,
+            pending: pending || [],
+            history: history || [],
+        });
     } catch (error) {
+        console.error('Error fetching requests:', error);
         return NextResponse.json({ error: 'Failed to fetch requests' }, { status: 500 });
     }
 }

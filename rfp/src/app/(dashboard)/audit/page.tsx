@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -13,91 +13,29 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Search,
     RefreshCw,
     Download,
-    Filter,
     FileStack,
     Shield,
     FolderKanban,
     Settings,
     User,
+    Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
-// Mock audit log data
-const auditLogs = [
-    {
-        id: "1",
-        action: "permission_reverted",
-        entityType: "folder",
-        entityId: "PRJ-PR-015/RFP/Technical",
-        details: {
-            violation: "Unauthorized user added",
-            reverted_email: "external@gmail.com",
-        },
-        performedBy: "system",
-        createdAt: "2024-01-26T12:05:00Z",
-    },
-    {
-        id: "2",
-        action: "template_updated",
-        entityType: "template",
-        entityId: "v12",
-        details: {
-            changes: ["Added Safety Documents folder", "Updated Technical permissions"],
-        },
-        performedBy: "mo.abuomar@dtgsa.com",
-        createdAt: "2024-01-26T10:00:00Z",
-    },
-    {
-        id: "3",
-        action: "template_applied",
-        entityType: "job",
-        entityId: "job-123",
-        details: {
-            template_version: 12,
-            projects_synced: 32,
-        },
-        performedBy: "mo.abuomar@dtgsa.com",
-        createdAt: "2024-01-26T10:02:00Z",
-    },
-    {
-        id: "4",
-        action: "project_created",
-        entityType: "project",
-        entityId: "PR-033",
-        details: {
-            name: "New Mall Project",
-            template_version: 12,
-        },
-        performedBy: "mo.abuomar@dtgsa.com",
-        createdAt: "2024-01-25T14:00:00Z",
-    },
-    {
-        id: "5",
-        action: "role_updated",
-        entityType: "role",
-        entityId: "QUANTITY_SURVEYOR",
-        details: {
-            added_principal: "new-qs@dtgsa.com",
-        },
-        performedBy: "mo.abuomar@dtgsa.com",
-        createdAt: "2024-01-25T11:00:00Z",
-    },
-    {
-        id: "6",
-        action: "user_login",
-        entityType: "user",
-        entityId: "mo.abuomar@dtgsa.com",
-        details: {
-            ip: "192.168.1.1",
-        },
-        performedBy: "mo.abuomar@dtgsa.com",
-        createdAt: "2024-01-26T08:00:00Z",
-    },
-];
+interface AuditLog {
+    id: string;
+    action: string;
+    entity_type: string;
+    entity_id: string | null;
+    details: any;
+    performed_by: string | null;
+    created_at: string;
+}
 
 function getActionIcon(entityType: string) {
     switch (entityType) {
@@ -117,28 +55,62 @@ function getActionIcon(entityType: string) {
 }
 
 function getActionBadge(action: string) {
-    if (action.includes("revert")) return <Badge variant="destructive">{action}</Badge>;
-    if (action.includes("created")) return <Badge className="bg-green-500">{action}</Badge>;
+    if (action.includes("revert") || action.includes("error")) return <Badge variant="destructive">{action}</Badge>;
+    if (action.includes("created") || action.includes("completed")) return <Badge className="bg-green-500">{action}</Badge>;
     if (action.includes("updated") || action.includes("applied")) return <Badge className="bg-blue-500">{action}</Badge>;
     return <Badge variant="secondary">{action}</Badge>;
 }
 
 export default function AuditPage() {
+    const [loading, setLoading] = useState(true);
+    const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [tab, setTab] = useState("all");
+
+    const fetchLogs = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch('/api/audit?limit=100');
+            const data = await res.json();
+
+            if (data.success && Array.isArray(data.logs)) {
+                setAuditLogs(data.logs);
+            } else {
+                setAuditLogs([]);
+            }
+        } catch (error) {
+            console.error('Error fetching audit logs:', error);
+            toast.error('Failed to load audit logs');
+            setAuditLogs([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchLogs();
+    }, []);
 
     const filteredLogs = auditLogs.filter((log) => {
         const matchesSearch =
             log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            log.entityId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            log.performedBy.toLowerCase().includes(searchQuery.toLowerCase());
+            (log.entity_id || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (log.performed_by || '').toLowerCase().includes(searchQuery.toLowerCase());
         const matchesTab =
             tab === "all" ||
-            (tab === "permissions" && log.entityType === "folder") ||
-            (tab === "template" && log.entityType === "template") ||
-            (tab === "projects" && log.entityType === "project");
+            (tab === "permissions" && log.entity_type === "folder") ||
+            (tab === "template" && log.entity_type === "template") ||
+            (tab === "projects" && log.entity_type === "project");
         return matchesSearch && matchesTab;
     });
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -150,10 +122,16 @@ export default function AuditPage() {
                         Track all system actions and changes
                     </p>
                 </div>
-                <Button variant="outline">
-                    <Download className="mr-2 h-4 w-4" />
-                    Export
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={fetchLogs}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Refresh
+                    </Button>
+                    <Button variant="outline">
+                        <Download className="mr-2 h-4 w-4" />
+                        Export
+                    </Button>
+                </div>
             </div>
 
             {/* Filters */}
@@ -194,37 +172,45 @@ export default function AuditPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {filteredLogs.map((log) => (
-                            <TableRow key={log.id}>
-                                <TableCell>{getActionBadge(log.action)}</TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        {getActionIcon(log.entityType)}
-                                        <div>
-                                            <p className="text-sm font-medium">{log.entityType}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {log.entityId}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="max-w-[300px]">
-                                    <p className="text-sm text-muted-foreground truncate">
-                                        {JSON.stringify(log.details).slice(0, 100)}...
-                                    </p>
-                                </TableCell>
-                                <TableCell className="text-sm">
-                                    {log.performedBy === "system" ? (
-                                        <Badge variant="outline">System</Badge>
-                                    ) : (
-                                        log.performedBy
-                                    )}
-                                </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
-                                    {new Date(log.createdAt).toLocaleString()}
+                        {filteredLogs.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                    No audit logs found
                                 </TableCell>
                             </TableRow>
-                        ))}
+                        ) : (
+                            filteredLogs.map((log) => (
+                                <TableRow key={log.id}>
+                                    <TableCell>{getActionBadge(log.action)}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            {getActionIcon(log.entity_type)}
+                                            <div>
+                                                <p className="text-sm font-medium">{log.entity_type}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {log.entity_id || '-'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="max-w-[300px]">
+                                        <p className="text-sm text-muted-foreground truncate">
+                                            {log.details ? JSON.stringify(log.details).slice(0, 100) : '-'}
+                                        </p>
+                                    </TableCell>
+                                    <TableCell className="text-sm">
+                                        {log.performed_by === "system" ? (
+                                            <Badge variant="outline">System</Badge>
+                                        ) : (
+                                            log.performed_by || '-'
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {new Date(log.created_at).toLocaleString()}
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
                     </TableBody>
                 </Table>
             </Card>

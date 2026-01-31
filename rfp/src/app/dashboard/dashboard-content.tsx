@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -12,21 +13,84 @@ import {
     Clock,
     Play,
     RefreshCw,
+    Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from 'sonner';
+
+interface DashboardStats {
+    totalProjects: number;
+    biddingCount: number;
+    executionCount: number;
+    pendingRequests: number;
+    indexedFolders: number;
+    violations: number;
+    activeJobs: number;
+    lastScan: string | null;
+}
 
 export default function DashboardContent() {
-    // These would come from API calls in production
-    const stats = {
-        totalProjects: 32,
-        biddingProjects: 18,
-        executionProjects: 14,
-        totalFolders: 1580,
-        lastSync: "2 hours ago",
-        lastEnforcement: "1 hour ago",
-        pendingViolations: 3,
-        activeJobs: 1,
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState<DashboardStats>({
+        totalProjects: 0,
+        biddingCount: 0,
+        executionCount: 0,
+        pendingRequests: 0,
+        indexedFolders: 0,
+        violations: 0,
+        activeJobs: 0,
+        lastScan: null,
+    });
+    const [recentActivity, setRecentActivity] = useState<any[]>([]);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch('/api/dashboard/stats');
+            const data = await res.json();
+
+            if (data.success) {
+                setStats(data.stats);
+            }
+
+            // Fetch recent audit logs
+            const auditRes = await fetch('/api/audit?limit=5');
+            const auditData = await auditRes.json();
+            if (auditData.success && Array.isArray(auditData.logs)) {
+                setRecentActivity(auditData.logs);
+            }
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+            toast.error('Failed to load dashboard data');
+        } finally {
+            setLoading(false);
+        }
     };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const formatTimeAgo = (dateStr: string) => {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 60) return `${diffMins} minutes ago`;
+        if (diffHours < 24) return `${diffHours} hours ago`;
+        return `${diffDays} days ago`;
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -39,7 +103,7 @@ export default function DashboardContent() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline">
+                    <Button variant="outline" onClick={fetchData}>
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Refresh
                     </Button>
@@ -60,7 +124,7 @@ export default function DashboardContent() {
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.totalProjects}</div>
                         <p className="text-xs text-muted-foreground">
-                            {stats.biddingProjects} bidding, {stats.executionProjects} execution
+                            {stats.biddingCount} bidding, {stats.executionCount} execution
                         </p>
                     </CardContent>
                 </Card>
@@ -71,7 +135,7 @@ export default function DashboardContent() {
                         <FileStack className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalFolders}</div>
+                        <div className="text-2xl font-bold">{stats.indexedFolders}</div>
                         <p className="text-xs text-muted-foreground">
                             Across all projects
                         </p>
@@ -85,11 +149,11 @@ export default function DashboardContent() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center gap-2">
-                            {stats.pendingViolations > 0 ? (
+                            {stats.violations > 0 ? (
                                 <>
                                     <AlertTriangle className="h-5 w-5 text-amber-500" />
                                     <span className="text-2xl font-bold text-amber-500">
-                                        {stats.pendingViolations}
+                                        {stats.violations}
                                     </span>
                                 </>
                             ) : (
@@ -100,8 +164,8 @@ export default function DashboardContent() {
                             )}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            {stats.pendingViolations > 0
-                                ? `${stats.pendingViolations} violations detected`
+                            {stats.violations > 0
+                                ? `${stats.violations} violations detected`
                                 : "All permissions in sync"}
                         </p>
                     </CardContent>
@@ -109,39 +173,17 @@ export default function DashboardContent() {
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
+                        <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
                         <Clock className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.activeJobs}</div>
+                        <div className="text-2xl font-bold">{stats.pendingRequests}</div>
                         <p className="text-xs text-muted-foreground">
-                            Last sync: {stats.lastSync}
+                            {stats.lastScan ? `Last scan: ${formatTimeAgo(stats.lastScan)}` : 'No scan yet'}
                         </p>
                     </CardContent>
                 </Card>
             </div>
-
-            {/* Active Job Progress */}
-            {stats.activeJobs > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">Active Job</CardTitle>
-                        <CardDescription>Template Sync - All Projects</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                                <span>Progress</span>
-                                <span>18 / 32 projects</span>
-                            </div>
-                            <Progress value={56} />
-                            <p className="text-xs text-muted-foreground">
-                                Estimated time remaining: 5 minutes
-                            </p>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
 
             {/* Quick Actions */}
             <div className="grid gap-4 md:grid-cols-3">
@@ -168,11 +210,18 @@ export default function DashboardContent() {
                 </Card>
 
                 <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-                    <Link href="/jobs">
+                    <Link href="/approvals">
                         <CardHeader>
-                            <CardTitle className="text-lg">View Jobs</CardTitle>
+                            <CardTitle className="text-lg">
+                                View Approvals
+                                {stats.pendingRequests > 0 && (
+                                    <span className="ml-2 px-2 py-0.5 text-xs bg-amber-500 text-white rounded-full">
+                                        {stats.pendingRequests}
+                                    </span>
+                                )}
+                            </CardTitle>
                             <CardDescription>
-                                Monitor sync jobs and permission enforcement
+                                Review pending project requests
                             </CardDescription>
                         </CardHeader>
                     </Link>
@@ -187,48 +236,31 @@ export default function DashboardContent() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {[
-                            {
-                                action: "Permission violation detected",
-                                detail: "Unauthorized user added to PRJ-PR-015/RFP/Technical",
-                                time: "5 minutes ago",
-                                type: "warning",
-                            },
-                            {
-                                action: "Permission enforced",
-                                detail: "Reverted unauthorized change on PRJ-PR-015",
-                                time: "5 minutes ago",
-                                type: "success",
-                            },
-                            {
-                                action: "Template updated",
-                                detail: "Added 'Safety Documents' folder to template v12",
-                                time: "2 hours ago",
-                                type: "info",
-                            },
-                            {
-                                action: "Sync completed",
-                                detail: "Template v12 applied to all 32 projects",
-                                time: "2 hours ago",
-                                type: "success",
-                            },
-                        ].map((item, i) => (
-                            <div key={i} className="flex items-start gap-4">
-                                <div
-                                    className={`mt-1 h-2 w-2 rounded-full ${item.type === "warning"
-                                        ? "bg-amber-500"
-                                        : item.type === "success"
-                                            ? "bg-green-500"
-                                            : "bg-blue-500"
-                                        }`}
-                                />
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium">{item.action}</p>
-                                    <p className="text-xs text-muted-foreground">{item.detail}</p>
+                        {recentActivity.length > 0 ? (
+                            recentActivity.map((item, i) => (
+                                <div key={i} className="flex items-start gap-4">
+                                    <div
+                                        className={`mt-1 h-2 w-2 rounded-full ${item.action?.includes('error') || item.action?.includes('violation')
+                                                ? "bg-amber-500"
+                                                : item.action?.includes('completed') || item.action?.includes('created')
+                                                    ? "bg-green-500"
+                                                    : "bg-blue-500"
+                                            }`}
+                                    />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium">{item.action}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {item.entity_type}: {item.entity_id}
+                                        </p>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                        {item.created_at ? formatTimeAgo(item.created_at) : ''}
+                                    </span>
                                 </div>
-                                <span className="text-xs text-muted-foreground">{item.time}</span>
-                            </div>
-                        ))}
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No recent activity</p>
+                        )}
                     </div>
                 </CardContent>
             </Card>
