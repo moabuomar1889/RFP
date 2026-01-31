@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
 
         // First, check if user already exists
         const { data: existingUser } = await supabase
+            .schema('rfp')
             .from('user_tokens')
             .select('refresh_token_encrypted')
             .eq('email', email)
@@ -94,6 +95,7 @@ export async function GET(request: NextRequest) {
         // Store encrypted tokens with proper error checking
         console.log('[Auth Callback] Storing tokens...', { email, hasAccess: !!tokenData.access_token_encrypted });
         const { error: upsertError } = await supabase
+            .schema('rfp')
             .from('user_tokens')
             .upsert(tokenData, { onConflict: 'email' });
 
@@ -106,6 +108,7 @@ export async function GET(request: NextRequest) {
 
         // Log audit (use type assertion for schema compatibility)
         await supabase
+            .schema('rfp')
             .from('audit_log')
             .insert({
                 action: 'user_login',
