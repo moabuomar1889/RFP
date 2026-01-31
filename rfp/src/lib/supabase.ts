@@ -34,3 +34,12 @@ export function getSupabaseAdmin() {
     return _supabaseAdmin;
 }
 
+// Legacy exports for backwards compatibility
+// These are lazy getters that call the functions
+export const supabaseAdmin = {
+    get schema() { return getSupabaseAdmin().schema.bind(getSupabaseAdmin()); },
+    get from() { return getSupabaseAdmin().from.bind(getSupabaseAdmin()); },
+    get rpc() { return getSupabaseAdmin().rpc.bind(getSupabaseAdmin()); },
+};
+
+
