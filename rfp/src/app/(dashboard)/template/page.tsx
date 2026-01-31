@@ -367,27 +367,31 @@ export default function TemplatePage() {
                                     </Badge>
                                 </div>
 
-                                {/* Assigned Roles */}
+                                {/* Assigned Groups */}
                                 <div>
                                     <h4 className="font-medium mb-3 flex items-center gap-2">
                                         <Shield className="h-4 w-4" />
-                                        Assigned Roles
+                                        Assigned Groups
                                     </h4>
                                     <div className="space-y-2">
-                                        {selectedNode.roles.map((role: string) => (
-                                            <div
-                                                key={role}
-                                                className="flex items-center justify-between p-3 rounded-lg border"
-                                            >
-                                                <span className="text-sm font-medium">{role}</span>
-                                                <Badge variant="outline">
-                                                    {role === "ADMIN" ? "organizer" : "writer"}
-                                                </Badge>
-                                            </div>
-                                        ))}
+                                        {(selectedNode.groups || []).length > 0 ? (
+                                            (selectedNode.groups || []).map((group: any, index: number) => (
+                                                <div
+                                                    key={group.name || index}
+                                                    className="flex items-center justify-between p-3 rounded-lg border"
+                                                >
+                                                    <span className="text-sm font-medium">{group.name || group}</span>
+                                                    <Badge variant="outline">
+                                                        {group.role || 'writer'}
+                                                    </Badge>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">No groups assigned</p>
+                                        )}
                                     </div>
                                     <Button variant="outline" className="w-full mt-3">
-                                        Add Role
+                                        Add Group
                                     </Button>
                                 </div>
                             </div>
