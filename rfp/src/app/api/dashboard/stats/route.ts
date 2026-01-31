@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 /**
  * GET /api/dashboard/stats
@@ -17,7 +19,7 @@ export async function GET() {
         if (error) {
             console.error('Error fetching dashboard stats:', error);
             // Return default stats on error
-            return NextResponse.json({
+            const response = NextResponse.json({
                 success: true,
                 stats: {
                     totalProjects: 0,
@@ -30,9 +32,11 @@ export async function GET() {
                     lastScan: null,
                 },
             });
+            response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            return response;
         }
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: true,
             stats: data || {
                 totalProjects: 0,
@@ -44,9 +48,11 @@ export async function GET() {
                 activeJobs: 0,
             },
         });
+        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        return response;
     } catch (error) {
         console.error('Error fetching dashboard stats:', error);
-        return NextResponse.json({
+        const response = NextResponse.json({
             success: false,
             error: 'Failed to fetch dashboard stats',
             stats: {
@@ -59,5 +65,7 @@ export async function GET() {
                 activeJobs: 0,
             },
         }, { status: 500 });
+        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        return response;
     }
 }
