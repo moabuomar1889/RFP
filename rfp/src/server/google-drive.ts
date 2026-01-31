@@ -245,6 +245,8 @@ export async function isProtectedPermission(
 export async function getAllProjects(): Promise<drive_v3.Schema$File[]> {
     const drive = await getDriveClient();
 
+    console.log('getAllProjects: Starting with sharedDriveId:', APP_CONFIG.sharedDriveId);
+
     const response = await drive.files.list({
         q: `'${APP_CONFIG.sharedDriveId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
         supportsAllDrives: true,
@@ -256,13 +258,19 @@ export async function getAllProjects(): Promise<drive_v3.Schema$File[]> {
         fields: 'files(id, name, parents, createdTime, modifiedTime)',
     });
 
+    console.log('getAllProjects: Raw response files count:', response.data.files?.length || 0);
+
+    // Log first few folder names for debugging
+    const allFolders = response.data.files || [];
+    console.log('getAllProjects: First 5 folder names:', allFolders.slice(0, 5).map(f => f.name));
+
     // Filter to only project folders (matching PRJ-XXX pattern)
     // Example: PRJ-005-Construction of Site Occupied Buildings
-    const projects = (response.data.files || []).filter(f =>
+    const projects = allFolders.filter(f =>
         f.name && /^PRJ-\d+-/.test(f.name)
     );
 
-    console.log(`getAllProjects: Found ${response.data.files?.length || 0} total folders, ${projects.length} matching PRJ pattern`);
+    console.log(`getAllProjects: Found ${allFolders.length} total folders, ${projects.length} matching PRJ pattern`);
 
     return projects;
 }
