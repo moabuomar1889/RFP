@@ -89,6 +89,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     const [folderTree, setFolderTree] = useState<any[]>([]);
     const [isRequestingUpgrade, setIsRequestingUpgrade] = useState(false);
     const [upgradeRequested, setUpgradeRequested] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+    const [enforcing, setEnforcing] = useState(false);
 
     useEffect(() => {
         fetchProjectData();
@@ -117,15 +119,64 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 toast.error('Project not found');
             }
 
-            // TODO: Fetch folder tree from API when available
-            // For now, we'll leave it empty
-            setFolderTree([]);
+            // Fetch folder tree
+            const foldersRes = await fetch(`/api/folders/${projectId}?t=${timestamp}`, {
+                cache: 'no-store',
+            });
+            const foldersData = await foldersRes.json();
+            if (foldersData.success) {
+                setFolderTree(foldersData.folders || []);
+            }
 
         } catch (error) {
             console.error('Error fetching project:', error);
             toast.error('Failed to load project');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSyncProject = async () => {
+        try {
+            setSyncing(true);
+            const res = await fetch('/api/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId, triggeredBy: 'admin' }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success('Project sync started');
+                setTimeout(() => fetchProjectData(), 3000);
+            } else {
+                toast.error(data.error || 'Failed to start sync');
+            }
+        } catch (error) {
+            toast.error('Failed to trigger sync');
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    const handleEnforceNow = async () => {
+        try {
+            setEnforcing(true);
+            const res = await fetch('/api/enforce', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectIds: [projectId], triggeredBy: 'admin' }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success('Permission enforcement started');
+                setTimeout(() => fetchProjectData(), 3000);
+            } else {
+                toast.error(data.error || 'Failed to start enforcement');
+            }
+        } catch (error) {
+            toast.error('Failed to trigger enforcement');
+        } finally {
+            setEnforcing(false);
         }
     };
 
@@ -138,9 +189,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    request_type: 'upgrade_to_pd',
-                    project_name: project.name,
-                    project_id: project.id,
+                    requestType: 'upgrade_to_pd',
+                    projectName: project.name,
+                    projectId: project.id,
                 }),
             });
 
@@ -244,13 +295,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         ⏳ Upgrade Pending Approval
                     </Badge>
                 )}
-                <Button variant="outline">
-                    <Shield className="mr-2 h-4 w-4" />
-                    Enforce Now
+                <Button variant="outline" onClick={handleEnforceNow} disabled={enforcing}>
+                    {enforcing ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <Shield className="mr-2 h-4 w-4" />
+                    )}
+                    {enforcing ? 'Enforcing...' : 'Enforce Now'}
                 </Button>
-                <Button onClick={fetchProjectData}>
-                    <Play className="mr-2 h-4 w-4" />
-                    Sync Project
+                <Button onClick={handleSyncProject} disabled={syncing}>
+                    {syncing ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                        <Play className="mr-2 h-4 w-4" />
+                    )}
+                    {syncing ? 'Syncing...' : 'Sync Project'}
                 </Button>
             </div>
 

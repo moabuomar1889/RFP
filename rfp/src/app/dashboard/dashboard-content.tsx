@@ -42,6 +42,31 @@ export default function DashboardContent() {
         lastScan: null,
     });
     const [recentActivity, setRecentActivity] = useState<any[]>([]);
+    const [enforcing, setEnforcing] = useState(false);
+
+    const handleEnforceNow = async () => {
+        try {
+            setEnforcing(true);
+            const res = await fetch('/api/enforce', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ triggeredBy: 'admin' }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                toast.success('Permission enforcement started');
+                // Refresh data after a short delay
+                setTimeout(() => fetchData(), 2000);
+            } else {
+                toast.error(data.error || 'Failed to start enforcement');
+            }
+        } catch (error) {
+            toast.error('Failed to trigger enforcement');
+        } finally {
+            setEnforcing(false);
+        }
+    };
 
     const fetchData = async () => {
         try {
@@ -115,9 +140,13 @@ export default function DashboardContent() {
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Refresh
                     </Button>
-                    <Button>
-                        <Play className="mr-2 h-4 w-4" />
-                        Enforce Now
+                    <Button onClick={handleEnforceNow} disabled={enforcing}>
+                        {enforcing ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Play className="mr-2 h-4 w-4" />
+                        )}
+                        {enforcing ? 'Enforcing...' : 'Enforce Now'}
                     </Button>
                 </div>
             </div>

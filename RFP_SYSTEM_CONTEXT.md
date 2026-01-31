@@ -175,6 +175,9 @@ Defined in `src/server/jobs.ts`:
 | `/api/audit` | GET | Audit log |
 | `/api/template` | GET/POST | Get/save template |
 | `/api/scan/projects` | GET/POST | Drive scanning |
+| `/api/enforce` | POST | Trigger permission enforcement job |
+| `/api/sync` | POST | Trigger project/template sync job |
+| `/api/folders/[projectId]` | GET | Get folder tree for project |
 
 ---
 
@@ -185,12 +188,14 @@ Defined in `src/server/jobs.ts`:
 - ✅ Template page crash on folder click → Fixed groups/roles
 - ✅ Login refresh_token error → Added upsert_user_token RPC
 - ✅ Folder creation on approval → Now creates Drive folder immediately
+- ✅ Dashboard caching → Added cache-busting timestamps and headers
+- ✅ Enforce Now / Sync buttons → Wired to `/api/enforce` and `/api/sync`
+- ✅ Folder tree API → Created `/api/folders/[projectId]`
+- ✅ Request Upgrade → Fixed camelCase field names
 
 ### Remaining Issues:
-- ⚠️ Dashboard may show cached/mock data (Vercel cache)
-- ⚠️ Enforce Now / Sync buttons not wired to APIs
-- ⚠️ Folder tree in project detail is empty (needs index API)
 - ⚠️ Users/Groups sync not implemented
+- ⚠️ Inngest needs configuration in Vercel for background jobs
 
 ---
 
