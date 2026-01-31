@@ -304,3 +304,87 @@ export async function getAllFoldersRecursive(
 
     return results;
 }
+
+interface TemplateNode {
+    text: string;
+    nodes?: TemplateNode[];
+    limitedAccess?: boolean;
+    groups?: any[];
+    users?: any[];
+    folderType?: string;
+}
+
+interface CreatedFolder {
+    templatePath: string;
+    driveFolderId: string;
+    driveFolderName: string;
+    limitedAccessEnabled: boolean;
+}
+
+/**
+ * Create project folder structure from template
+ * Returns array of created folders for database indexing
+ */
+export async function createProjectFolderStructure(
+    projectRootFolderId: string,
+    templateJson: TemplateNode[] | { folders: TemplateNode[] },
+    phase: 'bidding' | 'execution' = 'bidding'
+): Promise<CreatedFolder[]> {
+    const createdFolders: CreatedFolder[] = [];
+
+    // Handle both array format and object format
+    const templateArray = Array.isArray(templateJson)
+        ? templateJson
+        : templateJson.folders || [];
+
+    // Find the correct phase node
+    // Template has two root nodes: "Bidding" and "Project Delivery" (execution)
+    let phaseNode: TemplateNode | undefined;
+    for (const node of templateArray) {
+        const nodeName = node.text?.toLowerCase() || '';
+        if (phase === 'bidding' && nodeName.includes('bidding')) {
+            phaseNode = node;
+            break;
+        } else if (phase === 'execution' && (nodeName.includes('delivery') || nodeName.includes('execution'))) {
+            phaseNode = node;
+            break;
+        }
+    }
+
+    // If no phase found, just create all folders
+    const foldersToCreate = phaseNode ? [phaseNode] : templateArray;
+
+    async function createFoldersRecursively(
+        nodes: TemplateNode[],
+        parentId: string,
+        parentPath: string
+    ): Promise<void> {
+        for (const node of nodes) {
+            if (!node.text) continue;
+
+            const folderPath = parentPath ? `${parentPath}/${node.text}` : node.text;
+
+            // Create the folder in Drive
+            const folder = await createFolder(node.text, parentId);
+
+            // Track created folder
+            createdFolders.push({
+                templatePath: folderPath,
+                driveFolderId: folder.id!,
+                driveFolderName: node.text,
+                limitedAccessEnabled: node.limitedAccess || false,
+            });
+
+            // Create children recursively
+            if (node.nodes && node.nodes.length > 0) {
+                await createFoldersRecursively(node.nodes, folder.id!, folderPath);
+            }
+        }
+    }
+
+    await createFoldersRecursively(foldersToCreate, projectRootFolderId, '');
+
+    return createdFolders;
+}
+
+

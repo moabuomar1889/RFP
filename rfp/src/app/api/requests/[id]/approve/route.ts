@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
-import { createFolder } from '@/server/google-drive';
+import { createFolder, createProjectFolderStructure } from '@/server/google-drive';
 import { APP_CONFIG } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/requests/[id]/approve
- * Approve a project request and create the folder in Google Drive
+ * Approve a project request and create the folder structure in Google Drive
  */
 export async function POST(
     request: NextRequest,
@@ -40,6 +40,7 @@ export async function POST(
         const projectId = data?.project_id;
         const projectName = data?.project_name;
         const prNumber = data?.pr_number;
+        const phase = data?.phase || 'bidding';
 
         if (!projectId) {
             return NextResponse.json({
@@ -48,8 +49,8 @@ export async function POST(
             });
         }
 
-        // Step 2: Create folder in Google Drive
-        let folderId = null;
+        // Step 2: Create main project folder in Google Drive
+        let rootFolderId = null;
         try {
             const folderName = `${prNumber} - ${projectName}`;
             console.log(`Creating Drive folder: ${folderName}`);
@@ -59,12 +60,10 @@ export async function POST(
                 APP_CONFIG.projectsFolderId
             );
 
-            folderId = folder.id;
-            console.log(`Created folder with ID: ${folderId}`);
+            rootFolderId = folder.id;
+            console.log(`Created root folder with ID: ${rootFolderId}`);
         } catch (driveError) {
             console.error('Error creating Drive folder:', driveError);
-            // Continue - folder creation failed but request is approved
-            // The project stays in pending_creation status
             return NextResponse.json({
                 success: true,
                 message: 'Request approved but folder creation failed. Please create folder manually.',
@@ -73,16 +72,61 @@ export async function POST(
             });
         }
 
-        // Step 3: Update project with folder ID and set status to active
-        if (folderId) {
+        // Step 3: Get active template
+        let templateJson = null;
+        try {
+            const { data: template } = await supabase
+                .schema('rfp')
+                .from('template_versions')
+                .select('template_json')
+                .eq('is_active', true)
+                .single();
+
+            templateJson = template?.template_json;
+        } catch (templateError) {
+            console.error('Error fetching template:', templateError);
+        }
+
+        // Step 4: Create folder structure from template
+        let createdFolders: any[] = [];
+        if (templateJson && rootFolderId) {
+            try {
+                console.log(`Creating folder structure for phase: ${phase}`);
+                createdFolders = await createProjectFolderStructure(
+                    rootFolderId,
+                    templateJson,
+                    phase
+                );
+                console.log(`Created ${createdFolders.length} subfolders`);
+
+                // Save created folders to folder_index table
+                for (const folder of createdFolders) {
+                    await supabase
+                        .schema('rfp')
+                        .from('folder_index')
+                        .insert({
+                            project_id: projectId,
+                            template_path: folder.templatePath,
+                            drive_folder_id: folder.driveFolderId,
+                            drive_folder_name: folder.driveFolderName,
+                            limited_access_enabled: folder.limitedAccessEnabled,
+                        });
+                }
+            } catch (structureError) {
+                console.error('Error creating folder structure:', structureError);
+                // Continue - main folder was created
+            }
+        }
+
+        // Step 5: Update project with folder ID and set status to active
+        if (rootFolderId) {
             const { error: updateError } = await supabase.rpc('update_project_folder', {
                 p_project_id: projectId,
-                p_drive_folder_id: folderId,
+                p_drive_folder_id: rootFolderId,
             });
 
             if (updateError) {
                 console.error('Error updating project with folder ID:', updateError);
-                // Folder was created but DB update failed - still return success
             }
 
             // Log the folder creation
@@ -91,18 +135,24 @@ export async function POST(
                 p_entity_type: 'project',
                 p_entity_id: projectId,
                 p_performed_by: reviewedBy,
-                p_details: { folder_id: folderId, folder_name: `${prNumber} - ${projectName}` },
+                p_details: {
+                    folder_id: rootFolderId,
+                    folder_name: `${prNumber} - ${projectName}`,
+                    subfolders_created: createdFolders.length,
+                },
             });
         }
 
         return NextResponse.json({
             success: true,
-            message: 'Request approved and folder created',
+            message: `Request approved, folder created with ${createdFolders.length} subfolders`,
             project_id: projectId,
-            folder_id: folderId,
+            folder_id: rootFolderId,
+            subfolders_count: createdFolders.length,
         });
     } catch (error) {
         console.error('Approve request error:', error);
         return NextResponse.json({ success: false, error: 'Failed to approve request' }, { status: 500 });
     }
 }
+
