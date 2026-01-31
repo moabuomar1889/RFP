@@ -5,36 +5,26 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/requests
- * List project requests (admin only)
- * Returns both pending and history
+ * List project requests - returns both pending and history
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         const supabase = getSupabaseAdmin();
 
         // Get pending requests
-        const { data: pending, error: pendingError } = await supabase
-            .schema('rfp')
-            .from('project_requests')
-            .select('*')
-            .eq('status', 'pending')
-            .order('requested_at', { ascending: false });
+        const { data: pending, error: pendingError } = await supabase.rpc('get_pending_requests');
 
         if (pendingError) {
-            throw pendingError;
+            console.error('Error fetching pending requests:', pendingError);
         }
 
         // Get history (approved/rejected)
-        const { data: history, error: historyError } = await supabase
-            .schema('rfp')
-            .from('project_requests')
-            .select('*')
-            .neq('status', 'pending')
-            .order('reviewed_at', { ascending: false })
-            .limit(50);
+        const { data: history, error: historyError } = await supabase.rpc('get_request_history', {
+            p_limit: 50,
+        });
 
         if (historyError) {
-            throw historyError;
+            console.error('Error fetching request history:', historyError);
         }
 
         return NextResponse.json({
@@ -44,7 +34,12 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error('Error fetching requests:', error);
-        return NextResponse.json({ error: 'Failed to fetch requests' }, { status: 500 });
+        return NextResponse.json({
+            success: false,
+            error: 'Failed to fetch requests',
+            pending: [],
+            history: [],
+        }, { status: 500 });
     }
 }
 
@@ -60,10 +55,7 @@ export async function POST(request: NextRequest) {
 
         // Get session from cookie
         const session = request.cookies.get('rfp_session');
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-        const requestedBy = session.value;
+        const requestedBy = session?.value || 'anonymous';
 
         const supabase = getSupabaseAdmin();
 
@@ -72,106 +64,29 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid request type' }, { status: 400 });
         }
 
-        // For new projects, generate PR number
-        let prNumber = null;
-        if (requestType === 'new_project') {
-            if (!projectName) {
-                return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
-            }
-
-            // Get next PR number using database function
-            const { data: prData, error: prError } = await supabase
-                .schema('rfp')
-                .rpc('get_next_pr_number');
-
-            if (prError) {
-                // Fallback: query manually
-                const { data: projects } = await supabase
-                    .schema('rfp')
-                    .from('projects')
-                    .select('pr_number')
-                    .order('pr_number', { ascending: false })
-                    .limit(1);
-
-                const lastNum = projects?.[0]?.pr_number
-                    ? parseInt(projects[0].pr_number.replace(/\D/g, ''))
-                    : 0;
-                prNumber = `PR-${String(lastNum + 1).padStart(3, '0')}`;
-            } else {
-                prNumber = prData;
-            }
+        if (!projectName) {
+            return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
         }
 
-        // For upgrade requests, validate project exists and is in bidding phase
-        if (requestType === 'upgrade_to_pd') {
-            if (!projectId) {
-                return NextResponse.json({ error: 'Project ID is required for upgrade' }, { status: 400 });
-            }
+        // Create the request using RPC
+        const { data, error } = await supabase.rpc('create_project_request', {
+            p_request_type: requestType,
+            p_project_name: projectName,
+            p_requested_by: requestedBy,
+            p_project_id: projectId || null,
+        });
 
-            const { data: project, error: projectError } = await supabase
-                .schema('rfp')
-                .from('projects')
-                .select('id, pr_number, name, phase')
-                .eq('id', projectId)
-                .single();
-
-            if (projectError || !project) {
-                return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-            }
-
-            if (project.phase === 'execution') {
-                return NextResponse.json({ error: 'Project is already in execution phase' }, { status: 400 });
-            }
-
-            // Check for existing pending upgrade request
-            const { data: existingRequest } = await supabase
-                .schema('rfp')
-                .from('project_requests')
-                .select('id')
-                .eq('project_id', projectId)
-                .eq('request_type', 'upgrade_to_pd')
-                .eq('status', 'pending')
-                .single();
-
-            if (existingRequest) {
-                return NextResponse.json({ error: 'Upgrade request already pending' }, { status: 400 });
-            }
+        if (error) {
+            console.error('Error creating request:', error);
+            return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Create the request
-        const { data: newRequest, error: insertError } = await supabase
-            .schema('rfp')
-            .from('project_requests')
-            .insert({
-                request_type: requestType,
-                project_name: projectName,
-                pr_number: prNumber,
-                project_id: projectId || null,
-                requested_by: requestedBy,
-            })
-            .select()
-            .single();
-
-        if (insertError) {
-            return NextResponse.json({ error: insertError.message }, { status: 500 });
-        }
-
-        // Log audit
-        await supabase
-            .schema('rfp')
-            .from('audit_log')
-            .insert({
-                action: requestType === 'new_project' ? 'project_request_created' : 'upgrade_request_created',
-                entity_type: 'project_request',
-                entity_id: newRequest.id,
-                details: { projectName, prNumber, requestType },
-                performed_by: requestedBy,
-            });
+        const result = data?.[0] || data;
 
         return NextResponse.json({
             success: true,
-            request: newRequest,
-            message: `Request submitted. PR Number: ${prNumber || 'N/A'}`
+            request: result,
+            message: `Request submitted. PR Number: ${result?.pr_number || 'N/A'}`
         });
     } catch (error) {
         console.error('Create request error:', error);

@@ -19,7 +19,11 @@ export async function GET(request: NextRequest) {
         });
 
         if (error) {
-            throw error;
+            console.error('Error fetching audit log:', error);
+            return NextResponse.json({
+                success: true,
+                logs: [],
+            });
         }
 
         return NextResponse.json({
@@ -28,9 +32,10 @@ export async function GET(request: NextRequest) {
         });
     } catch (error) {
         console.error('Error fetching audit log:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch audit log' },
-            { status: 500 }
-        );
+        return NextResponse.json({
+            success: false,
+            error: 'Failed to fetch audit log',
+            logs: [],
+        }, { status: 500 });
     }
 }

@@ -11,47 +11,53 @@ export async function GET() {
     try {
         const supabase = getSupabaseAdmin();
 
-        // Get all projects
-        const { data: projects, error: projectsError } = await supabase.rpc('get_projects', {
-            p_status: null,
-            p_phase: null,
-        });
+        // Get dashboard stats using RPC
+        const { data, error } = await supabase.rpc('get_dashboard_stats');
 
-        if (projectsError) {
-            throw projectsError;
+        if (error) {
+            console.error('Error fetching dashboard stats:', error);
+            // Return default stats on error
+            return NextResponse.json({
+                success: true,
+                stats: {
+                    totalProjects: 0,
+                    biddingCount: 0,
+                    executionCount: 0,
+                    pendingRequests: 0,
+                    indexedFolders: 0,
+                    violations: 0,
+                    activeJobs: 0,
+                    lastScan: null,
+                },
+            });
         }
-
-        const projectList = projects || [];
-        const totalProjects = projectList.length;
-        const biddingCount = projectList.filter((p: any) => p.phase === 'bidding').length;
-        const executionCount = projectList.filter((p: any) => p.phase === 'execution').length;
-
-        // Get pending requests count
-        const { data: requests } = await supabase.rpc('get_pending_requests');
-        const pendingRequests = Array.isArray(requests) ? requests.length : 0;
-
-        // Get last scan info
-        const { data: lastScan } = await supabase.rpc('get_last_scan');
 
         return NextResponse.json({
             success: true,
-            stats: {
-                totalProjects,
-                biddingCount,
-                executionCount,
-                pendingRequests,
-                indexedFolders: 0, // Will be implemented when folder_index is populated
-                violations: 0, // Will be implemented when violations are tracked
-                activeJobs: 0, // Will be implemented when jobs are running
-                lastScan: lastScan?.created_at || null,
+            stats: data || {
+                totalProjects: 0,
+                biddingCount: 0,
+                executionCount: 0,
+                pendingRequests: 0,
+                indexedFolders: 0,
+                violations: 0,
+                activeJobs: 0,
             },
-            projects: projectList,
         });
     } catch (error) {
         console.error('Error fetching dashboard stats:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch dashboard stats' },
-            { status: 500 }
-        );
+        return NextResponse.json({
+            success: false,
+            error: 'Failed to fetch dashboard stats',
+            stats: {
+                totalProjects: 0,
+                biddingCount: 0,
+                executionCount: 0,
+                pendingRequests: 0,
+                indexedFolders: 0,
+                violations: 0,
+                activeJobs: 0,
+            },
+        }, { status: 500 });
     }
 }

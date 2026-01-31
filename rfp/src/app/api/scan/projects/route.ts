@@ -93,25 +93,24 @@ export async function POST(request: NextRequest) {
 
                 // Upsert project using RPC
                 const { data: result, error } = await supabase.rpc('upsert_project', {
-                    p_name: projectName,
                     p_pr_number: `PRJ-${projectNumber}`,
+                    p_name: projectName,
                     p_drive_folder_id: folder.id,
                     p_phase: phase,
-                    p_status: 'active',
-                    p_created_at: folder.createdTime || new Date().toISOString(),
                 });
 
                 if (error) {
+                    console.error(`Error upserting project ${projectNumber}:`, error);
                     throw error;
                 }
 
-                if (result?.action === 'created') {
+                // The RPC returns UUID, count as created if result exists
+                if (result) {
                     results.created++;
-                } else if (result?.action === 'updated') {
-                    results.updated++;
                 }
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+                console.error(`Error processing folder ${folder.name}:`, error);
                 results.errors.push(`${folder.name}: ${errorMsg}`);
             }
         }
@@ -157,11 +156,18 @@ export async function GET(request: NextRequest) {
 
         const supabase = getSupabaseAdmin();
 
-        // Get last scan from audit log using RPC
-        const { data: lastScan } = await supabase.rpc('get_last_scan');
+        // Get last scan from audit log
+        const { data: auditLogs } = await supabase.rpc('get_audit_log', {
+            p_limit: 10,
+        });
 
-        // Get project count using RPC
-        const { data: countResult } = await supabase.rpc('get_project_count');
+        const lastScan = auditLogs?.find((log: any) => log.action === 'drive_scan_completed');
+
+        // Get project count
+        const { data: projects } = await supabase.rpc('get_projects', {
+            p_status: null,
+            p_phase: null,
+        });
 
         return NextResponse.json({
             lastScan: lastScan ? {
@@ -169,7 +175,7 @@ export async function GET(request: NextRequest) {
                 results: lastScan.details,
                 performedBy: lastScan.performed_by,
             } : null,
-            projectCount: countResult?.count || 0,
+            projectCount: projects?.length || 0,
         });
     } catch (error) {
         console.error('Get scan status error:', error);

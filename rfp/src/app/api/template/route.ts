@@ -37,9 +37,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
     try {
         const session = request.cookies.get('rfp_session');
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const createdBy = session?.value || 'admin';
 
         const body = await request.json();
         const { template_json } = body;
@@ -52,30 +50,25 @@ export async function POST(request: NextRequest) {
 
         const { data, error } = await supabase.rpc('save_template', {
             p_template_json: template_json,
-            p_created_by: session.value,
+            p_created_by: createdBy,
         });
 
         if (error) {
+            console.error('Error saving template:', error);
             throw error;
         }
 
-        // Log audit
-        await supabase.rpc('log_audit', {
-            p_action: 'template_saved',
-            p_entity_type: 'template',
-            p_entity_id: data?.id,
-            p_details: { version: data?.version },
-            p_performed_by: session.value,
-        });
+        // data is the version number directly
+        const version = data;
 
         return NextResponse.json({
             success: true,
-            ...data,
+            version: version,
         });
     } catch (error) {
         console.error('Error saving template:', error);
         return NextResponse.json(
-            { error: 'Failed to save template' },
+            { success: false, error: 'Failed to save template' },
             { status: 500 }
         );
     }

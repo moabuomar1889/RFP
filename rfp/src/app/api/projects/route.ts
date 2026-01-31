@@ -20,6 +20,7 @@ export async function GET(request: Request) {
         });
 
         if (error) {
+            console.error('Error fetching projects:', error);
             throw error;
         }
 
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
     } catch (error) {
         console.error('Error fetching projects:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch projects' },
+            { success: false, error: 'Failed to fetch projects', projects: [] },
             { status: 500 }
         );
     }
