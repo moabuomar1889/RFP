@@ -22,14 +22,19 @@ export async function GET(
             .from('folder_index')
             .select('*')
             .eq('project_id', projectId)
-            .order('path');
+            .order('template_path');
 
         if (error) {
             console.error('Error fetching folders:', error);
-            return NextResponse.json(
-                { success: false, error: error.message },
-                { status: 500 }
-            );
+            // Return empty array if table doesn't exist or other DB error
+            const response = NextResponse.json({
+                success: true,
+                folders: [],
+                count: 0,
+                message: 'No folders indexed yet',
+            });
+            response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+            return response;
         }
 
         // Build tree structure from flat list
@@ -45,22 +50,26 @@ export async function GET(
         return response;
     } catch (error) {
         console.error('Error fetching folders:', error);
-        return NextResponse.json(
-            { success: false, error: 'Failed to fetch folders' },
-            { status: 500 }
-        );
+        // Return empty on error instead of 500
+        const response = NextResponse.json({
+            success: true,
+            folders: [],
+            count: 0,
+        });
+        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        return response;
     }
 }
 
 interface FolderRecord {
     id: string;
-    drive_id: string;
-    folder_name: string;
-    path: string;
-    parent_id: string | null;
-    expected_permissions: any;
-    has_limited_access: boolean;
-    last_scanned_at: string | null;
+    project_id: string;
+    template_path: string;
+    drive_folder_id: string;
+    drive_folder_name: string;
+    limited_access_enabled: boolean;
+    permissions_hash: string | null;
+    last_verified_at: string | null;
 }
 
 interface TreeNode {
@@ -74,34 +83,14 @@ interface TreeNode {
 }
 
 function buildFolderTree(folders: FolderRecord[]): TreeNode[] {
-    const nodeMap = new Map<string, TreeNode>();
-    const roots: TreeNode[] = [];
-
-    // Create nodes
-    for (const folder of folders) {
-        nodeMap.set(folder.id, {
-            id: folder.id,
-            name: folder.folder_name,
-            path: folder.path,
-            driveId: folder.drive_id,
-            limitedAccess: folder.has_limited_access,
-            synced: !!folder.last_scanned_at,
-            children: [],
-        });
-    }
-
-    // Build tree
-    for (const folder of folders) {
-        const node = nodeMap.get(folder.id);
-        if (!node) continue;
-
-        if (folder.parent_id && nodeMap.has(folder.parent_id)) {
-            const parent = nodeMap.get(folder.parent_id);
-            parent?.children.push(node);
-        } else {
-            roots.push(node);
-        }
-    }
-
-    return roots;
+    // For now, return flat list as tree nodes (no parent-child in current schema)
+    return folders.map(folder => ({
+        id: folder.id,
+        name: folder.drive_folder_name,
+        path: folder.template_path,
+        driveId: folder.drive_folder_id,
+        limitedAccess: folder.limited_access_enabled || false,
+        synced: !!folder.last_verified_at,
+        children: [],
+    }));
 }
