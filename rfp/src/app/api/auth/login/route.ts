@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
     const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline', // Request refresh token
         scope: config.scopes,
-        prompt: 'consent', // Force consent to get refresh token
+        prompt: 'select_account', // Only prompt for account selection, not consent
+        include_granted_scopes: true, // Include any previously granted scopes
     });
 
     return NextResponse.redirect(authUrl);
