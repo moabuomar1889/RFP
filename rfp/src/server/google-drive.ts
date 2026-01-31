@@ -256,10 +256,13 @@ export async function getAllProjects(): Promise<drive_v3.Schema$File[]> {
         fields: 'files(id, name, parents, createdTime, modifiedTime)',
     });
 
-    // Filter to only project folders (matching PRJ-PR-XXX pattern)
+    // Filter to only project folders (matching PRJ-XXX pattern)
+    // Example: PRJ-005-Construction of Site Occupied Buildings
     const projects = (response.data.files || []).filter(f =>
-        f.name && /^PRJ-PR-\d+/.test(f.name)
+        f.name && /^PRJ-\d+-/.test(f.name)
     );
+
+    console.log(`getAllProjects: Found ${response.data.files?.length || 0} total folders, ${projects.length} matching PRJ pattern`);
 
     return projects;
 }
