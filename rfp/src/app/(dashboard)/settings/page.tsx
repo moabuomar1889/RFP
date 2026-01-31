@@ -19,7 +19,10 @@ import {
     FlaskConical,
     Lock,
     Info,
+    HardDrive,
+    Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
     const [protectedPrincipals, setProtectedPrincipals] = useState([
@@ -30,6 +33,8 @@ export default function SettingsPage() {
     const [strictModeEnabled, setStrictModeEnabled] = useState(true);
     const [safeTestMode, setSafeTestMode] = useState(true);
     const [bulkApproved, setBulkApproved] = useState(false);
+    const [scanning, setScanning] = useState(false);
+    const [scanResults, setScanResults] = useState<any>(null);
 
     const addPrincipal = () => {
         if (newPrincipal && !protectedPrincipals.includes(newPrincipal)) {
@@ -41,6 +46,26 @@ export default function SettingsPage() {
     const removePrincipal = (email: string) => {
         if (email === "mo.abuomar@dtgsa.com") return;
         setProtectedPrincipals(protectedPrincipals.filter((p) => p !== email));
+    };
+
+    const scanDrive = async () => {
+        setScanning(true);
+        try {
+            const response = await fetch("/api/scan/projects", {
+                method: "POST",
+            });
+            const data = await response.json();
+            if (data.success) {
+                setScanResults(data.results);
+                toast.success(data.message);
+            } else {
+                toast.error(data.error || "Scan failed");
+            }
+        } catch (error) {
+            toast.error("Failed to scan Drive");
+        } finally {
+            setScanning(false);
+        }
     };
 
     return (
@@ -393,6 +418,41 @@ export default function SettingsPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                            {/* Scan Drive - IMPORTANT: First action for new setup */}
+                            <div className="flex items-center justify-between p-4 rounded-lg border border-green-500/50 bg-green-500/5">
+                                <div>
+                                    <p className="font-medium flex items-center gap-2">
+                                        <HardDrive className="h-4 w-4 text-green-500" />
+                                        Scan Drive for Existing Projects
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Import existing project folders from Shared Drive to database
+                                    </p>
+                                    {scanResults && (
+                                        <div className="mt-2 text-xs text-muted-foreground">
+                                            Last scan: Found {scanResults.found}, Created {scanResults.created}, Updated {scanResults.updated}
+                                        </div>
+                                    )}
+                                </div>
+                                <Button
+                                    onClick={scanDrive}
+                                    disabled={scanning}
+                                    className="bg-green-600 hover:bg-green-700"
+                                >
+                                    {scanning ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Scanning...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <HardDrive className="mr-2 h-4 w-4" />
+                                            Scan Drive
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+
                             <div className="flex items-center justify-between p-4 rounded-lg border border-amber-500/50">
                                 <div>
                                     <p className="font-medium">Rebuild Folder Index</p>
