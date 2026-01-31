@@ -68,25 +68,35 @@ export default function DashboardContent() {
         }
     };
 
-    const fetchData = async () => {
+    const fetchData = async (showToast = false) => {
         try {
             setLoading(true);
             const timestamp = Date.now();
             const res = await fetch(`/api/dashboard/stats?t=${timestamp}`, {
                 cache: 'no-store',
-                headers: { 'Cache-Control': 'no-cache' }
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
             });
             const data = await res.json();
 
             if (data.success) {
                 setStats(data.stats);
-                toast.success('Dashboard refreshed');
+                if (showToast) {
+                    toast.success('Dashboard refreshed');
+                }
             }
 
             // Fetch recent audit logs
             const auditRes = await fetch(`/api/audit?limit=5&t=${timestamp}`, {
                 cache: 'no-store',
-                headers: { 'Cache-Control': 'no-cache' }
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
             });
             const auditData = await auditRes.json();
             if (auditData.success && Array.isArray(auditData.logs)) {
@@ -94,14 +104,37 @@ export default function DashboardContent() {
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
-            toast.error('Failed to load dashboard data');
+            if (showToast) {
+                toast.error('Failed to load dashboard data');
+            }
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
+        // Fetch on initial mount
         fetchData();
+
+        // Refetch when window gains focus (user returns to tab)
+        const handleFocus = () => {
+            fetchData();
+        };
+
+        // Refetch when page becomes visible
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchData();
+            }
+        };
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, []);
 
     const formatTimeAgo = (dateStr: string) => {
@@ -136,7 +169,7 @@ export default function DashboardContent() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={fetchData}>
+                    <Button variant="outline" onClick={() => fetchData(true)}>
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Refresh
                     </Button>
