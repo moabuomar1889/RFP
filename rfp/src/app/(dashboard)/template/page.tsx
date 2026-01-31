@@ -167,14 +167,15 @@ export default function TemplatePage() {
             const res = await fetch('/api/template');
             const data = await res.json();
 
-            if (data.success && data.template) {
-                setTemplateTree(data.template.template_json || defaultTemplate);
+            if (data.success && data.template && Array.isArray(data.template.template_json)) {
+                setTemplateTree(data.template.template_json);
                 setTemplateVersion(data.template.version_number);
                 setLastUpdated(data.template.created_at);
             } else {
-                // Use default template if none exists
+                // Use default template if none exists or data is invalid
                 setTemplateTree(defaultTemplate);
                 setTemplateVersion(null);
+                setLastUpdated(null);
             }
         } catch (error) {
             console.error('Error fetching template:', error);
