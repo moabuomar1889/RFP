@@ -1,26 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
     Save,
     History,
     Play,
-    Eye,
     FolderPlus,
     ChevronRight,
     ChevronDown,
     Shield,
     Lock,
     Folder,
+    Loader2,
+    RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
 
-// Mock template data
-const templateTree = [
+// Default template structure
+const defaultTemplate = [
     {
         id: "1",
         name: "Bidding",
@@ -152,7 +153,75 @@ function FolderNode({ node, level, onSelect, selectedId }: FolderNodeProps) {
 export default function TemplatePage() {
     const [selectedNode, setSelectedNode] = useState<any>(null);
     const [hasChanges, setHasChanges] = useState(false);
-    const [safeTestMode] = useState(true); // Safe test mode enabled by default
+    const [safeTestMode] = useState(true);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [templateTree, setTemplateTree] = useState<any[]>([]);
+    const [templateVersion, setTemplateVersion] = useState<number | null>(null);
+    const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+    // Fetch template from database
+    const fetchTemplate = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch('/api/template');
+            const data = await res.json();
+
+            if (data.success && data.template) {
+                setTemplateTree(data.template.template_json || defaultTemplate);
+                setTemplateVersion(data.template.version_number);
+                setLastUpdated(data.template.created_at);
+            } else {
+                // Use default template if none exists
+                setTemplateTree(defaultTemplate);
+                setTemplateVersion(null);
+            }
+        } catch (error) {
+            console.error('Error fetching template:', error);
+            setTemplateTree(defaultTemplate);
+            toast.error('Failed to load template');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Save template to database
+    const saveTemplate = async () => {
+        try {
+            setSaving(true);
+            const res = await fetch('/api/template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ template_json: templateTree }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                setTemplateVersion(data.version);
+                setHasChanges(false);
+                toast.success(`Template saved as Version ${data.version}`);
+            } else {
+                throw new Error(data.error);
+            }
+        } catch (error) {
+            console.error('Error saving template:', error);
+            toast.error('Failed to save template');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchTemplate();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -180,16 +249,20 @@ export default function TemplatePage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <Button variant="outline" onClick={fetchTemplate}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Refresh
+                    </Button>
                     <Button variant="outline">
                         <History className="mr-2 h-4 w-4" />
                         Version History
                     </Button>
-                    <Button variant="outline">
-                        <Eye className="mr-2 h-4 w-4" />
-                        Preview Changes
-                    </Button>
-                    <Button disabled={!hasChanges}>
-                        <Save className="mr-2 h-4 w-4" />
+                    <Button onClick={saveTemplate} disabled={!hasChanges || saving}>
+                        {saving ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                        )}
                         Save Template
                     </Button>
                 </div>
@@ -201,10 +274,12 @@ export default function TemplatePage() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <Badge variant="outline" className="text-lg px-3 py-1">
-                                Version 12
+                                {templateVersion ? `Version ${templateVersion}` : 'No Version Saved'}
                             </Badge>
                             <span className="text-sm text-muted-foreground">
-                                Last updated: Jan 26, 2024 at 10:00 AM
+                                {lastUpdated
+                                    ? `Last updated: ${new Date(lastUpdated).toLocaleString()}`
+                                    : 'Not saved yet'}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
