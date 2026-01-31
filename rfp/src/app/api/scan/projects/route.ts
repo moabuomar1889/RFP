@@ -34,24 +34,26 @@ export async function POST(request: NextRequest) {
 
         for (const folder of driveProjects) {
             try {
-                // Parse project info from folder name (PRJ-PR-XXX-Name)
-                const match = folder.name?.match(/^PRJ-PR-(\d+)-(.+)$/);
+                // Parse project info from folder name (PRJ-XXX-ProjectName)
+                // Example: PRJ-005-Construction of Site Occupied Buildings
+                const match = folder.name?.match(/^PRJ-(\d+)-(.+)$/);
                 if (!match) {
+                    console.log(`Skipping folder (no match): ${folder.name}`);
                     results.skipped++;
                     continue;
                 }
 
-                const prNumber = `PR-${match[1]}`;
-                const projectName = match[2];
+                const projectNumber = match[1]; // e.g., "005"
+                const projectName = match[2];   // e.g., "Construction of Site Occupied Buildings"
 
-                // Determine phase based on folder name or contents
-                const hasPD = folder.name?.includes('Project Delivery') || folder.name?.includes('-PD-');
-                const phase = hasPD ? 'execution' : 'bidding';
+                // Phase is determined by subfolders (PRJ-XXX-PD or PRJ-XXX-RFP)
+                // For now, set as 'bidding' - user can update later
+                const phase = 'bidding';
 
                 // Upsert project using RPC
                 const { data: result, error } = await supabase.rpc('upsert_project', {
                     p_name: projectName,
-                    p_pr_number: prNumber,
+                    p_pr_number: `PRJ-${projectNumber}`,
                     p_drive_folder_id: folder.id,
                     p_phase: phase,
                     p_status: 'active',
