@@ -93,15 +93,16 @@ export async function GET(request: NextRequest) {
         // If no new refresh token and user exists, keep the old one
 
         // Store encrypted tokens with proper error checking
-        console.log('[Auth Callback] Storing tokens...');
+        console.log('[Auth Callback] Storing tokens...', { email, hasAccess: !!tokenData.access_token_encrypted });
         const { error: upsertError } = await supabase
             .schema('rfp')
             .from('user_tokens')
             .upsert(tokenData, { onConflict: 'email' });
 
         if (upsertError) {
-            console.error('[Auth Callback] Token storage error:', upsertError);
-            return NextResponse.redirect(new URL('/login?error=token_storage_failed', request.url));
+            console.error('[Auth Callback] Token storage error:', JSON.stringify(upsertError));
+            const errorMsg = encodeURIComponent(upsertError.message || 'unknown');
+            return NextResponse.redirect(new URL(`/login?error=storage_failed&detail=${errorMsg}`, request.url));
         }
         console.log('[Auth Callback] Tokens stored successfully');
 
