@@ -46,15 +46,23 @@ export default function DashboardContent() {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/dashboard/stats');
+            const timestamp = Date.now();
+            const res = await fetch(`/api/dashboard/stats?t=${timestamp}`, {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
             const data = await res.json();
 
             if (data.success) {
                 setStats(data.stats);
+                toast.success('Dashboard refreshed');
             }
 
             // Fetch recent audit logs
-            const auditRes = await fetch('/api/audit?limit=5');
+            const auditRes = await fetch(`/api/audit?limit=5&t=${timestamp}`, {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
             const auditData = await auditRes.json();
             if (auditData.success && Array.isArray(auditData.logs)) {
                 setRecentActivity(auditData.logs);
@@ -241,10 +249,10 @@ export default function DashboardContent() {
                                 <div key={i} className="flex items-start gap-4">
                                     <div
                                         className={`mt-1 h-2 w-2 rounded-full ${item.action?.includes('error') || item.action?.includes('violation')
-                                                ? "bg-amber-500"
-                                                : item.action?.includes('completed') || item.action?.includes('created')
-                                                    ? "bg-green-500"
-                                                    : "bg-blue-500"
+                                            ? "bg-amber-500"
+                                            : item.action?.includes('completed') || item.action?.includes('created')
+                                                ? "bg-green-500"
+                                                : "bg-blue-500"
                                             }`}
                                     />
                                     <div className="flex-1">
