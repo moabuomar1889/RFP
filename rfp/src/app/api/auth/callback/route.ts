@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
         }
         console.log('[Auth Callback] Tokens stored successfully');
 
-        // Log audit
+        // Log audit (use type assertion for schema compatibility)
         await supabase
             .from('audit_log')
             .insert({
@@ -113,7 +113,7 @@ export async function GET(request: NextRequest) {
                 entity_id: email,
                 details: { ip: request.headers.get('x-forwarded-for') },
                 performed_by: email,
-            });
+            } as any);
 
         // Set session cookie and redirect to dashboard
         const response = NextResponse.redirect(new URL('/dashboard', request.url));
