@@ -44,45 +44,28 @@ export async function POST(request: NextRequest) {
                 const prNumber = `PR-${match[1]}`;
                 const projectName = match[2];
 
-                // Check if project already exists in database
-                const { data: existing } = await supabase
-                    .schema('rfp')
-                    .from('projects')
-                    .select('id')
-                    .eq('drive_folder_id', folder.id)
-                    .single();
+                // Determine phase based on folder name or contents
+                const hasPD = folder.name?.includes('Project Delivery') || folder.name?.includes('-PD-');
+                const phase = hasPD ? 'execution' : 'bidding';
 
-                if (existing) {
-                    // Update existing project
-                    await supabase
-                        .schema('rfp')
-                        .from('projects')
-                        .update({
-                            name: projectName,
-                            pr_number: prNumber,
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq('id', existing.id);
-                    results.updated++;
-                } else {
-                    // Determine phase based on folder name or contents
-                    // If folder name contains "Project Delivery" or "PD", it's execution phase
-                    const hasPD = folder.name?.includes('Project Delivery') || folder.name?.includes('-PD-');
-                    const phase = hasPD ? 'execution' : 'bidding';
+                // Upsert project using RPC
+                const { data: result, error } = await supabase.rpc('upsert_project', {
+                    p_name: projectName,
+                    p_pr_number: prNumber,
+                    p_drive_folder_id: folder.id,
+                    p_phase: phase,
+                    p_status: 'active',
+                    p_created_at: folder.createdTime || new Date().toISOString(),
+                });
 
-                    // Create new project
-                    await supabase
-                        .schema('rfp')
-                        .from('projects')
-                        .insert({
-                            name: projectName,
-                            pr_number: prNumber,
-                            drive_folder_id: folder.id,
-                            phase,
-                            status: 'active',
-                            created_at: folder.createdTime || new Date().toISOString(),
-                        });
+                if (error) {
+                    throw error;
+                }
+
+                if (result?.action === 'created') {
                     results.created++;
+                } else if (result?.action === 'updated') {
+                    results.updated++;
                 }
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -90,17 +73,14 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Log audit
-        await supabase
-            .schema('rfp')
-            .from('audit_log')
-            .insert({
-                action: 'drive_scan_completed',
-                entity_type: 'system',
-                entity_id: 'scan',
-                details: results,
-                performed_by: session.value,
-            });
+        // Log audit using RPC
+        await supabase.rpc('log_audit', {
+            p_action: 'drive_scan_completed',
+            p_entity_type: 'system',
+            p_entity_id: 'scan',
+            p_details: results,
+            p_performed_by: session.value,
+        });
 
         console.log('Drive scan completed:', results);
 
@@ -132,21 +112,13 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Get last scan from audit log
-        const { data: lastScan } = await getSupabaseAdmin()
-            .schema('rfp')
-            .from('audit_log')
-            .select('*')
-            .eq('action', 'drive_scan_completed')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+        const supabase = getSupabaseAdmin();
 
-        // Get project count
-        const { count: projectCount } = await getSupabaseAdmin()
-            .schema('rfp')
-            .from('projects')
-            .select('*', { count: 'exact', head: true });
+        // Get last scan from audit log using RPC
+        const { data: lastScan } = await supabase.rpc('get_last_scan');
+
+        // Get project count using RPC
+        const { data: countResult } = await supabase.rpc('get_project_count');
 
         return NextResponse.json({
             lastScan: lastScan ? {
@@ -154,7 +126,7 @@ export async function GET(request: NextRequest) {
                 results: lastScan.details,
                 performedBy: lastScan.performed_by,
             } : null,
-            projectCount,
+            projectCount: countResult?.count || 0,
         });
     } catch (error) {
         console.error('Get scan status error:', error);

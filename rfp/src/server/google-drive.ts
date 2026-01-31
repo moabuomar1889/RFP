@@ -1,7 +1,7 @@
 import { google, drive_v3 } from 'googleapis';
 import { OAuth2Client } from 'google-auth-library';
 import { GOOGLE_CONFIG, APP_CONFIG, DriveRole, PermissionType } from '@/lib/config';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { decrypt, encrypt } from '@/lib/crypto';
 
 /**
@@ -14,15 +14,14 @@ export async function getOAuth2Client(): Promise<OAuth2Client> {
         GOOGLE_CONFIG.redirectUri
     );
 
-    // Get stored tokens from database
-    const { data: tokenData, error } = await supabaseAdmin
-        .schema('rfp')
-        .from('user_tokens')
-        .select('*')
-        .eq('email', APP_CONFIG.adminEmail)
-        .single();
+    // Get stored tokens from database using RPC (bypasses schema issue)
+    const supabase = getSupabaseAdmin();
+    const { data: tokenData, error } = await supabase.rpc('get_user_token_full', {
+        p_email: APP_CONFIG.adminEmail
+    });
 
     if (error || !tokenData) {
+        console.error('Token fetch error:', error);
         throw new Error('No stored tokens found. Please login first.');
     }
 
@@ -40,16 +39,12 @@ export async function getOAuth2Client(): Promise<OAuth2Client> {
     if (tokenInfo.expiry_date && tokenInfo.expiry_date < Date.now()) {
         const { credentials } = await oauth2Client.refreshAccessToken();
 
-        // Update stored tokens
-        await supabaseAdmin
-            .schema('rfp')
-            .from('user_tokens')
-            .update({
-                access_token_encrypted: encrypt(credentials.access_token!),
-                token_expiry: new Date(credentials.expiry_date!).toISOString(),
-                updated_at: new Date().toISOString(),
-            })
-            .eq('email', APP_CONFIG.adminEmail);
+        // Update stored tokens using RPC
+        await supabase.rpc('update_user_token', {
+            p_email: APP_CONFIG.adminEmail,
+            p_access_token: encrypt(credentials.access_token!),
+            p_token_expiry: new Date(credentials.expiry_date!).toISOString(),
+        });
 
         oauth2Client.setCredentials(credentials);
     }
