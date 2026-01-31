@@ -1,9 +1,11 @@
+-- ============================================================================
 -- Migration: Add comprehensive RPC functions for API access
 -- Run this in Supabase SQL Editor after running previous migrations
+-- ============================================================================
 
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 -- PROJECTS RPCs
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 
 -- Get all projects with optional filters
 CREATE OR REPLACE FUNCTION public.get_projects(
@@ -40,9 +42,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 -- PROJECT REQUESTS RPCs
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 
 -- Get pending project requests
 CREATE OR REPLACE FUNCTION public.get_pending_requests()
@@ -124,7 +126,6 @@ DECLARE
     v_pr_number TEXT;
     v_id UUID;
 BEGIN
-    -- Generate PR number for new projects
     IF p_request_type = 'new_project' THEN
         v_pr_number := rfp.get_next_pr_number();
     END IF;
@@ -158,7 +159,6 @@ DECLARE
     v_request RECORD;
     v_project_id UUID;
 BEGIN
-    -- Get the request
     SELECT * INTO v_request
     FROM rfp.project_requests
     WHERE id = p_request_id AND status = 'pending';
@@ -167,14 +167,12 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Request not found or already processed');
     END IF;
     
-    -- Update request status
     UPDATE rfp.project_requests
     SET status = 'approved',
         reviewed_by = p_reviewed_by,
         reviewed_at = NOW()
     WHERE id = p_request_id;
     
-    -- For new project requests, create the project
     IF v_request.request_type = 'new_project' THEN
         INSERT INTO rfp.projects (
             pr_number,
@@ -187,12 +185,11 @@ BEGIN
             v_request.project_name,
             'pending_creation',
             'bidding',
-            '' -- Will be set when folder is created
+            ''
         )
         RETURNING id INTO v_project_id;
     END IF;
     
-    -- For upgrade requests, update the phase
     IF v_request.request_type = 'upgrade_to_pd' AND v_request.project_id IS NOT NULL THEN
         UPDATE rfp.projects
         SET phase = 'execution'
@@ -200,7 +197,6 @@ BEGIN
         v_project_id := v_request.project_id;
     END IF;
     
-    -- Log audit
     INSERT INTO rfp.audit_log (action, entity_type, entity_id, performed_by, details)
     VALUES ('request_approved', 'project_request', p_request_id::TEXT, p_reviewed_by,
             jsonb_build_object('request_type', v_request.request_type, 'project_name', v_request.project_name));
@@ -228,7 +224,6 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Request not found or already processed');
     END IF;
     
-    -- Log audit
     INSERT INTO rfp.audit_log (action, entity_type, entity_id, performed_by, details)
     VALUES ('request_rejected', 'project_request', p_request_id::TEXT, p_reviewed_by,
             jsonb_build_object('reason', p_reason));
@@ -237,9 +232,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 -- AUDIT LOG RPCs
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 
 -- Get audit log entries
 CREATE OR REPLACE FUNCTION public.get_audit_log(p_limit INTEGER DEFAULT 100)
@@ -288,9 +283,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 -- TEMPLATE RPCs
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 
 -- Get active template
 CREATE OR REPLACE FUNCTION public.get_active_template()
@@ -324,18 +319,14 @@ RETURNS INTEGER AS $$
 DECLARE
     v_version INTEGER;
 BEGIN
-    -- Get next version number
     SELECT COALESCE(MAX(version_number), 0) + 1 INTO v_version
     FROM rfp.template_versions;
     
-    -- Deactivate current active template
     UPDATE rfp.template_versions SET is_active = false WHERE is_active = true;
     
-    -- Insert new template
     INSERT INTO rfp.template_versions (version_number, template_json, created_by, is_active)
     VALUES (v_version, p_template_json, p_created_by, true);
     
-    -- Log audit
     INSERT INTO rfp.audit_log (action, entity_type, entity_id, performed_by)
     VALUES ('template_saved', 'template', v_version::TEXT, p_created_by);
     
@@ -343,9 +334,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 -- DASHBOARD STATS RPC
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 
 -- Get dashboard statistics
 CREATE OR REPLACE FUNCTION public.get_dashboard_stats()
@@ -367,9 +358,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 -- PROJECT MANAGEMENT RPCs
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 
 -- Upsert project (for drive scanning)
 CREATE OR REPLACE FUNCTION public.upsert_project(
@@ -424,9 +415,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 -- SETTINGS RPCs
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 
 -- Get app setting
 CREATE OR REPLACE FUNCTION public.get_app_setting(p_key TEXT)
@@ -461,9 +452,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 -- GRANT PERMISSIONS
--- ═══════════════════════════════════════════════════════════════════════════
+-- ============================================================================
 
 GRANT EXECUTE ON FUNCTION public.get_projects(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_pending_requests() TO anon, authenticated;
