@@ -1,10 +1,9 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
     ArrowLeft,
@@ -22,39 +21,18 @@ import {
     Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
-// Mock project data
-const project = {
-    id: "1",
-    prNumber: "PR-001",
-    name: "Al Madinah Tower",
-    status: "active",
-    phase: "bidding", // 'bidding' or 'execution'
-    syncedVersion: 12,
-    lastSynced: "2024-01-26T10:00:00Z",
-    lastEnforced: "2024-01-26T11:00:00Z",
-    driveFolderId: "1abc123xyz",
-    driveUrl: "https://drive.google.com/drive/folders/1abc123xyz",
-    foldersCount: 52,
-    hasViolations: false,
-    hasPendingUpgrade: false,
-};
-
-// Mock folder structure
-const folderTree = [
-    {
-        id: "1",
-        name: "PRJ-PR-001-RFP",
-        path: "/Bidding",
-        limitedAccess: false,
-        synced: true,
-        children: [
-            { id: "1-1", name: "1-PR-001-RFP-SOW", path: "/Bidding/SOW", limitedAccess: true, synced: true, children: [] },
-            { id: "1-2", name: "2-PR-001-RFP-Technical", path: "/Bidding/Technical", limitedAccess: true, synced: true, children: [] },
-            { id: "1-3", name: "3-PR-001-RFP-Commercial", path: "/Bidding/Commercial", limitedAccess: true, synced: true, children: [] },
-        ],
-    },
-];
+interface Project {
+    id: string;
+    pr_number: string;
+    name: string;
+    status: string;
+    phase: string;
+    synced_version: number | null;
+    last_synced_at: string | null;
+    drive_folder_id: string;
+}
 
 interface FolderNodeProps {
     node: any;
@@ -104,17 +82,106 @@ function FolderNode({ node, level }: FolderNodeProps) {
 
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = use(params);
+    const projectId = resolvedParams.id;
+
+    const [loading, setLoading] = useState(true);
+    const [project, setProject] = useState<Project | null>(null);
+    const [folderTree, setFolderTree] = useState<any[]>([]);
     const [isRequestingUpgrade, setIsRequestingUpgrade] = useState(false);
-    const [upgradeRequested, setUpgradeRequested] = useState(project.hasPendingUpgrade);
+    const [upgradeRequested, setUpgradeRequested] = useState(false);
+
+    useEffect(() => {
+        fetchProjectData();
+    }, [projectId]);
+
+    const fetchProjectData = async () => {
+        try {
+            setLoading(true);
+            const timestamp = Date.now();
+
+            // Fetch project by ID
+            const res = await fetch(`/api/projects/${projectId}?t=${timestamp}`, {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+
+            if (!res.ok) {
+                throw new Error('Failed to fetch project');
+            }
+
+            const data = await res.json();
+
+            if (data.success && data.project) {
+                setProject(data.project);
+            } else {
+                toast.error('Project not found');
+            }
+
+            // TODO: Fetch folder tree from API when available
+            // For now, we'll leave it empty
+            setFolderTree([]);
+
+        } catch (error) {
+            console.error('Error fetching project:', error);
+            toast.error('Failed to load project');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleRequestUpgrade = async () => {
+        if (!project) return;
+
         setIsRequestingUpgrade(true);
-        // In real implementation, call API
-        setTimeout(() => {
+        try {
+            const res = await fetch('/api/requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    request_type: 'upgrade_to_pd',
+                    project_name: project.name,
+                    project_id: project.id,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                setUpgradeRequested(true);
+                toast.success('Upgrade request submitted');
+            } else {
+                toast.error(data.error || 'Failed to submit request');
+            }
+        } catch (error) {
+            toast.error('Failed to submit upgrade request');
+        } finally {
             setIsRequestingUpgrade(false);
-            setUpgradeRequested(true);
-        }, 1500);
+        }
     };
+
+    const driveUrl = project?.drive_folder_id
+        ? `https://drive.google.com/drive/folders/${project.drive_folder_id}`
+        : '#';
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
+    if (!project) {
+        return (
+            <div className="flex flex-col items-center justify-center h-96 gap-4">
+                <AlertTriangle className="h-12 w-12 text-amber-500" />
+                <h2 className="text-xl font-semibold">Project Not Found</h2>
+                <Button asChild>
+                    <Link href="/projects">Back to Projects</Link>
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -128,7 +195,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <div className="flex-1">
                     <div className="flex items-center gap-3">
                         <h1 className="text-3xl font-bold tracking-tight">
-                            {project.prNumber}
+                            {project.pr_number}
                         </h1>
                         <Badge
                             variant={project.phase === "execution" ? "default" : "secondary"}
@@ -136,15 +203,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         >
                             {project.phase === "execution" ? "🚀 Execution" : "📋 Bidding"}
                         </Badge>
+                        {project.status === "pending_creation" && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-400">
+                                ⏳ Pending Folder Creation
+                            </Badge>
+                        )}
                     </div>
                     <p className="text-muted-foreground">{project.name}</p>
                 </div>
-                <Button variant="outline" asChild>
-                    <a href={project.driveUrl} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Open in Drive
-                    </a>
-                </Button>
+                {project.drive_folder_id && (
+                    <Button variant="outline" asChild>
+                        <a href={driveUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Open in Drive
+                        </a>
+                    </Button>
+                )}
                 {project.phase === "bidding" && !upgradeRequested && (
                     <Button
                         variant="outline"
@@ -174,7 +248,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     <Shield className="mr-2 h-4 w-4" />
                     Enforce Now
                 </Button>
-                <Button>
+                <Button onClick={fetchProjectData}>
                     <Play className="mr-2 h-4 w-4" />
                     Sync Project
                 </Button>
@@ -222,30 +296,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardContent className="pt-6">
-                        <div className="text-2xl font-bold">{project.foldersCount}</div>
+                        <div className="text-2xl font-bold">{folderTree.length || 0}</div>
                         <p className="text-sm text-muted-foreground">Indexed Folders</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardContent className="pt-6">
-                        <div className="text-2xl font-bold">v{project.syncedVersion}</div>
+                        <div className="text-2xl font-bold">v{project.synced_version || 0}</div>
                         <p className="text-sm text-muted-foreground">Template Version</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardContent className="pt-6">
                         <div className="flex items-center gap-2">
-                            {project.hasViolations ? (
-                                <>
-                                    <AlertTriangle className="h-5 w-5 text-amber-500" />
-                                    <span className="text-2xl font-bold text-amber-500">2</span>
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                    <span className="text-2xl font-bold text-green-500">OK</span>
-                                </>
-                            )}
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            <span className="text-2xl font-bold text-green-500">OK</span>
                         </div>
                         <p className="text-sm text-muted-foreground">Permission Status</p>
                     </CardContent>
@@ -253,7 +318,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 <Card>
                     <CardContent className="pt-6">
                         <div className="text-sm font-medium">
-                            {new Date(project.lastSynced).toLocaleDateString()}
+                            {project.last_synced_at
+                                ? new Date(project.last_synced_at).toLocaleDateString()
+                                : 'Never'}
                         </div>
                         <p className="text-sm text-muted-foreground">Last Synced</p>
                     </CardContent>
@@ -278,9 +345,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-[400px]">
-                        {folderTree.map((node) => (
-                            <FolderNode key={node.id} node={node} level={0} />
-                        ))}
+                        {folderTree.length > 0 ? (
+                            folderTree.map((node) => (
+                                <FolderNode key={node.id} node={node} level={0} />
+                            ))
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
+                                <FolderOpen className="h-12 w-12 mb-3 opacity-50" />
+                                <p>No folders indexed yet</p>
+                                <p className="text-sm">Click "Sync Project" to scan folders</p>
+                            </div>
+                        )}
                     </ScrollArea>
                 </CardContent>
             </Card>
