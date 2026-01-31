@@ -99,16 +99,20 @@ interface FolderNodeProps {
 }
 
 function FolderNode({ node, level, onSelect, selectedId }: FolderNodeProps) {
-    const [expanded, setExpanded] = useState(true);
-    const hasChildren = node.children && node.children.length > 0;
+    const [expanded, setExpanded] = useState(node._expanded !== false);
+    // Support both formats: text/nodes (new) and name/children (old)
+    const nodeName = node.text || node.name || 'Untitled';
+    const children = node.nodes || node.children || [];
+    const hasChildren = children && children.length > 0;
+    const nodeId = node.id || nodeName;
 
     return (
         <div>
             <div
-                className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-accent ${selectedId === node.id ? "bg-accent" : ""
+                className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-accent ${selectedId === nodeId ? "bg-accent" : ""
                     }`}
                 style={{ paddingLeft: `${level * 20 + 12}px` }}
-                onClick={() => onSelect(node)}
+                onClick={() => onSelect({ ...node, id: nodeId, name: nodeName })}
             >
                 {hasChildren ? (
                     <button
@@ -128,16 +132,16 @@ function FolderNode({ node, level, onSelect, selectedId }: FolderNodeProps) {
                     <span className="w-5" />
                 )}
                 <Folder className="h-4 w-4 text-primary" />
-                <span className="flex-1 text-sm">{node.name}</span>
+                <span className="flex-1 text-sm">{nodeName}</span>
                 {node.limitedAccess && (
                     <Lock className="h-3 w-3 text-amber-500" />
                 )}
             </div>
             {hasChildren && expanded && (
                 <div>
-                    {node.children.map((child: any) => (
+                    {children.map((child: any, index: number) => (
                         <FolderNode
-                            key={child.id}
+                            key={child.id || child.text || child.name || index}
                             node={child}
                             level={level + 1}
                             onSelect={onSelect}
@@ -149,6 +153,7 @@ function FolderNode({ node, level, onSelect, selectedId }: FolderNodeProps) {
         </div>
     );
 }
+
 
 export default function TemplatePage() {
     const [selectedNode, setSelectedNode] = useState<any>(null);

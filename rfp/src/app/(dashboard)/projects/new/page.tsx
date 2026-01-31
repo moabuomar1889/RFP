@@ -8,18 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, FolderPlus, CheckCircle2, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function NewProjectPage() {
     const [projectName, setProjectName] = useState("");
-    const [nextPrNumber, setNextPrNumber] = useState("PR-035"); // Mock, will be fetched
+    const [nextPrNumber, setNextPrNumber] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
-
-    // Mock fetch next PR number
-    useEffect(() => {
-        // In real implementation, fetch from /api/projects/next-pr-number
-        setNextPrNumber("PR-035");
-    }, []);
+    const [submittedPrNumber, setSubmittedPrNumber] = useState<string>("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,16 +23,31 @@ export default function NewProjectPage() {
 
         setIsSubmitting(true);
 
-        // Mock API call - in real implementation:
-        // await fetch('/api/requests', {
-        //   method: 'POST',
-        //   body: JSON.stringify({ requestType: 'new_project', projectName })
-        // });
+        try {
+            const res = await fetch('/api/requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    requestType: 'new_project',
+                    projectName: projectName.trim(),
+                }),
+            });
 
-        setTimeout(() => {
+            const data = await res.json();
+
+            if (data.success) {
+                setSubmittedPrNumber(data.request?.pr_number || 'Pending');
+                setIsSubmitted(true);
+                toast.success('Project request submitted!');
+            } else {
+                throw new Error(data.error || 'Failed to submit request');
+            }
+        } catch (error) {
+            console.error('Error submitting request:', error);
+            toast.error(error instanceof Error ? error.message : 'Failed to submit request');
+        } finally {
             setIsSubmitting(false);
-            setIsSubmitted(true);
-        }, 1500);
+        }
     };
 
     if (isSubmitted) {
@@ -55,15 +66,16 @@ export default function NewProjectPage() {
                         </p>
                         <div className="p-4 rounded-lg bg-muted mb-6">
                             <div className="text-sm text-muted-foreground">Project Reference</div>
-                            <div className="text-2xl font-bold">{nextPrNumber}</div>
+                            <div className="text-2xl font-bold">{submittedPrNumber}</div>
                             <div className="text-lg">{projectName}</div>
                         </div>
                         <p className="text-sm text-muted-foreground mb-6">
                             You will be notified when your request is reviewed by an admin.
+                            Check the <Link href="/approvals" className="text-blue-500 underline">Approvals</Link> page to see your request.
                         </p>
                         <div className="flex gap-4 justify-center">
                             <Button variant="outline" asChild>
-                                <Link href="/projects">View Projects</Link>
+                                <Link href="/approvals">View Approvals</Link>
                             </Button>
                             <Button onClick={() => {
                                 setIsSubmitted(false);
@@ -99,19 +111,19 @@ export default function NewProjectPage() {
                 <CardHeader>
                     <CardTitle>Project Details</CardTitle>
                     <CardDescription>
-                        Enter the project name. The system will automatically assign a PR number.
+                        Enter the project name. The system will automatically assign a PR number upon approval.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-6">
-                        {/* Auto-generated PR Number */}
+                        {/* Auto-generated PR Number notice */}
                         <div className="p-4 rounded-lg bg-muted">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <Label className="text-muted-foreground">Auto-Generated PR Number</Label>
-                                    <div className="text-2xl font-bold">{nextPrNumber}</div>
+                                    <Label className="text-muted-foreground">PR Number</Label>
+                                    <div className="text-lg font-medium">Auto-generated on approval</div>
                                 </div>
-                                <Badge variant="outline" className="text-lg px-3 py-1">
+                                <Badge variant="outline" className="text-sm px-3 py-1">
                                     Auto
                                 </Badge>
                             </div>
@@ -136,10 +148,10 @@ export default function NewProjectPage() {
                         {projectName && (
                             <div className="p-4 rounded-lg border bg-blue-500/5 border-blue-500/30">
                                 <h4 className="font-medium mb-2 text-blue-600 dark:text-blue-400">
-                                    Folder Preview
+                                    Folder Preview (after approval)
                                 </h4>
                                 <div className="font-mono text-sm">
-                                    PRJ-{nextPrNumber}-{projectName.replace(/\s+/g, '-')}
+                                    PRJ-XXX-{projectName.replace(/\s+/g, '-')}
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">
                                     This folder will be created in the Shared Drive after approval
