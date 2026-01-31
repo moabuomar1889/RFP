@@ -20,16 +20,22 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
 
+    console.log('[Auth Callback] Starting OAuth callback...');
+
     if (error) {
-        return NextResponse.redirect(new URL(`/?error=${error}`, request.url));
+        console.error('[Auth Callback] OAuth error:', error);
+        return NextResponse.redirect(new URL(`/login?error=${error}`, request.url));
     }
 
     if (!code) {
-        return NextResponse.redirect(new URL('/?error=no_code', request.url));
+        console.error('[Auth Callback] No code received');
+        return NextResponse.redirect(new URL('/login?error=no_code', request.url));
     }
 
     try {
         const config = getGoogleConfig();
+        console.log('[Auth Callback] Config loaded, redirect URI:', config.redirectUri);
+
         const oauth2Client = new google.auth.OAuth2(
             config.clientId,
             config.clientSecret,
@@ -37,7 +43,9 @@ export async function GET(request: NextRequest) {
         );
 
         // Exchange code for tokens
+        console.log('[Auth Callback] Exchanging code for tokens...');
         const { tokens } = await oauth2Client.getToken(code);
+        console.log('[Auth Callback] Tokens received, has refresh:', !!tokens.refresh_token);
 
         oauth2Client.setCredentials(tokens);
 
@@ -45,32 +53,60 @@ export async function GET(request: NextRequest) {
         const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
         const { data: userInfo } = await oauth2.userinfo.get();
         const email = userInfo.email!;
+        console.log('[Auth Callback] User email:', email);
 
         // Verify user is the admin
         const adminEmail = process.env.ADMIN_EMAIL || 'mo.abuomar@dtgsa.com';
         if (email.toLowerCase() !== adminEmail.toLowerCase()) {
-            return NextResponse.redirect(new URL('/?error=unauthorized', request.url));
+            console.error('[Auth Callback] Unauthorized user:', email);
+            return NextResponse.redirect(new URL('/login?error=unauthorized', request.url));
         }
 
-        // Store encrypted tokens
-        await getSupabaseAdmin()
+        // Prepare token data - handle null refresh_token (subsequent logins may not return it)
+        const supabase = getSupabaseAdmin();
+
+        // First, check if user already exists
+        const { data: existingUser } = await supabase
             .schema('rfp')
             .from('user_tokens')
-            .upsert(
-                {
-                    email,
-                    access_token_encrypted: encrypt(tokens.access_token!),
-                    refresh_token_encrypted: encrypt(tokens.refresh_token!),
-                    token_expiry: tokens.expiry_date
-                        ? new Date(tokens.expiry_date).toISOString()
-                        : null,
-                    updated_at: new Date().toISOString(),
-                },
-                { onConflict: 'email' }
-            );
+            .select('refresh_token_encrypted')
+            .eq('email', email)
+            .single();
+
+        const tokenData: any = {
+            email,
+            access_token_encrypted: encrypt(tokens.access_token!),
+            token_expiry: tokens.expiry_date
+                ? new Date(tokens.expiry_date).toISOString()
+                : null,
+            updated_at: new Date().toISOString(),
+        };
+
+        // Only update refresh token if we received a new one
+        if (tokens.refresh_token) {
+            tokenData.refresh_token_encrypted = encrypt(tokens.refresh_token);
+        } else if (!existingUser) {
+            // First time login but no refresh token - this is an error
+            console.error('[Auth Callback] No refresh token on first login');
+            return NextResponse.redirect(new URL('/login?error=no_refresh_token', request.url));
+        }
+        // If no new refresh token and user exists, keep the old one
+
+        // Store encrypted tokens with proper error checking
+        console.log('[Auth Callback] Storing tokens...');
+        const { error: upsertError } = await supabase
+            .schema('rfp')
+            .from('user_tokens')
+            .upsert(tokenData, { onConflict: 'email' });
+
+        if (upsertError) {
+            console.error('[Auth Callback] Token storage error:', upsertError);
+            return NextResponse.redirect(new URL('/login?error=token_storage_failed', request.url));
+        }
+        console.log('[Auth Callback] Tokens stored successfully');
 
         // Log audit
-        await getSupabaseAdmin()
+        await supabase
             .schema('rfp')
             .from('audit_log')
             .insert({
@@ -81,8 +117,8 @@ export async function GET(request: NextRequest) {
                 performed_by: email,
             });
 
-        // Set session cookie
-        const response = NextResponse.redirect(new URL('/?success=login', request.url));
+        // Set session cookie and redirect to dashboard
+        const response = NextResponse.redirect(new URL('/dashboard', request.url));
         response.cookies.set('rfp_session', email, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -90,9 +126,11 @@ export async function GET(request: NextRequest) {
             maxAge: 60 * 60 * 24 * 7, // 7 days
         });
 
+        console.log('[Auth Callback] Login complete, redirecting to dashboard');
         return response;
     } catch (error) {
-        console.error('OAuth callback error:', error);
-        return NextResponse.redirect(new URL('/?error=auth_failed', request.url));
+        console.error('[Auth Callback] OAuth callback error:', error);
+        return NextResponse.redirect(new URL('/login?error=auth_failed', request.url));
     }
 }
+
