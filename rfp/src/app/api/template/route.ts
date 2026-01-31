@@ -14,12 +14,18 @@ export async function GET() {
         const { data, error } = await supabase.rpc('get_active_template');
 
         if (error) {
+            console.error('Template RPC error:', error);
             throw error;
         }
 
+        // RPC returns TABLE (array of rows), get first row
+        const template = Array.isArray(data) ? data[0] : data;
+
+        console.log('Template data:', template ? 'found' : 'not found');
+
         return NextResponse.json({
             success: true,
-            template: data,
+            template: template || null,
         });
     } catch (error) {
         console.error('Error fetching template:', error);
@@ -29,6 +35,7 @@ export async function GET() {
         );
     }
 }
+
 
 /**
  * POST /api/template
