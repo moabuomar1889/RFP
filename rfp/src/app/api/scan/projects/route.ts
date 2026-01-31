@@ -1,8 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllProjects } from '@/server/google-drive';
+import { getAllProjects, listFolders } from '@/server/google-drive';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { APP_CONFIG } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Detect project phase by checking subfolders
+ * - If PRJ-XXX-PD exists → execution
+ * - If only PRJ-XXX-RFP exists → bidding
+ */
+async function detectPhase(projectFolderId: string, projectNumber: string): Promise<'bidding' | 'execution'> {
+    try {
+        const subfolders = await listFolders(projectFolderId, APP_CONFIG.sharedDriveId);
+
+        // Check for PD folder (Project Delivery = execution)
+        const hasPD = subfolders.some(f =>
+            f.name?.includes('-PD') || f.name?.includes('PD-')
+        );
+
+        // Check for RFP folder (Bidding)
+        const hasRFP = subfolders.some(f =>
+            f.name?.includes('-RFP') || f.name?.includes('RFP-')
+        );
+
+        console.log(`Project ${projectNumber}: hasPD=${hasPD}, hasRFP=${hasRFP}`);
+
+        // If has PD folder, it's in execution
+        if (hasPD) {
+            return 'execution';
+        }
+
+        // Default to bidding
+        return 'bidding';
+    } catch (error) {
+        console.error(`Error detecting phase for project ${projectNumber}:`, error);
+        return 'bidding'; // Default to bidding on error
+    }
+}
 
 /**
  * POST /api/scan/projects
@@ -28,6 +63,7 @@ export async function POST(request: NextRequest) {
             updated: 0,
             skipped: 0,
             errors: [] as string[],
+            phases: { bidding: 0, execution: 0 },
         };
 
         const supabase = getSupabaseAdmin();
@@ -46,9 +82,14 @@ export async function POST(request: NextRequest) {
                 const projectNumber = match[1]; // e.g., "005"
                 const projectName = match[2];   // e.g., "Construction of Site Occupied Buildings"
 
-                // Phase is determined by subfolders (PRJ-XXX-PD or PRJ-XXX-RFP)
-                // For now, set as 'bidding' - user can update later
-                const phase = 'bidding';
+                // Detect phase by checking subfolders
+                const phase = await detectPhase(folder.id!, projectNumber);
+
+                if (phase === 'bidding') {
+                    results.phases.bidding++;
+                } else {
+                    results.phases.execution++;
+                }
 
                 // Upsert project using RPC
                 const { data: result, error } = await supabase.rpc('upsert_project', {
