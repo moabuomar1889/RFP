@@ -72,17 +72,16 @@ export async function POST(
             });
         }
 
-        // Step 3: Get active template
+        // Step 3: Get active template using RPC (not .schema!)
         let templateJson = null;
         try {
-            const { data: template } = await supabase
-                .schema('rfp')
-                .from('template_versions')
-                .select('template_json')
-                .eq('is_active', true)
-                .single();
+            const { data: template, error: templateError } = await supabase.rpc('get_active_template');
 
-            templateJson = template?.template_json;
+            if (templateError) {
+                console.error('Error fetching template via RPC:', templateError);
+            } else {
+                templateJson = template?.template_json;
+            }
         } catch (templateError) {
             console.error('Error fetching template:', templateError);
         }
@@ -99,18 +98,19 @@ export async function POST(
                 );
                 console.log(`Created ${createdFolders.length} subfolders`);
 
-                // Save created folders to folder_index table
+                // Save created folders to folder_index table using RPC
                 for (const folder of createdFolders) {
-                    await supabase
-                        .schema('rfp')
-                        .from('folder_index')
-                        .insert({
-                            project_id: projectId,
-                            template_path: folder.templatePath,
-                            drive_folder_id: folder.driveFolderId,
-                            drive_folder_name: folder.driveFolderName,
-                            limited_access_enabled: folder.limitedAccessEnabled,
-                        });
+                    const { error: indexError } = await supabase.rpc('insert_folder_index', {
+                        p_project_id: projectId,
+                        p_template_path: folder.templatePath,
+                        p_drive_folder_id: folder.driveFolderId,
+                        p_drive_folder_name: folder.driveFolderName,
+                        p_limited_access_enabled: folder.limitedAccessEnabled,
+                    });
+
+                    if (indexError) {
+                        console.error('Error inserting folder index:', indexError);
+                    }
                 }
             } catch (structureError) {
                 console.error('Error creating folder structure:', structureError);
@@ -155,4 +155,3 @@ export async function POST(
         return NextResponse.json({ success: false, error: 'Failed to approve request' }, { status: 500 });
     }
 }
-
