@@ -41,6 +41,8 @@ export async function POST(
         const projectName = data?.project_name;
         const prNumber = data?.pr_number; // This is PR-XXX or PRJ-XXX format
         const phase = data?.phase || 'bidding';
+        const requestType = data?.request_type;
+        const existingFolderId = data?.existing_folder_id;
 
         // Extract project number for folder naming (convert PR-XXX to PRJ-XXX if needed)
         const projectNumber = prNumber?.startsWith('PR-')
@@ -54,28 +56,41 @@ export async function POST(
             });
         }
 
-        // Step 2: Create main project folder in Google Drive
-        // Format: PRJ-001-ProjectName
+        console.log(`Processing ${requestType} request for ${projectNumber} - ${projectName}`);
+        console.log(`Phase: ${phase}, Existing folder: ${existingFolderId || 'none'}`);
+
+        // Step 2: Determine root folder ID
+        // For new projects: create new root folder
+        // For upgrades: use existing folder
         let rootFolderId = null;
-        try {
-            const folderName = `${projectNumber}-${projectName}`;
-            console.log(`Creating Drive folder: ${folderName}`);
 
-            const folder = await createFolder(
-                folderName,
-                APP_CONFIG.projectsFolderId
-            );
+        if (requestType === 'upgrade_to_pd' && existingFolderId) {
+            // UPGRADE: Use existing project folder - don't create a new one!
+            console.log(`Upgrade: Using existing folder ${existingFolderId}`);
+            rootFolderId = existingFolderId;
+        } else {
+            // NEW PROJECT: Create main project folder in Google Drive
+            // Format: PRJ-001-ProjectName
+            try {
+                const folderName = `${projectNumber}-${projectName}`;
+                console.log(`Creating new root folder: ${folderName}`);
 
-            rootFolderId = folder.id;
-            console.log(`Created root folder with ID: ${rootFolderId}`);
-        } catch (driveError) {
-            console.error('Error creating Drive folder:', driveError);
-            return NextResponse.json({
-                success: true,
-                message: 'Request approved but folder creation failed. Please create folder manually.',
-                project_id: projectId,
-                folder_error: String(driveError),
-            });
+                const folder = await createFolder(
+                    folderName,
+                    APP_CONFIG.projectsFolderId
+                );
+
+                rootFolderId = folder.id;
+                console.log(`Created root folder with ID: ${rootFolderId}`);
+            } catch (driveError) {
+                console.error('Error creating Drive folder:', driveError);
+                return NextResponse.json({
+                    success: true,
+                    message: 'Request approved but folder creation failed. Please create folder manually.',
+                    project_id: projectId,
+                    folder_error: String(driveError),
+                });
+            }
         }
 
         // Step 3: Get active template using RPC (not .schema!)
@@ -101,18 +116,22 @@ export async function POST(
         }
 
         // Step 4: Create folder structure from template
-        // All folders will be named: PRJ-XXX-RFP-FolderName or PRJ-XXX-PD-FolderName
+        // For new project: creates PRJ-XXX-RFP-* folders (bidding)
+        // For upgrade: creates PRJ-XXX-PD-* folders (execution) inside existing folder
         let createdFolders: any[] = [];
         if (templateJson && rootFolderId) {
             try {
-                console.log(`Creating folder structure for phase: ${phase}, project: ${projectNumber}`);
+                // Use 'execution' phase for upgrades to create PD folders
+                const folderPhase = requestType === 'upgrade_to_pd' ? 'execution' : phase;
+                console.log(`Creating folder structure for phase: ${folderPhase}, project: ${projectNumber}`);
+
                 createdFolders = await createProjectFolderStructure(
                     rootFolderId,
                     templateJson,
-                    phase,
+                    folderPhase,
                     projectNumber  // Pass project number for folder naming
                 );
-                console.log(`Created ${createdFolders.length} subfolders`);
+                console.log(`Created ${createdFolders.length} subfolders for ${folderPhase} phase`);
 
                 // Save created folders to folder_index table using RPC
                 for (const folder of createdFolders) {
@@ -135,7 +154,8 @@ export async function POST(
         }
 
         // Step 5: Update project with folder ID and set status to active
-        if (rootFolderId) {
+        // Only update folder ID for new projects (upgrades already have it)
+        if (rootFolderId && requestType !== 'upgrade_to_pd') {
             const { error: updateError } = await supabase.rpc('update_project_folder', {
                 p_project_id: projectId,
                 p_drive_folder_id: rootFolderId,
@@ -144,24 +164,27 @@ export async function POST(
             if (updateError) {
                 console.error('Error updating project with folder ID:', updateError);
             }
-
-            // Log the folder creation
-            await supabase.rpc('log_audit', {
-                p_action: 'folder_created',
-                p_entity_type: 'project',
-                p_entity_id: projectId,
-                p_performed_by: reviewedBy,
-                p_details: {
-                    folder_id: rootFolderId,
-                    folder_name: `${prNumber} - ${projectName}`,
-                    subfolders_created: createdFolders.length,
-                },
-            });
         }
+
+        // Log the folder creation
+        await supabase.rpc('log_audit', {
+            p_action: requestType === 'upgrade_to_pd' ? 'project_upgraded_to_pd' : 'folder_created',
+            p_entity_type: 'project',
+            p_entity_id: projectId,
+            p_performed_by: reviewedBy,
+            p_details: {
+                folder_id: rootFolderId,
+                folder_name: `${prNumber} - ${projectName}`,
+                subfolders_created: createdFolders.length,
+                request_type: requestType,
+            },
+        });
 
         return NextResponse.json({
             success: true,
-            message: `Request approved, folder created with ${createdFolders.length} subfolders`,
+            message: requestType === 'upgrade_to_pd'
+                ? `Project upgraded to Project Delivery with ${createdFolders.length} PD folders created`
+                : `Request approved, folder created with ${createdFolders.length} subfolders`,
             project_id: projectId,
             folder_id: rootFolderId,
             subfolders_count: createdFolders.length,
