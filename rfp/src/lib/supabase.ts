@@ -36,6 +36,3 @@ export const supabaseAdmin = {
     from: (table: string) => getSupabaseAdmin().from(table),
     rpc: (fn: string, params?: any) => getSupabaseAdmin().rpc(fn, params),
 };
-
-
-

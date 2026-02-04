@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     try {
         const supabase = getSupabaseAdmin();
 
-        // First try to get from cache
+        // Query from rfp schema 
         const { data: users, error } = await supabase
             .schema('rfp')
             .from('user_directory')
@@ -20,13 +20,11 @@ export async function GET(request: NextRequest) {
             .order('name', { ascending: true });
 
         if (error) {
-            console.error('Error fetching users - TABLE MAY NOT EXIST:', error);
-            // Return helpful message
+            console.error('Error fetching users:', error);
             return NextResponse.json({
                 success: false,
                 users: [],
-                error: `Table error: ${error.message}. Please run the SQL migration to create user_directory table.`,
-                tableExists: false,
+                error: `Database error: ${error.message}`,
             });
         }
 
@@ -34,7 +32,6 @@ export async function GET(request: NextRequest) {
             success: true,
             users: users || [],
             count: users?.length || 0,
-            tableExists: true,
         });
     } catch (error: any) {
         console.error('Users API error:', error);
@@ -53,22 +50,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         console.log('=== Starting user sync from Google Workspace ===');
-
-        // First check if table exists
-        const supabase = getSupabaseAdmin();
-        const { error: tableCheck } = await supabase
-            .schema('rfp')
-            .from('user_directory')
-            .select('id')
-            .limit(1);
-
-        if (tableCheck) {
-            console.error('Table check failed:', tableCheck);
-            return NextResponse.json({
-                success: false,
-                error: `Table user_directory does not exist. Please run SQL: CREATE TABLE IF NOT EXISTS rfp.user_directory (...). Error: ${tableCheck.message}`,
-            }, { status: 400 });
-        }
 
         const result = await syncUsersToDatabase();
         console.log('Sync result:', result);
