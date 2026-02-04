@@ -184,23 +184,22 @@ export async function syncUsersToDatabase(): Promise<{
             const users = response.data.users || [];
 
             for (const user of users) {
-                const { error } = await supabase
-                    .from('user_directory')
-                    .upsert({
-                        google_id: user.id,
-                        email: user.primaryEmail,
-                        name: user.name?.fullName || user.primaryEmail?.split('@')[0],
-                        given_name: user.name?.givenName,
-                        family_name: user.name?.familyName,
-                        photo_url: user.thumbnailPhotoUrl,
-                        department: user.organizations?.[0]?.department,
-                        role: user.isAdmin ? 'Admin' : 'User',
-                        status: user.suspended ? 'Suspended' : 'Active',
-                        last_login: user.lastLoginTime,
-                        synced_at: new Date().toISOString(),
-                    }, { onConflict: 'email' });
+                // Use RPC to upsert user (accesses rfp schema internally)
+                const { error } = await supabase.rpc('upsert_user_directory', {
+                    p_google_id: user.id,
+                    p_email: user.primaryEmail,
+                    p_name: user.name?.fullName || user.primaryEmail?.split('@')[0],
+                    p_given_name: user.name?.givenName || null,
+                    p_family_name: user.name?.familyName || null,
+                    p_photo_url: user.thumbnailPhotoUrl || null,
+                    p_department: user.organizations?.[0]?.department || null,
+                    p_role: user.isAdmin ? 'Admin' : 'User',
+                    p_status: user.suspended ? 'Suspended' : 'Active',
+                    p_last_login: user.lastLoginTime || null,
+                });
 
                 if (!error) syncedCount++;
+                else console.error('User upsert error:', error);
             }
 
             pageToken = response.data.nextPageToken || undefined;
@@ -262,18 +261,17 @@ export async function syncGroupsToDatabase(): Promise<{
                     // Ignore member count errors
                 }
 
-                const { error } = await supabase
-                    .from('group_directory')
-                    .upsert({
-                        google_id: group.id,
-                        email: group.email,
-                        name: group.name,
-                        description: group.description,
-                        member_count: memberCount,
-                        synced_at: new Date().toISOString(),
-                    }, { onConflict: 'email' });
+                // Use RPC to upsert group (accesses rfp schema internally)
+                const { error } = await supabase.rpc('upsert_group_directory', {
+                    p_google_id: group.id,
+                    p_email: group.email,
+                    p_name: group.name,
+                    p_description: group.description || null,
+                    p_member_count: memberCount,
+                });
 
                 if (!error) syncedCount++;
+                else console.error('Group upsert error:', error);
             }
 
             pageToken = response.data.nextPageToken || undefined;

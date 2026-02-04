@@ -12,18 +12,15 @@ export async function GET(request: NextRequest) {
     try {
         const supabase = getSupabaseAdmin();
 
-        // Query from public schema (no .schema() needed)
-        const { data: users, error } = await supabase
-            .from('user_directory')
-            .select('*')
-            .order('name', { ascending: true });
+        // Use RPC to get users from rfp schema
+        const { data: users, error } = await supabase.rpc('get_users');
 
         if (error) {
             console.error('Error fetching users:', error);
             return NextResponse.json({
                 success: false,
                 users: [],
-                error: `Database error: ${error.message}. Make sure user_directory table exists in PUBLIC schema.`,
+                error: `Database error: ${error.message}. Make sure get_users RPC exists.`,
             });
         }
 
