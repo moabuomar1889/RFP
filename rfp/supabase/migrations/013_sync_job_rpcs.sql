@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- SYNC JOB RPCs
+-- SYNC JOB RPCs (FIXED COLUMN NAMES)
 -- Functions for creating and managing sync jobs
 -- Run this in Supabase SQL Editor
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -19,7 +19,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create sync job
+-- Create sync job (using correct column names: started_by, metadata)
 CREATE OR REPLACE FUNCTION public.create_sync_job(
     p_id UUID,
     p_job_type TEXT,
@@ -29,7 +29,7 @@ CREATE OR REPLACE FUNCTION public.create_sync_job(
 )
 RETURNS UUID AS $$
 BEGIN
-    INSERT INTO rfp.sync_jobs (id, job_type, status, triggered_by, job_details)
+    INSERT INTO rfp.sync_jobs (id, job_type, status, started_by, metadata)
     VALUES (p_id, p_job_type, p_status, p_triggered_by, p_job_details);
     
     RETURN p_id;
@@ -46,13 +46,13 @@ RETURNS VOID AS $$
 BEGIN
     UPDATE rfp.sync_jobs
     SET status = p_status,
-        result = COALESCE(p_result, result),
+        metadata = COALESCE(p_result, metadata),
         completed_at = CASE WHEN p_status IN ('completed', 'failed') THEN NOW() ELSE completed_at END
     WHERE id = p_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Log audit entry
+-- Log audit entry (using correct table: audit_log not audit_logs)
 CREATE OR REPLACE FUNCTION public.log_audit(
     p_action TEXT,
     p_entity_type TEXT,
@@ -64,7 +64,7 @@ RETURNS UUID AS $$
 DECLARE
     v_id UUID;
 BEGIN
-    INSERT INTO rfp.audit_logs (action, entity_type, entity_id, performed_by, details)
+    INSERT INTO rfp.audit_log (action, entity_type, entity_id, performed_by, details)
     VALUES (p_action, p_entity_type, p_entity_id, p_performed_by, p_details)
     RETURNING id INTO v_id;
     

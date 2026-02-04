@@ -139,20 +139,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     const handleSyncProject = async () => {
         try {
             setSyncing(true);
-            const res = await fetch('/api/sync', {
+            toast.info('Scanning Drive folders...');
+
+            // Use direct sync API (no Inngest)
+            const res = await fetch(`/api/projects/${projectId}/sync`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectId, triggeredBy: 'admin' }),
             });
             const data = await res.json();
             if (data.success) {
-                toast.success('Project sync started');
-                setTimeout(() => fetchProjectData(), 3000);
+                toast.success(`Synced ${data.folders_indexed} folders`);
+                fetchProjectData();
             } else {
-                toast.error(data.error || 'Failed to start sync');
+                toast.error(data.error || 'Failed to sync');
             }
         } catch (error) {
-            toast.error('Failed to trigger sync');
+            toast.error('Failed to sync project');
         } finally {
             setSyncing(false);
         }
