@@ -181,7 +181,7 @@ export default function ProjectsPage() {
                                     Bidding ({biddingCount})
                                 </TabsTrigger>
                                 <TabsTrigger value="execution">
-                                    Execution ({executionCount})
+                                    Project Delivery ({executionCount})
                                 </TabsTrigger>
                             </TabsList>
                         </Tabs>
@@ -240,7 +240,7 @@ export default function ProjectsPage() {
                                                 project.phase === "execution" ? "default" : "secondary"
                                             }
                                         >
-                                            {project.phase === "execution" ? "Execution" : "Bidding"}
+                                            {project.phase === "execution" ? "Project Delivery" : "Bidding"}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>

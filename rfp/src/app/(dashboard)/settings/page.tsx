@@ -433,7 +433,7 @@ export default function SettingsPage() {
                                             Last scan: Found {scanResults.found}, Created {scanResults.created}, Updated {scanResults.updated}
                                             {scanResults.phases && (
                                                 <span className="ml-2">
-                                                    (Bidding: {scanResults.phases.bidding}, Execution: {scanResults.phases.execution})
+                                                    (Bidding: {scanResults.phases.bidding}, Project Delivery: {scanResults.phases.execution})
                                                 </span>
                                             )}
                                         </div>

@@ -252,7 +252,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                             variant={project.phase === "execution" ? "default" : "secondary"}
                             className={project.phase === "execution" ? "bg-green-500" : "bg-amber-500"}
                         >
-                            {project.phase === "execution" ? "🚀 Execution" : "📋 Bidding"}
+                            {project.phase === "execution" ? "🚀 Project Delivery" : "📋 Bidding"}
                         </Badge>
                         {project.status === "pending_creation" && (
                             <Badge variant="outline" className="text-amber-600 border-amber-400">
