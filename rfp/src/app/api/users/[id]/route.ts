@@ -15,31 +15,23 @@ export async function GET(
         const { id } = await params;
         const supabase = getSupabaseAdmin();
 
-        // Get user details
-        const { data: user, error: userError } = await supabase
-            .schema('rfp')
-            .from('user_directory')
-            .select('*')
-            .eq('id', id)
-            .single();
+        // Get user details using RPC
+        const { data: users, error: userError } = await supabase.rpc('get_user_by_id', {
+            p_id: id
+        });
 
-        if (userError || !user) {
+        if (userError || !users || users.length === 0) {
+            console.error('User fetch error:', userError);
             return NextResponse.json({
                 success: false,
                 error: 'User not found',
             }, { status: 404 });
         }
 
-        // Get groups the user belongs to
-        const userEmail = user.email;
+        const user = users[0]; // RPC returns array
 
         // Get active template to find folder permissions
-        const { data: template } = await supabase
-            .schema('rfp')
-            .from('template_versions')
-            .select('template_json')
-            .eq('is_active', true)
-            .single();
+        const { data: template } = await supabase.rpc('get_active_template');
 
         // Extract folders that user can access via their groups
         const accessibleFolders: Array<{
@@ -52,6 +44,7 @@ export async function GET(
         if (template?.template_json) {
             const templateData = template.template_json;
             const folders = Array.isArray(templateData) ? templateData : templateData.folders || [];
+            const userEmail = user.email;
 
             // Recursive function to traverse template and find accessible folders
             const traverseFolders = (nodes: any[], parentPath: string = '') => {
