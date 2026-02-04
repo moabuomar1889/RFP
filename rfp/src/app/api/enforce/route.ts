@@ -17,17 +17,14 @@ export async function POST(request: NextRequest) {
         const supabase = getSupabaseAdmin();
         const jobId = uuidv4();
 
-        // Create job record
-        const { error: jobError } = await supabase
-            .schema('rfp')
-            .from('sync_jobs')
-            .insert({
-                id: jobId,
-                job_type: 'permission_enforcement',
-                status: 'pending',
-                triggered_by: triggeredBy,
-                job_details: { projectIds: projectIds || 'all' },
-            });
+        // Create job record using RPC
+        const { error: jobError } = await supabase.rpc('create_sync_job', {
+            p_id: jobId,
+            p_job_type: 'permission_enforcement',
+            p_status: 'pending',
+            p_triggered_by: triggeredBy,
+            p_job_details: { projectIds: projectIds || 'all' },
+        });
 
         if (jobError) {
             console.error('Error creating job:', jobError);
@@ -47,7 +44,7 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        // Log audit
+        // Log audit using RPC
         await supabase.rpc('log_audit', {
             p_action: 'permission_enforcement_triggered',
             p_entity_type: 'system',

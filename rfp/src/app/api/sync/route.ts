@@ -17,30 +17,21 @@ export async function POST(request: NextRequest) {
         const supabase = getSupabaseAdmin();
         const jobId = uuidv4();
 
-        // Get active template version
-        const { data: template } = await supabase
-            .schema('rfp')
-            .from('template_versions')
-            .select('version_number')
-            .eq('is_active', true)
-            .single();
+        // Get active template version using RPC
+        const { data: templateVersionData } = await supabase.rpc('get_active_template_version');
+        const templateVersion = templateVersionData || 1;
 
-        const templateVersion = template?.version_number || 1;
-
-        // Create job record
-        const { error: jobError } = await supabase
-            .schema('rfp')
-            .from('sync_jobs')
-            .insert({
-                id: jobId,
-                job_type: projectId ? 'project_sync' : 'template_sync_all',
-                status: 'pending',
-                triggered_by: triggeredBy,
-                job_details: {
-                    projectId: projectId || 'all',
-                    templateVersion,
-                },
-            });
+        // Create job record using RPC
+        const { error: jobError } = await supabase.rpc('create_sync_job', {
+            p_id: jobId,
+            p_job_type: projectId ? 'project_sync' : 'template_sync_all',
+            p_status: 'pending',
+            p_triggered_by: triggeredBy,
+            p_job_details: {
+                projectId: projectId || 'all',
+                templateVersion,
+            },
+        });
 
         if (jobError) {
             console.error('Error creating job:', jobError);
@@ -72,7 +63,7 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Log audit
+        // Log audit using RPC
         await supabase.rpc('log_audit', {
             p_action: projectId ? 'project_sync_triggered' : 'template_sync_all_triggered',
             p_entity_type: projectId ? 'project' : 'system',
