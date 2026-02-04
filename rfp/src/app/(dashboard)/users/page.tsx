@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -14,56 +14,82 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Search, RefreshCw, UserPlus, MoreHorizontal } from "lucide-react";
+import { Search, RefreshCw, Loader2, Eye } from "lucide-react";
+import { toast } from "sonner";
+import Link from "next/link";
 
-// Mock users data from Admin SDK
-const users = [
-    {
-        id: "1",
-        email: "mo.abuomar@dtgsa.com",
-        name: "Mo Abu Omar",
-        role: "Admin",
-        department: "Management",
-        status: "active",
-        lastLogin: "2024-01-26T12:00:00Z",
-    },
-    {
-        id: "2",
-        email: "ahmed.khalil@dtgsa.com",
-        name: "Ahmed Khalil",
-        role: "Project Manager",
-        department: "Projects",
-        status: "active",
-        lastLogin: "2024-01-26T10:00:00Z",
-    },
-    {
-        id: "3",
-        email: "sara.hassan@dtgsa.com",
-        name: "Sara Hassan",
-        role: "Quantity Surveyor",
-        department: "QS",
-        status: "active",
-        lastLogin: "2024-01-25T15:00:00Z",
-    },
-    {
-        id: "4",
-        email: "omar.mansour@dtgsa.com",
-        name: "Omar Mansour",
-        role: "Technical Lead",
-        department: "Engineering",
-        status: "active",
-        lastLogin: "2024-01-26T08:00:00Z",
-    },
-];
+interface User {
+    id: string;
+    email: string;
+    name: string;
+    role?: string;
+    department?: string;
+    status?: string;
+    last_login?: string;
+    created_at?: string;
+}
 
 export default function UsersPage() {
+    const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
+    const [users, setUsers] = useState<User[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
+
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch('/api/users');
+            const data = await res.json();
+
+            if (data.success) {
+                setUsers(data.users || []);
+            } else {
+                toast.error(data.error || 'Failed to load users');
+            }
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            toast.error('Failed to load users');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSync = async () => {
+        try {
+            setSyncing(true);
+            const res = await fetch('/api/users', { method: 'POST' });
+            const data = await res.json();
+
+            if (data.success) {
+                toast.success('Users synced successfully');
+                fetchUsers();
+            } else {
+                toast.error(data.error || 'Sync not available');
+            }
+        } catch (error) {
+            toast.error('Failed to sync users');
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchUsers();
+    }, []);
 
     const filteredUsers = users.filter(
         (user) =>
-            user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchQuery.toLowerCase())
+            user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.email?.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -72,13 +98,23 @@ export default function UsersPage() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Users</h1>
                     <p className="text-muted-foreground">
-                        Google Workspace users in your domain
+                        {users.length} users in your organization
                     </p>
                 </div>
-                <Button variant="outline">
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Sync from Google
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={fetchUsers}>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Refresh
+                    </Button>
+                    <Button onClick={handleSync} disabled={syncing}>
+                        {syncing ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                        )}
+                        Sync from Google
+                    </Button>
+                </div>
             </div>
 
             {/* Search */}
@@ -98,66 +134,78 @@ export default function UsersPage() {
 
             {/* Users Table */}
             <Card>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>User</TableHead>
-                            <TableHead>Department</TableHead>
-                            <TableHead>App Role</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Last Login</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredUsers.map((user) => (
-                            <TableRow key={user.id}>
-                                <TableCell>
-                                    <div className="flex items-center gap-3">
-                                        <Avatar>
-                                            <AvatarFallback>
-                                                {user.name
-                                                    .split(" ")
-                                                    .map((n) => n[0])
-                                                    .join("")}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="font-medium">{user.name}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {user.email}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </TableCell>
-                                <TableCell>{user.department}</TableCell>
-                                <TableCell>
-                                    <Badge
-                                        variant={user.role === "Admin" ? "default" : "secondary"}
-                                    >
-                                        {user.role}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge
-                                        variant="outline"
-                                        className="text-green-500 border-green-500"
-                                    >
-                                        Active
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-sm text-muted-foreground">
-                                    {new Date(user.lastLogin).toLocaleDateString()}
-                                </TableCell>
-                                <TableCell>
-                                    <Button variant="ghost" size="icon">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                </TableCell>
+                {filteredUsers.length === 0 ? (
+                    <CardContent className="py-12 text-center text-muted-foreground">
+                        {users.length === 0 ? (
+                            <div>
+                                <p className="mb-4">No users found in the database.</p>
+                                <Button onClick={handleSync} disabled={syncing}>
+                                    Sync Users from Google Workspace
+                                </Button>
+                            </div>
+                        ) : (
+                            <p>No users match your search.</p>
+                        )}
+                    </CardContent>
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>User</TableHead>
+                                <TableHead>Department</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="w-[100px]">Actions</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredUsers.map((user) => (
+                                <TableRow key={user.id}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar>
+                                                <AvatarFallback>
+                                                    {user.name
+                                                        ?.split(" ")
+                                                        .map((n) => n[0])
+                                                        .join("") || "?"}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div>
+                                                <p className="font-medium">{user.name || 'Unknown'}</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {user.email}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{user.department || '-'}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={user.role === "Admin" ? "default" : "secondary"}>
+                                            {user.role || 'User'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge
+                                            variant="outline"
+                                            className="text-green-500 border-green-500"
+                                        >
+                                            {user.status || 'Active'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Link href={`/users/${user.id}`}>
+                                            <Button variant="ghost" size="sm">
+                                                <Eye className="h-4 w-4 mr-1" />
+                                                View
+                                            </Button>
+                                        </Link>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
             </Card>
         </div>
     );

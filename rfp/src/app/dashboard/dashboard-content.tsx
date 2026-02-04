@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -30,7 +31,9 @@ interface DashboardStats {
 }
 
 export default function DashboardContent() {
+    const pathname = usePathname();
     const [loading, setLoading] = useState(true);
+    const [refreshKey, setRefreshKey] = useState(0);
     const [stats, setStats] = useState<DashboardStats>({
         totalProjects: 0,
         biddingCount: 0,
@@ -112,16 +115,14 @@ export default function DashboardContent() {
         }
     };
 
+    // Refresh when navigating to this page (pathname changes) or manually triggered
     useEffect(() => {
-        // Fetch on initial mount
         fetchData();
+    }, [pathname, refreshKey]);
 
-        // Refetch when window gains focus (user returns to tab)
-        const handleFocus = () => {
-            fetchData();
-        };
-
-        // Refetch when page becomes visible
+    // Also refresh on window focus/visibility
+    useEffect(() => {
+        const handleFocus = () => fetchData();
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
                 fetchData();
