@@ -1,13 +1,14 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- INSERT FOLDER INDEX RPC
+-- INSERT FOLDER INDEX RPC (RFP SCHEMA)
 -- Run this in Supabase SQL Editor  
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- Drop existing function if exists
+DROP FUNCTION IF EXISTS rfp.insert_folder_index(UUID, TEXT, TEXT, TEXT, BOOLEAN);
 DROP FUNCTION IF EXISTS public.insert_folder_index(UUID, TEXT, TEXT, TEXT, BOOLEAN);
 
 -- Insert folder index entry
-CREATE OR REPLACE FUNCTION public.insert_folder_index(
+CREATE OR REPLACE FUNCTION rfp.insert_folder_index(
     p_project_id UUID,
     p_template_path TEXT,
     p_drive_folder_id TEXT,
@@ -43,7 +44,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Grant permissions
-GRANT EXECUTE ON FUNCTION public.insert_folder_index(UUID, TEXT, TEXT, TEXT, BOOLEAN) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION rfp.insert_folder_index(UUID, TEXT, TEXT, TEXT, BOOLEAN) TO anon, authenticated, service_role;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- END OF MIGRATION

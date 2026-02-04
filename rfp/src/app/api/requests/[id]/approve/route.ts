@@ -80,7 +80,15 @@ export async function POST(
             if (templateError) {
                 console.error('Error fetching template via RPC:', templateError);
             } else {
-                templateJson = template?.template_json;
+                // RPC returns array (TABLE), so we need first row
+                const templateRow = Array.isArray(template) ? template[0] : template;
+                templateJson = templateRow?.template_json;
+                console.log('Template fetched:', {
+                    hasTemplate: !!templateJson,
+                    isArray: Array.isArray(templateJson),
+                    topLevelKeys: templateJson ? Object.keys(templateJson) : [],
+                    firstNodeText: Array.isArray(templateJson) ? templateJson[0]?.text : templateJson?.folders?.[0]?.text,
+                });
             }
         } catch (templateError) {
             console.error('Error fetching template:', templateError);

@@ -6,21 +6,32 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/users
- * Get all users from database (cached from Google Workspace)
+ * Get all users from database with their group memberships
  */
 export async function GET(request: NextRequest) {
     try {
         const supabase = getSupabaseAdmin();
 
-        // Use RPC to get users from rfp schema
-        const { data: users, error } = await supabase.rpc('get_users');
+        // Use RPC to get users with groups
+        const { data: users, error } = await supabase.rpc('get_users_with_groups');
 
         if (error) {
-            console.error('Error fetching users:', error);
+            // Fallback to basic get_users if new RPC doesn't exist yet
+            console.error('get_users_with_groups error, falling back:', error);
+            const { data: basicUsers, error: basicError } = await supabase.rpc('get_users');
+
+            if (basicError) {
+                return NextResponse.json({
+                    success: false,
+                    users: [],
+                    error: `Database error: ${basicError.message}`,
+                });
+            }
+
             return NextResponse.json({
-                success: false,
-                users: [],
-                error: `Database error: ${error.message}. Make sure get_users RPC exists.`,
+                success: true,
+                users: (basicUsers || []).map((u: any) => ({ ...u, groups: [] })),
+                count: basicUsers?.length || 0,
             });
         }
 
