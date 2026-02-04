@@ -152,11 +152,72 @@ export async function getUserGroups(
     }
 }
 
+/**
+ * Add a user to a Google Workspace group
+ * Returns true if successful, false if failed
+ */
+export async function addGroupMember(
+    groupEmail: string,
+    userEmail: string,
+    role: 'MEMBER' | 'MANAGER' | 'OWNER' = 'MEMBER'
+): Promise<{ success: boolean; error?: string }> {
+    const admin = await getAdminClient();
+
+    try {
+        await admin.members.insert({
+            groupKey: groupEmail,
+            requestBody: {
+                email: userEmail,
+                role: role,
+            },
+        });
+        console.log(`Added ${userEmail} to group ${groupEmail}`);
+        return { success: true };
+    } catch (error: any) {
+        // Check if user is already a member (409 conflict)
+        if (error.code === 409) {
+            console.log(`${userEmail} is already a member of ${groupEmail}`);
+            return { success: true }; // Already a member is still success
+        }
+        console.error(`Failed to add ${userEmail} to group ${groupEmail}:`, error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Remove a user from a Google Workspace group
+ * Returns true if successful, false if failed
+ */
+export async function removeGroupMember(
+    groupEmail: string,
+    userEmail: string
+): Promise<{ success: boolean; error?: string }> {
+    const admin = await getAdminClient();
+
+    try {
+        await admin.members.delete({
+            groupKey: groupEmail,
+            memberKey: userEmail,
+        });
+        console.log(`Removed ${userEmail} from group ${groupEmail}`);
+        return { success: true };
+    } catch (error: any) {
+        // Check if user is not a member (404 not found)
+        if (error.code === 404) {
+            console.log(`${userEmail} is not a member of ${groupEmail}`);
+            return { success: true }; // Not a member is still success for removal
+        }
+        console.error(`Failed to remove ${userEmail} from group ${groupEmail}:`, error.message);
+        return { success: false, error: error.message };
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DATABASE SYNC FUNCTIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { getSupabaseAdmin } from '@/lib/supabase';
+
 
 /**
  * Sync users from Google Admin SDK to database
