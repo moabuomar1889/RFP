@@ -311,15 +311,27 @@ export async function syncGroupsToDatabase(): Promise<{
             const groups = response.data.groups || [];
 
             for (const group of groups) {
-                // Get member count
+                // Get members and sync memberships
                 let memberCount = 0;
                 try {
                     const membersResponse = await admin.members.list({
                         groupKey: group.email!,
                     });
-                    memberCount = membersResponse.data.members?.length || 0;
-                } catch {
-                    // Ignore member count errors
+                    const members = membersResponse.data.members || [];
+                    memberCount = members.length;
+
+                    // Save each membership to database
+                    for (const member of members) {
+                        if (member.email) {
+                            await supabase.rpc('add_user_to_group', {
+                                p_user_email: member.email.toLowerCase(),
+                                p_group_email: group.email!.toLowerCase(),
+                                p_added_by: 'google_sync',
+                            });
+                        }
+                    }
+                } catch (membersError) {
+                    console.log(`Could not get members for ${group.email}:`, membersError);
                 }
 
                 // Use RPC to upsert group (accesses rfp schema internally)
