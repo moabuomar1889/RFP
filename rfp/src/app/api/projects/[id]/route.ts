@@ -93,20 +93,26 @@ export async function DELETE(
         }
 
         console.log(`Deleting project: ${project.pr_number} - ${project.name}`);
+        console.log(`Project drive_folder_id: ${project.drive_folder_id || 'NULL'}`);
 
         // Step 2: Move Drive folder to Deleted Projects folder (if exists)
+        let folderMoved = false;
         if (project.drive_folder_id) {
             try {
+                console.log(`Attempting to move folder ${project.drive_folder_id} to ${APP_CONFIG.deletedProjectsFolderId}`);
                 await moveFolder(
                     project.drive_folder_id,
                     APP_CONFIG.deletedProjectsFolderId
                 );
-                console.log(`Moved folder ${project.drive_folder_id} to Deleted Projects`);
-            } catch (driveError) {
-                console.error('Error moving folder to Deleted Projects:', driveError);
+                console.log(`Successfully moved folder ${project.drive_folder_id} to Deleted Projects`);
+                folderMoved = true;
+            } catch (driveError: any) {
+                console.error('Error moving folder to Deleted Projects:', driveError?.message || driveError);
                 // Continue with deletion even if folder move fails
                 // (folder might not exist or already be deleted)
             }
+        } else {
+            console.log('No drive_folder_id found for this project, skipping folder move');
         }
 
         // Step 3: Delete related folder_index entries
