@@ -142,6 +142,38 @@ export async function renameFolder(
 }
 
 /**
+ * Move a folder to a different parent folder
+ * Used for moving deleted projects to the Deleted Projects folder
+ */
+export async function moveFolder(
+    folderId: string,
+    newParentId: string
+): Promise<drive_v3.Schema$File> {
+    const drive = await getDriveClient();
+
+    // First get current parents
+    const file = await drive.files.get({
+        fileId: folderId,
+        fields: 'parents',
+        supportsAllDrives: true,
+    });
+
+    const previousParents = file.data.parents?.join(',') || '';
+
+    // Move to new parent
+    const response = await drive.files.update({
+        fileId: folderId,
+        addParents: newParentId,
+        removeParents: previousParents,
+        supportsAllDrives: true,
+        fields: 'id, name, parents',
+    });
+
+    console.log(`Moved folder ${folderId} to ${newParentId}`);
+    return response.data;
+}
+
+/**
  * Enable/disable inherited permissions (Limited Access)
  */
 export async function setLimitedAccess(

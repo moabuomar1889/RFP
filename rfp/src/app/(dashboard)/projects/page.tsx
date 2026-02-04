@@ -15,6 +15,23 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
     Plus,
     Search,
     RefreshCw,
@@ -25,6 +42,7 @@ import {
     Clock,
     Loader2,
     ExternalLink,
+    Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -46,6 +64,9 @@ export default function ProjectsPage() {
     const [tab, setTab] = useState("all");
     const [loading, setLoading] = useState(true);
     const [projects, setProjects] = useState<Project[]>([]);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const fetchProjects = async () => {
         try {
@@ -64,6 +85,37 @@ export default function ProjectsPage() {
             setProjects([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteClick = (project: Project) => {
+        setProjectToDelete(project);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!projectToDelete) return;
+
+        try {
+            setIsDeleting(true);
+            const res = await fetch(`/api/projects/${projectToDelete.id}`, {
+                method: 'DELETE',
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                toast.success(`Project ${projectToDelete.pr_number} deleted`);
+                fetchProjects(); // Refresh list
+            } else {
+                toast.error(data.error || 'Failed to delete project');
+            }
+        } catch (error) {
+            console.error('Error deleting project:', error);
+            toast.error('Failed to delete project');
+        } finally {
+            setIsDeleting(false);
+            setDeleteDialogOpen(false);
+            setProjectToDelete(null);
         }
     };
 
@@ -221,9 +273,37 @@ export default function ProjectsPage() {
                                         </a>
                                     </TableCell>
                                     <TableCell>
-                                        <Button variant="ghost" size="icon">
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem asChild>
+                                                    <Link href={`/projects/${project.id}`}>
+                                                        View Details
+                                                    </Link>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem asChild>
+                                                    <a
+                                                        href={`https://drive.google.com/drive/folders/${project.drive_folder_id}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        Open in Drive
+                                                    </a>
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                    className="text-destructive focus:text-destructive"
+                                                    onClick={() => handleDeleteClick(project)}
+                                                >
+                                                    <Trash2 className="h-4 w-4 mr-2" />
+                                                    Delete Project
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </TableCell>
                                 </TableRow>
                             ))
@@ -231,6 +311,35 @@ export default function ProjectsPage() {
                     </TableBody>
                 </Table>
             </Card>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Project?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete <strong>{projectToDelete?.pr_number} - {projectToDelete?.name}</strong>?
+                            <br /><br />
+                            The folder will be moved to "Deleted Projects" in Google Drive.
+                            This action cannot be easily undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteConfirm}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? (
+                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Deleting...</>
+                            ) : (
+                                'Delete'
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
