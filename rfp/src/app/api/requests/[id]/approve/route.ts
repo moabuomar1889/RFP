@@ -39,8 +39,13 @@ export async function POST(
 
         const projectId = data?.project_id;
         const projectName = data?.project_name;
-        const prNumber = data?.pr_number;
+        const prNumber = data?.pr_number; // This is PR-XXX or PRJ-XXX format
         const phase = data?.phase || 'bidding';
+
+        // Extract project number for folder naming (convert PR-XXX to PRJ-XXX if needed)
+        const projectNumber = prNumber?.startsWith('PR-')
+            ? prNumber.replace('PR-', 'PRJ-')
+            : prNumber || 'PRJ-000';
 
         if (!projectId) {
             return NextResponse.json({
@@ -50,9 +55,10 @@ export async function POST(
         }
 
         // Step 2: Create main project folder in Google Drive
+        // Format: PRJ-001-ProjectName
         let rootFolderId = null;
         try {
-            const folderName = `${prNumber} - ${projectName}`;
+            const folderName = `${projectNumber}-${projectName}`;
             console.log(`Creating Drive folder: ${folderName}`);
 
             const folder = await createFolder(
@@ -95,14 +101,16 @@ export async function POST(
         }
 
         // Step 4: Create folder structure from template
+        // All folders will be named: PRJ-XXX-RFP-FolderName or PRJ-XXX-PD-FolderName
         let createdFolders: any[] = [];
         if (templateJson && rootFolderId) {
             try {
-                console.log(`Creating folder structure for phase: ${phase}`);
+                console.log(`Creating folder structure for phase: ${phase}, project: ${projectNumber}`);
                 createdFolders = await createProjectFolderStructure(
                     rootFolderId,
                     templateJson,
-                    phase
+                    phase,
+                    projectNumber  // Pass project number for folder naming
                 );
                 console.log(`Created ${createdFolders.length} subfolders`);
 

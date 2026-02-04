@@ -323,21 +323,33 @@ interface CreatedFolder {
 
 /**
  * Create project folder structure from template
- * Returns array of created folders for database indexing
+ * All folders get the naming convention: PRJ-XXX-RFP-FolderName or PRJ-XXX-PD-FolderName
+ * 
+ * @param projectRootFolderId - The root folder (PRJ-001-ProjectName) ID
+ * @param templateJson - Template with folder structure
+ * @param phase - 'bidding' (RFP) or 'execution' (PD)
+ * @param projectNumber - Project number like "PRJ-001"
  */
 export async function createProjectFolderStructure(
     projectRootFolderId: string,
     templateJson: TemplateNode[] | { folders: TemplateNode[] },
-    phase: 'bidding' | 'execution' = 'bidding'
+    phase: 'bidding' | 'execution' = 'bidding',
+    projectNumber: string = 'PRJ-000'
 ): Promise<CreatedFolder[]> {
     const createdFolders: CreatedFolder[] = [];
+
+    // Determine phase suffix: RFP for bidding, PD for project delivery
+    const phaseCode = phase === 'bidding' ? 'RFP' : 'PD';
+    const prefix = `${projectNumber}-${phaseCode}`;
+
+    console.log(`Creating folder structure with prefix: ${prefix}`);
 
     // Handle both array format and object format
     const templateArray = Array.isArray(templateJson)
         ? templateJson
         : templateJson.folders || [];
 
-    // Find the correct phase node
+    // Find the correct phase node in template
     // Template has two root nodes: "Bidding" and "Project Delivery" (execution)
     let phaseNode: TemplateNode | undefined;
     for (const node of templateArray) {
@@ -351,9 +363,25 @@ export async function createProjectFolderStructure(
         }
     }
 
-    // If no phase found, just create all folders
-    const foldersToCreate = phaseNode ? [phaseNode] : templateArray;
+    if (!phaseNode) {
+        console.warn(`No phase node found for "${phase}" in template. Creating empty structure.`);
+        return createdFolders;
+    }
 
+    // Step 1: Create the phase folder (PRJ-001-RFP or PRJ-001-PD) inside root
+    const phaseFolderName = prefix; // e.g., "PRJ-001-RFP"
+    console.log(`Creating phase folder: ${phaseFolderName}`);
+
+    const phaseFolder = await createFolder(phaseFolderName, projectRootFolderId);
+
+    createdFolders.push({
+        templatePath: phaseNode.text,
+        driveFolderId: phaseFolder.id!,
+        driveFolderName: phaseFolderName,
+        limitedAccessEnabled: phaseNode.limitedAccess || false,
+    });
+
+    // Step 2: Create all child folders with the prefix
     async function createFoldersRecursively(
         nodes: TemplateNode[],
         parentId: string,
@@ -362,29 +390,36 @@ export async function createProjectFolderStructure(
         for (const node of nodes) {
             if (!node.text) continue;
 
-            const folderPath = parentPath ? `${parentPath}/${node.text}` : node.text;
+            // Folder name: PRJ-001-RFP-FolderName (e.g., PRJ-001-RFP-Pre-Tender Meeting)
+            const folderName = `${prefix}-${node.text}`;
+            const templatePath = parentPath ? `${parentPath}/${node.text}` : node.text;
+
+            console.log(`Creating subfolder: ${folderName}`);
 
             // Create the folder in Drive
-            const folder = await createFolder(node.text, parentId);
+            const folder = await createFolder(folderName, parentId);
 
             // Track created folder
             createdFolders.push({
-                templatePath: folderPath,
+                templatePath: templatePath,
                 driveFolderId: folder.id!,
-                driveFolderName: node.text,
+                driveFolderName: folderName, // Store the actual Drive folder name
                 limitedAccessEnabled: node.limitedAccess || false,
             });
 
-            // Create children recursively
+            // Create children recursively (nested inside this folder)
             if (node.nodes && node.nodes.length > 0) {
-                await createFoldersRecursively(node.nodes, folder.id!, folderPath);
+                await createFoldersRecursively(node.nodes, folder.id!, templatePath);
             }
         }
     }
 
-    await createFoldersRecursively(foldersToCreate, projectRootFolderId, '');
+    // Start creating from the phase node's children
+    if (phaseNode.nodes && phaseNode.nodes.length > 0) {
+        await createFoldersRecursively(phaseNode.nodes, phaseFolder.id!, phaseNode.text);
+    }
 
+    console.log(`Created ${createdFolders.length} folders with prefix ${prefix}`);
     return createdFolders;
 }
-
 
