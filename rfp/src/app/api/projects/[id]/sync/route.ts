@@ -20,7 +20,7 @@ export async function POST(
         console.log(`Starting direct sync for project ${id}`);
 
         // Get project using RPC
-        const { data: projectData, error: projectError } = await supabase.rpc('get_project', {
+        const { data: projectData, error: projectError } = await supabase.rpc('get_project_by_id', {
             p_id: id,
         });
 
