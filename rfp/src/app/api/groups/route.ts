@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { syncGroupsToDatabase } from '@/server/google-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({
                 success: true,
                 groups: [],
-                message: 'No groups found. Run sync to populate.',
+                message: 'No groups found. Click "Sync from Google" to populate.',
             });
         }
 
@@ -49,16 +50,26 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
     try {
-        // Note: This would use Google Admin SDK to sync groups
-        return NextResponse.json({
-            success: false,
-            error: 'Google Workspace sync requires Admin SDK setup. Please add groups manually.',
-        }, { status: 501 });
-    } catch (error) {
+        console.log('Starting group sync from Google Workspace...');
+        const result = await syncGroupsToDatabase();
+
+        if (result.success) {
+            return NextResponse.json({
+                success: true,
+                message: `Successfully synced ${result.syncedCount} groups from Google Workspace`,
+                syncedCount: result.syncedCount,
+            });
+        } else {
+            return NextResponse.json({
+                success: false,
+                error: result.error || 'Failed to sync groups',
+            }, { status: 500 });
+        }
+    } catch (error: any) {
         console.error('Groups sync error:', error);
         return NextResponse.json({
             success: false,
-            error: 'Failed to sync groups',
+            error: error.message || 'Failed to sync groups',
         }, { status: 500 });
     }
 }

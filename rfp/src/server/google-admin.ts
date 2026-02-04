@@ -151,3 +151,153 @@ export async function getUserGroups(
         return [];
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATABASE SYNC FUNCTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { getSupabaseAdmin } from '@/lib/supabase';
+
+/**
+ * Sync users from Google Admin SDK to database
+ */
+export async function syncUsersToDatabase(): Promise<{
+    success: boolean;
+    syncedCount: number;
+    error?: string;
+}> {
+    try {
+        const admin = await getAdminClient();
+        const supabase = getSupabaseAdmin();
+
+        let syncedCount = 0;
+        let pageToken: string | undefined;
+
+        do {
+            const response = await admin.users.list({
+                customer: 'my_customer',
+                maxResults: 100,
+                pageToken,
+                projection: 'full',
+            });
+
+            const users = response.data.users || [];
+
+            for (const user of users) {
+                const { error } = await supabase
+                    .schema('rfp')
+                    .from('user_directory')
+                    .upsert({
+                        google_id: user.id,
+                        email: user.primaryEmail,
+                        name: user.name?.fullName || user.primaryEmail?.split('@')[0],
+                        given_name: user.name?.givenName,
+                        family_name: user.name?.familyName,
+                        photo_url: user.thumbnailPhotoUrl,
+                        department: user.organizations?.[0]?.department,
+                        role: user.isAdmin ? 'Admin' : 'User',
+                        status: user.suspended ? 'Suspended' : 'Active',
+                        last_login: user.lastLoginTime,
+                        synced_at: new Date().toISOString(),
+                    }, { onConflict: 'email' });
+
+                if (!error) syncedCount++;
+            }
+
+            pageToken = response.data.nextPageToken || undefined;
+        } while (pageToken);
+
+        // Log the sync
+        await supabase.rpc('log_audit', {
+            p_action: 'users_synced',
+            p_entity_type: 'user',
+            p_entity_id: null,
+            p_performed_by: 'system',
+            p_details: { synced_count: syncedCount },
+        });
+
+        return { success: true, syncedCount };
+    } catch (error: any) {
+        console.error('Error syncing users to database:', error);
+        return {
+            success: false,
+            syncedCount: 0,
+            error: error.message || 'Failed to sync users',
+        };
+    }
+}
+
+/**
+ * Sync groups from Google Admin SDK to database
+ */
+export async function syncGroupsToDatabase(): Promise<{
+    success: boolean;
+    syncedCount: number;
+    error?: string;
+}> {
+    try {
+        const admin = await getAdminClient();
+        const supabase = getSupabaseAdmin();
+
+        let syncedCount = 0;
+        let pageToken: string | undefined;
+
+        do {
+            const response = await admin.groups.list({
+                customer: 'my_customer',
+                maxResults: 100,
+                pageToken,
+            });
+
+            const groups = response.data.groups || [];
+
+            for (const group of groups) {
+                // Get member count
+                let memberCount = 0;
+                try {
+                    const membersResponse = await admin.members.list({
+                        groupKey: group.email!,
+                    });
+                    memberCount = membersResponse.data.members?.length || 0;
+                } catch {
+                    // Ignore member count errors
+                }
+
+                const { error } = await supabase
+                    .schema('rfp')
+                    .from('group_directory')
+                    .upsert({
+                        google_id: group.id,
+                        email: group.email,
+                        name: group.name,
+                        description: group.description,
+                        member_count: memberCount,
+                        synced_at: new Date().toISOString(),
+                    }, { onConflict: 'email' });
+
+                if (!error) syncedCount++;
+            }
+
+            pageToken = response.data.nextPageToken || undefined;
+        } while (pageToken);
+
+        // Log the sync
+        await supabase.rpc('log_audit', {
+            p_action: 'groups_synced',
+            p_entity_type: 'group',
+            p_entity_id: null,
+            p_performed_by: 'system',
+            p_details: { synced_count: syncedCount },
+        });
+
+        return { success: true, syncedCount };
+    } catch (error: any) {
+        console.error('Error syncing groups to database:', error);
+        return {
+            success: false,
+            syncedCount: 0,
+            error: error.message || 'Failed to sync groups',
+        };
+    }
+}
+

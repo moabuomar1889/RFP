@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { syncUsersToDatabase } from '@/server/google-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({
                 success: true,
                 users: [],
-                message: 'No users found. Run sync to populate.',
+                message: 'No users found. Click "Sync from Google" to populate.',
             });
         }
 
@@ -49,17 +50,26 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
     try {
-        // Note: This would use Google Admin SDK to sync users
-        // For now, return a message that sync needs to be implemented
-        return NextResponse.json({
-            success: false,
-            error: 'Google Workspace sync requires Admin SDK setup. Please add users manually or configure Admin SDK.',
-        }, { status: 501 });
-    } catch (error) {
+        console.log('Starting user sync from Google Workspace...');
+        const result = await syncUsersToDatabase();
+
+        if (result.success) {
+            return NextResponse.json({
+                success: true,
+                message: `Successfully synced ${result.syncedCount} users from Google Workspace`,
+                syncedCount: result.syncedCount,
+            });
+        } else {
+            return NextResponse.json({
+                success: false,
+                error: result.error || 'Failed to sync users',
+            }, { status: 500 });
+        }
+    } catch (error: any) {
         console.error('Users sync error:', error);
         return NextResponse.json({
             success: false,
-            error: 'Failed to sync users',
+            error: error.message || 'Failed to sync users',
         }, { status: 500 });
     }
 }
