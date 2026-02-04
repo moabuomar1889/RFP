@@ -7,80 +7,67 @@ export const fetchCache = 'force-no-store';
 
 /**
  * GET /api/dashboard/stats
- * Get dashboard statistics - DERIVED FROM DATABASE TABLES ONLY
+ * Get dashboard statistics using RPCs (not .schema which doesn't work from API)
  */
 export async function GET() {
     try {
         const supabase = getSupabaseAdmin();
 
-        // Query REAL data from tables - NO MOCK DATA
+        // Use RPCs instead of .schema('rfp') queries
 
-        // 1. Projects count by status
-        const { data: projects, error: projectsError } = await supabase
-            .schema('rfp')
-            .from('projects')
-            .select('status');
+        // 1. Get projects and count by status
+        const { data: projects, error: projectsError } = await supabase.rpc('get_projects', {
+            p_status: null,
+            p_phase: null
+        });
 
-        // 2. Indexed folders count
-        const { count: indexedFolders, error: foldersError } = await supabase
-            .schema('rfp')
-            .from('folder_index')
-            .select('*', { count: 'exact', head: true });
+        if (projectsError) {
+            console.error('get_projects RPC error:', projectsError);
+        }
 
-        // 3. Pending requests count
-        const { count: pendingRequests, error: requestsError } = await supabase
-            .schema('rfp')
-            .from('project_requests')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'pending');
+        // 2. Count indexed folders using RPC
+        const { data: folderCountData } = await supabase.rpc('get_folder_count');
+        const indexedFolders = folderCountData || 0;
 
-        // 4. Permission violations count (unresolved)
-        const { count: violations, error: violationsError } = await supabase
-            .schema('rfp')
-            .from('permission_violations')
-            .select('*', { count: 'exact', head: true })
-            .is('resolved_at', null);
+        // 3. Count pending requests using RPC
+        const { data: pendingData } = await supabase.rpc('get_pending_requests_count');
+        const pendingRequests = pendingData || 0;
 
-        // 5. Active jobs count
-        const { count: activeJobs, error: jobsError } = await supabase
-            .schema('rfp')
-            .from('sync_jobs')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'running');
+        // 4. Count violations using RPC
+        const { data: violationsData } = await supabase.rpc('get_violations_count');
+        const violations = violationsData || 0;
 
-        // 6. Last scan time
-        const { data: lastJob } = await supabase
-            .schema('rfp')
-            .from('sync_jobs')
-            .select('completed_at')
-            .eq('status', 'completed')
-            .order('completed_at', { ascending: false })
-            .limit(1)
-            .single();
+        // 5. Active jobs count using RPC
+        const { data: activeJobsData } = await supabase.rpc('get_active_jobs_count');
+        const activeJobs = activeJobsData || 0;
 
-        // Calculate stats from ACTUAL data
+        // 6. Get last scan time
+        const { data: lastScanData } = await supabase.rpc('get_last_scan_time');
+        const lastScan = lastScanData || null;
+
+        // Calculate stats from ACTUAL project data
         const projectList = projects || [];
         const totalProjects = projectList.length;
-        const biddingCount = projectList.filter(p => p.status === 'bidding').length;
-        const executionCount = projectList.filter(p => p.status === 'execution').length;
+        const biddingCount = projectList.filter((p: any) => p.status === 'bidding').length;
+        const executionCount = projectList.filter((p: any) => p.status === 'execution').length;
 
         const stats = {
             totalProjects,
             biddingCount,
             executionCount,
-            pendingRequests: pendingRequests || 0,
-            indexedFolders: indexedFolders || 0,
-            violations: violations || 0,
-            activeJobs: activeJobs || 0,
-            lastScan: lastJob?.completed_at || null,
+            pendingRequests,
+            indexedFolders,
+            violations,
+            activeJobs,
+            lastScan,
         };
 
-        console.log('Dashboard stats (from DB):', stats);
+        console.log('Dashboard stats (from RPCs):', stats);
 
         const response = NextResponse.json({
             success: true,
             stats,
-            source: 'database', // Confirm data is from DB, not mock
+            source: 'database-rpc',
         });
         response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         return response;
@@ -88,7 +75,6 @@ export async function GET() {
     } catch (error) {
         console.error('Error fetching dashboard stats:', error);
 
-        // Return zeros on error - NOT mock data
         const response = NextResponse.json({
             success: false,
             error: 'Failed to fetch dashboard stats',
