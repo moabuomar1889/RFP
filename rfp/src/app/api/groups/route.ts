@@ -12,9 +12,8 @@ export async function GET(request: NextRequest) {
     try {
         const supabase = getSupabaseAdmin();
 
-        // Query from rfp schema
+        // Query from public schema (no .schema() needed)
         const { data: groups, error } = await supabase
-            .schema('rfp')
             .from('group_directory')
             .select('*')
             .order('name', { ascending: true });
@@ -24,7 +23,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({
                 success: false,
                 groups: [],
-                error: `Database error: ${error.message}`,
+                error: `Database error: ${error.message}. Make sure group_directory table exists in PUBLIC schema.`,
             });
         }
 

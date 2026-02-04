@@ -185,7 +185,6 @@ export async function syncUsersToDatabase(): Promise<{
 
             for (const user of users) {
                 const { error } = await supabase
-                    .schema('rfp')
                     .from('user_directory')
                     .upsert({
                         google_id: user.id,
@@ -264,7 +263,6 @@ export async function syncGroupsToDatabase(): Promise<{
                 }
 
                 const { error } = await supabase
-                    .schema('rfp')
                     .from('group_directory')
                     .upsert({
                         google_id: group.id,
