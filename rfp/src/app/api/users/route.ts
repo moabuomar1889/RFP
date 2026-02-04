@@ -20,12 +20,13 @@ export async function GET(request: NextRequest) {
             .order('name', { ascending: true });
 
         if (error) {
-            console.error('Error fetching users:', error);
-            // Return empty array - table might not exist yet
+            console.error('Error fetching users - TABLE MAY NOT EXIST:', error);
+            // Return helpful message
             return NextResponse.json({
-                success: true,
+                success: false,
                 users: [],
-                message: 'No users found. Click "Sync from Google" to populate.',
+                error: `Table error: ${error.message}. Please run the SQL migration to create user_directory table.`,
+                tableExists: false,
             });
         }
 
@@ -33,12 +34,13 @@ export async function GET(request: NextRequest) {
             success: true,
             users: users || [],
             count: users?.length || 0,
+            tableExists: true,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Users API error:', error);
         return NextResponse.json({
             success: false,
-            error: 'Failed to fetch users',
+            error: error.message || 'Failed to fetch users',
             users: [],
         }, { status: 500 });
     }
@@ -50,8 +52,26 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
     try {
-        console.log('Starting user sync from Google Workspace...');
+        console.log('=== Starting user sync from Google Workspace ===');
+
+        // First check if table exists
+        const supabase = getSupabaseAdmin();
+        const { error: tableCheck } = await supabase
+            .schema('rfp')
+            .from('user_directory')
+            .select('id')
+            .limit(1);
+
+        if (tableCheck) {
+            console.error('Table check failed:', tableCheck);
+            return NextResponse.json({
+                success: false,
+                error: `Table user_directory does not exist. Please run SQL: CREATE TABLE IF NOT EXISTS rfp.user_directory (...). Error: ${tableCheck.message}`,
+            }, { status: 400 });
+        }
+
         const result = await syncUsersToDatabase();
+        console.log('Sync result:', result);
 
         if (result.success) {
             return NextResponse.json({
@@ -62,7 +82,7 @@ export async function POST(request: NextRequest) {
         } else {
             return NextResponse.json({
                 success: false,
-                error: result.error || 'Failed to sync users',
+                error: result.error || 'Failed to sync users - check server logs',
             }, { status: 500 });
         }
     } catch (error: any) {
