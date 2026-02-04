@@ -48,18 +48,30 @@ export async function GET() {
         // Calculate stats from ACTUAL project data
         const projectList = projects || [];
         const totalProjects = projectList.length;
-        const biddingCount = projectList.filter((p: any) => p.status === 'bidding').length;
-        const executionCount = projectList.filter((p: any) => p.status === 'execution').length;
+        const biddingCount = projectList.filter((p: any) => p.phase === 'bidding').length;
+        const executionCount = projectList.filter((p: any) => p.phase === 'execution').length;
+
+        // 7. Get user stats
+        const { data: users } = await supabase.rpc('get_users_with_groups');
+        const totalUsers = users?.length || 0;
+        const usersWithoutGroups = users?.filter((u: any) => !u.groups || u.groups.length === 0).length || 0;
+
+        // 8. Get group count
+        const { data: groups } = await supabase.rpc('get_groups');
+        const totalGroups = groups?.length || 0;
 
         const stats = {
             totalProjects,
-            biddingCount,
-            executionCount,
+            biddingProjects: biddingCount,
+            executionProjects: executionCount,
+            totalFolders: indexedFolders,
+            totalUsers,
+            usersWithoutGroups,
+            totalGroups,
             pendingRequests,
-            indexedFolders,
             violations,
             activeJobs,
-            lastScan,
+            lastSync: lastScan,
         };
 
         console.log('Dashboard stats (from RPCs):', stats);

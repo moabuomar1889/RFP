@@ -5,62 +5,8 @@ import { addGroupMember, removeGroupMember } from '@/server/google-admin';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/users/[id]/groups
- * Get groups for a specific user
- */
-export async function GET(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    try {
-        const { id } = await params;
-        const supabase = getSupabaseAdmin();
-
-        // First get the user's email
-        const { data: users, error: userError } = await supabase.rpc('get_user_by_id', {
-            p_id: id
-        });
-
-        if (userError || !users || users.length === 0) {
-            return NextResponse.json({
-                success: false,
-                error: 'User not found',
-            }, { status: 404 });
-        }
-
-        const userEmail = users[0].email;
-
-        // Get groups for this user
-        const { data: groups, error } = await supabase.rpc('get_user_groups', {
-            p_user_email: userEmail
-        });
-
-        if (error) {
-            console.error('Error fetching user groups:', error);
-            return NextResponse.json({
-                success: false,
-                groups: [],
-                error: error.message,
-            });
-        }
-
-        return NextResponse.json({
-            success: true,
-            groups: groups || [],
-        });
-    } catch (error: any) {
-        console.error('User groups API error:', error);
-        return NextResponse.json({
-            success: false,
-            error: error.message || 'Failed to fetch user groups',
-            groups: [],
-        }, { status: 500 });
-    }
-}
-
-/**
  * POST /api/users/[id]/groups
- * Add user to a group - syncs to both database AND Google Workspace
+ * Add user to a group - syncs with Google Workspace
  */
 export async function POST(
     request: NextRequest,
@@ -72,72 +18,69 @@ export async function POST(
         const { groupEmail } = body;
 
         if (!groupEmail) {
-            return NextResponse.json({
-                success: false,
-                error: 'Group email is required',
-            }, { status: 400 });
+            return NextResponse.json(
+                { success: false, error: 'Group email is required' },
+                { status: 400 }
+            );
         }
 
         const supabase = getSupabaseAdmin();
 
-        // First get the user's email
-        const { data: users, error: userError } = await supabase.rpc('get_user_by_id', {
-            p_id: id
+        // Get user email
+        const { data: user, error: userError } = await supabase.rpc('get_user_by_id', {
+            p_id: id,
         });
 
-        if (userError || !users || users.length === 0) {
-            return NextResponse.json({
-                success: false,
-                error: 'User not found',
-            }, { status: 404 });
+        if (userError || !user || user.length === 0) {
+            return NextResponse.json(
+                { success: false, error: 'User not found' },
+                { status: 404 }
+            );
         }
 
-        const userEmail = users[0].email;
+        const userEmail = Array.isArray(user) ? user[0].email : user.email;
+        console.log(`Adding ${userEmail} to group ${groupEmail}`);
 
-        // Get session for added_by
-        const session = request.cookies.get('rfp_session');
-        const addedBy = session?.value || 'admin';
-
-        // Step 1: Add to Google Workspace FIRST
-        console.log(`Adding ${userEmail} to Google group ${groupEmail}...`);
+        // Add to Google Workspace
         const googleResult = await addGroupMember(groupEmail, userEmail);
 
         if (!googleResult.success) {
-            return NextResponse.json({
-                success: false,
-                error: `Failed to add to Google Workspace: ${googleResult.error}`,
-            }, { status: 500 });
+            console.error('Google add member failed:', googleResult.error);
+            // Continue to add locally even if Google fails
         }
 
-        // Step 2: Add to local database (for tracking)
-        const { data, error } = await supabase.rpc('add_user_to_group', {
-            p_user_email: userEmail,
-            p_group_email: groupEmail,
-            p_added_by: addedBy,
+        // Add to local database
+        const { error: dbError } = await supabase.rpc('add_user_to_group', {
+            p_user_email: userEmail.toLowerCase(),
+            p_group_email: groupEmail.toLowerCase(),
+            p_added_by: 'admin',
         });
 
-        if (error) {
-            console.error('Error adding to local DB (Google sync succeeded):', error);
-            // Don't fail - Google was updated successfully
+        if (dbError) {
+            console.error('Database error:', dbError);
+            return NextResponse.json(
+                { success: false, error: 'Failed to save to database' },
+                { status: 500 }
+            );
         }
 
         return NextResponse.json({
             success: true,
-            message: 'User added to group (synced with Google Workspace)',
-            googleSync: true,
+            message: `Added ${userEmail} to ${groupEmail}`,
+            googleSynced: googleResult.success,
         });
     } catch (error: any) {
-        console.error('Add user to group error:', error);
-        return NextResponse.json({
-            success: false,
-            error: error.message || 'Failed to add user to group',
-        }, { status: 500 });
+        console.error('Add to group error:', error);
+        return NextResponse.json(
+            { success: false, error: error.message || 'Failed to add to group' },
+            { status: 500 }
+        );
     }
 }
 
 /**
  * DELETE /api/users/[id]/groups
- * Remove user from a group - syncs to both database AND Google Workspace
+ * Remove user from a group - syncs with Google Workspace
  */
 export async function DELETE(
     request: NextRequest,
@@ -149,60 +92,56 @@ export async function DELETE(
         const groupEmail = searchParams.get('groupEmail');
 
         if (!groupEmail) {
-            return NextResponse.json({
-                success: false,
-                error: 'Group email is required',
-            }, { status: 400 });
+            return NextResponse.json(
+                { success: false, error: 'Group email is required' },
+                { status: 400 }
+            );
         }
 
         const supabase = getSupabaseAdmin();
 
-        // First get the user's email
-        const { data: users, error: userError } = await supabase.rpc('get_user_by_id', {
-            p_id: id
+        // Get user email
+        const { data: user, error: userError } = await supabase.rpc('get_user_by_id', {
+            p_id: id,
         });
 
-        if (userError || !users || users.length === 0) {
-            return NextResponse.json({
-                success: false,
-                error: 'User not found',
-            }, { status: 404 });
+        if (userError || !user || user.length === 0) {
+            return NextResponse.json(
+                { success: false, error: 'User not found' },
+                { status: 404 }
+            );
         }
 
-        const userEmail = users[0].email;
+        const userEmail = Array.isArray(user) ? user[0].email : user.email;
+        console.log(`Removing ${userEmail} from group ${groupEmail}`);
 
-        // Step 1: Remove from Google Workspace FIRST
-        console.log(`Removing ${userEmail} from Google group ${groupEmail}...`);
+        // Remove from Google Workspace
         const googleResult = await removeGroupMember(groupEmail, userEmail);
 
         if (!googleResult.success) {
-            return NextResponse.json({
-                success: false,
-                error: `Failed to remove from Google Workspace: ${googleResult.error}`,
-            }, { status: 500 });
+            console.error('Google remove member failed:', googleResult.error);
         }
 
-        // Step 2: Remove from local database (for tracking)
-        const { data, error } = await supabase.rpc('remove_user_from_group', {
-            p_user_email: userEmail,
-            p_group_email: groupEmail,
+        // Remove from local database
+        const { error: dbError } = await supabase.rpc('remove_user_from_group', {
+            p_user_email: userEmail.toLowerCase(),
+            p_group_email: groupEmail.toLowerCase(),
         });
 
-        if (error) {
-            console.error('Error removing from local DB (Google sync succeeded):', error);
-            // Don't fail - Google was updated successfully
+        if (dbError) {
+            console.error('Database error:', dbError);
         }
 
         return NextResponse.json({
             success: true,
-            message: 'User removed from group (synced with Google Workspace)',
-            googleSync: true,
+            message: `Removed ${userEmail} from ${groupEmail}`,
+            googleSynced: googleResult.success,
         });
     } catch (error: any) {
-        console.error('Remove user from group error:', error);
-        return NextResponse.json({
-            success: false,
-            error: error.message || 'Failed to remove user from group',
-        }, { status: 500 });
+        console.error('Remove from group error:', error);
+        return NextResponse.json(
+            { success: false, error: error.message || 'Failed to remove from group' },
+            { status: 500 }
+        );
     }
 }
