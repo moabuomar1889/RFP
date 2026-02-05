@@ -148,7 +148,7 @@ export async function POST(
 
                 // Save created folders to folder_index table using RPC
                 for (const folder of createdFolders) {
-                    const { error: indexError } = await supabase.rpc('insert_folder_index', {
+                    const { error: indexError } = await supabase.rpc('upsert_folder_index', {
                         p_project_id: projectId,
                         p_template_path: folder.templatePath,
                         p_drive_folder_id: folder.driveFolderId,

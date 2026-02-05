@@ -53,7 +53,7 @@ BEGIN
     SELECT COALESCE(MAX(version_number), 0) + 1 INTO v_version FROM rfp.template_versions;
     
     -- Deactivate all existing templates
-    UPDATE rfp.template_versions SET is_active = false;
+    UPDATE rfp.template_versions SET is_active = false WHERE is_active = true;
     
     -- Insert new template
     INSERT INTO rfp.template_versions (version_number, template_json, created_by, is_active)

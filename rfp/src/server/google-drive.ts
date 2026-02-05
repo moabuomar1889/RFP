@@ -547,7 +547,19 @@ export async function createProjectFolderStructure(
             const folder = await createFolder(folderName, parentId);
             const folderId = folder.id!;
 
-            // Apply ALL template permissions (Visibility)
+            // STEP 1: Apply LIMITED ACCESS FIRST (before adding permissions)
+            // This ensures direct permissions are added AFTER inheritance is disabled
+            if (node.limitedAccess) {
+                console.log(`\n>>> Enabling LIMITED ACCESS on ${folderName} FIRST <<<`);
+                try {
+                    await setLimitedAccess(folderId, true);
+                    console.log(`[SUCCESS] Limited Access enabled for ${folderName}`);
+                } catch (err: any) {
+                    console.error(`[FAILED] Could not enable Limited Access for ${folderName}:`, err.message);
+                }
+            }
+
+            // STEP 2: Apply ALL template permissions (AFTER limited access is set)
             const groupsToApply = node.groups || [];
             console.log(`[DEBUG] Folder ${folderName} has ${groupsToApply.length} groups to apply:`, JSON.stringify(groupsToApply));
 
@@ -572,6 +584,7 @@ export async function createProjectFolderStructure(
                 }
             }
 
+            // STEP 3: Apply users
             if (node.users && node.users.length > 0) {
                 for (const user of node.users) {
                     if (user.email) {
@@ -582,22 +595,23 @@ export async function createProjectFolderStructure(
                                 user.role || 'reader',
                                 user.email
                             );
-                            console.log(`Applied user permission: ${user.email} (${user.role || 'reader'}) to ${folderName}`);
+                            console.log(`[SUCCESS] Applied user permission: ${user.email} (${user.role || 'reader'}) to ${folderName}`);
                         } catch (err: any) {
-                            console.error(`Failed to add user ${user.email} to ${folderName}:`, err.message || err);
+                            console.error(`[FAILED] Failed to add user ${user.email} to ${folderName}:`, err.message || err);
                         }
                     }
                 }
             }
 
-            // Apply LIMITED ACCESS (Remove inherited permissions)
+            // Log final permissions for verification
             if (node.limitedAccess) {
-                console.log(`\n>>> Applying LIMITED ACCESS to ${folderName} <<<`);
-                const allowedEmails: string[] = [];
-                if (node.groups) node.groups.forEach((g: any) => g.email && allowedEmails.push(g.email));
-                if (node.users) node.users.forEach((u: any) => u.email && allowedEmails.push(u.email));
-
-                await applyLimitedAccess(folderId, allowedEmails);
+                console.log(`\n>>> Final permissions for ${folderName} (Limited Access folder) <<<`);
+                const finalPerms = await listPermissions(folderId);
+                for (const perm of finalPerms) {
+                    const email = perm.emailAddress || perm.domain || 'N/A';
+                    const inherited = perm.permissionDetails?.some(d => d.inherited) ? '(inherited)' : '(direct)';
+                    console.log(`  - ${email}: ${perm.role} ${inherited}`);
+                }
             }
 
             createdFolders.push({
