@@ -338,8 +338,10 @@ export async function getAllFoldersRecursive(
 }
 
 interface TemplateNode {
-    text: string;
+    text?: string;
+    name?: string;
     nodes?: TemplateNode[];
+    children?: TemplateNode[];
     limitedAccess?: boolean;
     groups?: any[];
     users?: any[];
@@ -381,22 +383,30 @@ export async function createProjectFolderStructure(
         ? templateJson
         : templateJson.folders || [];
 
+    console.log(`Template has ${templateArray.length} top-level nodes`);
+
     // Find the correct phase node in template
     // Template has two root nodes: "Bidding" and "Project Delivery" (execution)
+    // Support both 'text' and 'name' properties
     let phaseNode: TemplateNode | undefined;
     for (const node of templateArray) {
-        const nodeName = node.text?.toLowerCase() || '';
+        const nodeName = (node.text || node.name || '').toLowerCase();
+        console.log(`Checking node: "${node.text || node.name}" for phase "${phase}"`);
+
         if (phase === 'bidding' && nodeName.includes('bidding')) {
             phaseNode = node;
+            console.log(`Found bidding phase node: ${node.text || node.name}`);
             break;
         } else if (phase === 'execution' && (nodeName.includes('delivery') || nodeName.includes('execution'))) {
             phaseNode = node;
+            console.log(`Found execution phase node: ${node.text || node.name}`);
             break;
         }
     }
 
     if (!phaseNode) {
         console.warn(`No phase node found for "${phase}" in template. Creating empty structure.`);
+        console.warn(`Available nodes: ${templateArray.map(n => n.text || n.name).join(', ')}`);
         return createdFolders;
     }
 
@@ -407,7 +417,7 @@ export async function createProjectFolderStructure(
     const phaseFolder = await createFolder(phaseFolderName, projectRootFolderId);
 
     createdFolders.push({
-        templatePath: phaseNode.text,
+        templatePath: phaseNode.text || phaseNode.name || '',
         driveFolderId: phaseFolder.id!,
         driveFolderName: phaseFolderName,
         limitedAccessEnabled: phaseNode.limitedAccess || false,
@@ -420,11 +430,12 @@ export async function createProjectFolderStructure(
         parentPath: string
     ): Promise<void> {
         for (const node of nodes) {
-            if (!node.text) continue;
+            const nodeName = node.text || node.name;
+            if (!nodeName) continue;
 
             // Folder name: PRJ-001-RFP-FolderName (e.g., PRJ-001-RFP-Pre-Tender Meeting)
-            const folderName = `${prefix}-${node.text}`;
-            const templatePath = parentPath ? `${parentPath}/${node.text}` : node.text;
+            const folderName = `${prefix}-${nodeName}`;
+            const templatePath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
 
             console.log(`Creating subfolder: ${folderName}`);
 
@@ -440,15 +451,20 @@ export async function createProjectFolderStructure(
             });
 
             // Create children recursively (nested inside this folder)
-            if (node.nodes && node.nodes.length > 0) {
-                await createFoldersRecursively(node.nodes, folder.id!, templatePath);
+            // Support both 'nodes' and 'children' arrays
+            const childNodes = node.nodes || node.children || [];
+            if (childNodes.length > 0) {
+                await createFoldersRecursively(childNodes, folder.id!, templatePath);
             }
         }
     }
 
     // Start creating from the phase node's children
-    if (phaseNode.nodes && phaseNode.nodes.length > 0) {
-        await createFoldersRecursively(phaseNode.nodes, phaseFolder.id!, phaseNode.text);
+    // Support both 'nodes' and 'children' arrays
+    const phaseChildren = phaseNode.nodes || phaseNode.children || [];
+    const phaseNodeName = phaseNode.text || phaseNode.name || '';
+    if (phaseChildren.length > 0) {
+        await createFoldersRecursively(phaseChildren, phaseFolder.id!, phaseNodeName);
     }
 
     console.log(`Created ${createdFolders.length} folders with prefix ${prefix}`);
