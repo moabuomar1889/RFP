@@ -104,12 +104,25 @@ export async function POST(
                 // RPC returns array (TABLE), so we need first row
                 const templateRow = Array.isArray(template) ? template[0] : template;
                 templateJson = templateRow?.template_json;
+
+                // Debug: Log full template structure
+                console.log('=== TEMPLATE DEBUG ===');
                 console.log('Template fetched:', {
                     hasTemplate: !!templateJson,
                     isArray: Array.isArray(templateJson),
                     topLevelKeys: templateJson ? Object.keys(templateJson) : [],
-                    firstNodeText: Array.isArray(templateJson) ? templateJson[0]?.text : templateJson?.folders?.[0]?.text,
                 });
+
+                // Log each top-level node and its structure
+                const templateArray = Array.isArray(templateJson) ? templateJson : templateJson?.folders || [];
+                for (const node of templateArray) {
+                    console.log(`Top-level node: ${node.text || node.name}`, {
+                        hasChildren: !!(node.nodes || node.children),
+                        childCount: (node.nodes || node.children || []).length,
+                        hasGroups: !!(node.groups && node.groups.length > 0),
+                    });
+                }
+                console.log('Full template (first 2000 chars):', JSON.stringify(templateJson).substring(0, 2000));
             }
         } catch (templateError) {
             console.error('Error fetching template:', templateError);

@@ -437,7 +437,13 @@ export async function createProjectFolderStructure(
             const folderName = `${prefix}-${nodeName}`;
             const templatePath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
 
-            console.log(`Creating subfolder: ${folderName}`);
+            // DEBUG: Log template node data
+            console.log(`\n=== Creating folder: ${folderName} ===`);
+            console.log(`Template path: ${templatePath}`);
+            console.log(`limitedAccess: ${node.limitedAccess}`);
+            console.log(`groups: ${JSON.stringify(node.groups || [])}`);
+            console.log(`users: ${JSON.stringify(node.users || [])}`);
+            console.log(`Available node keys: ${Object.keys(node).join(', ')}`);
 
             // Create the folder in Drive
             const folder = await createFolder(folderName, parentId);
