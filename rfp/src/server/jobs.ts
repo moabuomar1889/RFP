@@ -9,6 +9,7 @@ import {
     addPermission,
     removePermission,
     isProtectedPermission,
+    setLimitedAccess,
 } from '@/server/google-drive';
 import { JOB_STATUS, TASK_STATUS } from '@/lib/config';
 
@@ -520,71 +521,188 @@ async function applyChangeToProject(project: any, change: any): Promise<void> {
 async function enforceProjectPermissions(
     project: any,
     protectedPrincipals: string[]
-): Promise<{ violations: number; reverted: number }> {
+): Promise<{ violations: number; reverted: number; added: number }> {
     let violations = 0;
     let reverted = 0;
+    let added = 0;
 
-    // Get all folders in project from index
+    console.log(`\n========== ENFORCING PERMISSIONS FOR ${project.pr_number} ==========`);
+
+    // Step 1: Get the active template
+    const { data: templateData } = await supabaseAdmin.rpc('get_active_template');
+    const template = Array.isArray(templateData) ? templateData[0] : templateData;
+
+    if (!template?.template_json) {
+        console.error('No active template found!');
+        return { violations: 0, reverted: 0, added: 0 };
+    }
+
+    // Parse template and build path-to-permissions map
+    const templateNodes = Array.isArray(template.template_json)
+        ? template.template_json
+        : template.template_json.template || [];
+
+    const permissionsMap = buildPermissionsMap(templateNodes);
+    console.log(`Template has ${Object.keys(permissionsMap).length} paths with permissions`);
+
+    // Step 2: Get all indexed folders for this project
     const { data: folders } = await supabaseAdmin
         .schema('rfp')
         .from('folder_index')
         .select('*')
         .eq('project_id', project.id);
 
-    if (!folders) return { violations: 0, reverted: 0 };
+    if (!folders || folders.length === 0) {
+        console.log('No folders indexed for this project');
+        return { violations: 0, reverted: 0, added: 0 };
+    }
 
+    console.log(`Processing ${folders.length} folders...`);
+
+    // Step 3: Process each folder
     for (const folder of folders) {
-        // Get expected permissions for this path
-        const { data: expectedPerms } = await supabaseAdmin
-            .schema('rfp')
-            .from('expected_permissions')
-            .select('*, permission_roles(*)')
-            .eq('template_path', folder.template_path);
+        const templatePath = folder.template_path;
+        const expectedPerms = permissionsMap[templatePath];
+
+        if (!expectedPerms) {
+            console.log(`No template match for path: ${templatePath}`);
+            continue;
+        }
+
+        console.log(`\n--- Processing: ${folder.drive_folder_name} (${templatePath}) ---`);
+        console.log(`Expected: ${expectedPerms.groups.length} groups, ${expectedPerms.users.length} users, limitedAccess=${expectedPerms.limitedAccess}`);
 
         // Get actual permissions from Drive
-        const actualPerms = await listPermissions(folder.drive_folder_id);
+        let actualPerms;
+        try {
+            actualPerms = await listPermissions(folder.drive_folder_id);
+        } catch (err: any) {
+            console.error(`Failed to get permissions for ${folder.drive_folder_name}:`, err.message);
+            continue;
+        }
 
-        // Compare and find violations
-        // (This is a simplified version - full implementation would be more complex)
+        // Build set of expected emails (lowercase for comparison)
+        const expectedEmails = new Set<string>();
+        for (const g of expectedPerms.groups) {
+            if (g.email) expectedEmails.add(g.email.toLowerCase());
+        }
+        for (const u of expectedPerms.users) {
+            if (u.email) expectedEmails.add(u.email.toLowerCase());
+        }
+
+        // Build map of actual emails
+        const actualEmailsMap = new Map<string, any>();
+        for (const perm of actualPerms) {
+            if (perm.emailAddress) {
+                actualEmailsMap.set(perm.emailAddress.toLowerCase(), perm);
+            }
+        }
+
+        // Step 3a: ADD missing permissions
+        for (const group of expectedPerms.groups) {
+            if (!group.email) continue;
+            const emailLower = group.email.toLowerCase();
+            if (!actualEmailsMap.has(emailLower)) {
+                console.log(`[ADD] Missing group: ${group.email} (${group.role})`);
+                try {
+                    await addPermission(folder.drive_folder_id, 'group', group.role || 'reader', group.email);
+                    added++;
+                    console.log(`[SUCCESS] Added ${group.email}`);
+                } catch (err: any) {
+                    console.error(`[FAILED] Could not add ${group.email}:`, err.message);
+                }
+                await sleep(RATE_LIMIT_DELAY);
+            }
+        }
+
+        for (const user of expectedPerms.users) {
+            if (!user.email) continue;
+            const emailLower = user.email.toLowerCase();
+            if (!actualEmailsMap.has(emailLower)) {
+                console.log(`[ADD] Missing user: ${user.email} (${user.role})`);
+                try {
+                    await addPermission(folder.drive_folder_id, 'user', user.role || 'reader', user.email);
+                    added++;
+                    console.log(`[SUCCESS] Added ${user.email}`);
+                } catch (err: any) {
+                    console.error(`[FAILED] Could not add ${user.email}:`, err.message);
+                }
+                await sleep(RATE_LIMIT_DELAY);
+            }
+        }
+
+        // Step 3b: REMOVE unauthorized permissions
         for (const actual of actualPerms) {
-            const isProtected = await isProtectedPermission(actual, protectedPrincipals);
-            if (isProtected) continue;
+            if (!actual.emailAddress) continue;
+            const emailLower = actual.emailAddress.toLowerCase();
+
+            // Skip protected principals
+            if (protectedPrincipals.some(p => p.toLowerCase() === emailLower)) {
+                continue;
+            }
+
+            // Skip domain permissions (like dtgsa.com)
+            if (actual.type === 'domain') continue;
 
             // Check if this permission is expected
-            const isExpected = expectedPerms?.some(exp =>
-                // Match logic here
-                true
-            );
-
-            if (!isExpected) {
+            if (!expectedEmails.has(emailLower)) {
                 violations++;
-
-                // Log violation
-                await supabaseAdmin
-                    .schema('rfp')
-                    .from('permission_violations')
-                    .insert({
-                        folder_index_id: folder.id,
-                        project_id: project.id,
-                        violation_type: 'unexpected_user',
-                        actual: actual,
-                        auto_reverted: true,
-                    });
-
-                // Revert (remove unauthorized permission)
+                console.log(`[REMOVE] Unauthorized: ${actual.emailAddress} (${actual.role})`);
                 try {
                     await removePermission(folder.drive_folder_id, actual.id!);
                     reverted++;
-                } catch (error) {
-                    console.error(`Failed to remove permission: ${error}`);
+                    console.log(`[SUCCESS] Removed ${actual.emailAddress}`);
+                } catch (err: any) {
+                    console.error(`[FAILED] Could not remove ${actual.emailAddress}:`, err.message);
                 }
+                await sleep(RATE_LIMIT_DELAY);
+            }
+        }
+
+        // Step 3c: Enable Limited Access if needed
+        if (expectedPerms.limitedAccess) {
+            console.log(`[LIMITED ACCESS] Ensuring limited access is enabled...`);
+            try {
+                await setLimitedAccess(folder.drive_folder_id, true);
+            } catch (err: any) {
+                console.error(`[FAILED] Could not enable limited access:`, err.message);
             }
         }
 
         await sleep(RATE_LIMIT_DELAY);
     }
 
-    return { violations, reverted };
+    console.log(`\n========== ENFORCEMENT COMPLETE ==========`);
+    console.log(`Added: ${added}, Violations: ${violations}, Reverted: ${reverted}`);
+
+    return { violations, reverted, added };
+}
+
+// Helper: Build a map of template paths to their expected permissions
+function buildPermissionsMap(nodes: any[], parentPath: string = ''): Record<string, { groups: any[]; users: any[]; limitedAccess: boolean }> {
+    const map: Record<string, { groups: any[]; users: any[]; limitedAccess: boolean }> = {};
+
+    for (const node of nodes) {
+        const nodeName = node.text || node.name;
+        if (!nodeName) continue;
+
+        const path = parentPath ? `${parentPath}/${nodeName}` : nodeName;
+
+        map[path] = {
+            groups: node.groups || [],
+            users: node.users || [],
+            limitedAccess: node.limitedAccess || false,
+        };
+
+        // Recurse into children
+        const children = node.nodes || node.children || [];
+        if (children.length > 0) {
+            const childMap = buildPermissionsMap(children, path);
+            Object.assign(map, childMap);
+        }
+    }
+
+    return map;
 }
 
 async function reconcileProjectIndex(project: any): Promise<number> {
