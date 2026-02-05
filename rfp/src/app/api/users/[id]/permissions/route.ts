@@ -31,6 +31,7 @@ function computePermissions(
     nodes: TemplateNode[],
     userEmail: string,
     userGroups: string[],
+    groupEmailToName: Map<string, string>,
     parentPath: string = '',
     depth: number = 0
 ): FolderPermission[] {
@@ -67,19 +68,32 @@ function computePermissions(
             // 2. Check group membership (if not already found direct access)
             if (!role && node.groups && node.groups.length > 0) {
                 for (const group of node.groups) {
-                    const groupNameLower = group.name?.toLowerCase();
-                    const hasGroupAccess = userGroups.some(
-                        ug => ug.toLowerCase() === groupNameLower
-                    );
-                    if (hasGroupAccess) {
-                        // Take the highest permission if in multiple groups
-                        const roleOrder = ['organizer', 'fileOrganizer', 'writer', 'commenter', 'reader'];
-                        const currentRoleIndex = role ? roleOrder.indexOf(role) : 999;
-                        const newRoleIndex = roleOrder.indexOf(group.role);
-                        if (newRoleIndex < currentRoleIndex) {
-                            role = group.role;
-                            groupName = group.name;
-                            accessType = 'group';
+                    // Support both name-based and email-based template formats
+                    let templateGroupName: string | undefined;
+
+                    if (group.name) {
+                        // Old format: { name: "Admin", role: "organizer" }
+                        templateGroupName = group.name;
+                    } else if (group.email) {
+                        // New format: { email: "admin@dtgsa.com", role: "organizer" }
+                        // Look up the group name from the email
+                        templateGroupName = groupEmailToName.get(group.email.toLowerCase());
+                    }
+
+                    if (templateGroupName) {
+                        const hasGroupAccess = userGroups.some(
+                            ug => ug.toLowerCase() === templateGroupName!.toLowerCase()
+                        );
+                        if (hasGroupAccess) {
+                            // Take the highest permission if in multiple groups
+                            const roleOrder = ['organizer', 'fileOrganizer', 'writer', 'commenter', 'reader'];
+                            const currentRoleIndex = role ? roleOrder.indexOf(role) : 999;
+                            const newRoleIndex = roleOrder.indexOf(group.role);
+                            if (newRoleIndex < currentRoleIndex) {
+                                role = group.role;
+                                groupName = templateGroupName;
+                                accessType = 'group';
+                            }
                         }
                     }
                 }
@@ -102,6 +116,7 @@ function computePermissions(
                 childNodes,
                 userEmail,
                 userGroups,
+                groupEmailToName,
                 currentPath,
                 depth + 1
             );
@@ -204,11 +219,30 @@ export async function GET(
         console.log(`[Permissions] Template has ${templateNodes.length} top-level nodes`);
         console.log(`[Permissions] First node:`, templateNodes[0]?.text || templateNodes[0]?.name);
 
-        // 4. Compute permissions
+        // 4. Fetch all groups to build email-to-name mapping
+        const { data: allGroups, error: allGroupsError } = await supabase.rpc('get_groups');
+
+        if (allGroupsError) {
+            console.error('Error fetching groups for mapping:', allGroupsError);
+        }
+
+        // Build email-to-name map for group lookup
+        const groupEmailToName = new Map<string, string>();
+        if (allGroups && Array.isArray(allGroups)) {
+            for (const group of allGroups) {
+                if (group.email && group.name) {
+                    groupEmailToName.set(group.email.toLowerCase(), group.name);
+                }
+            }
+            console.log(`[Permissions] Built email-to-name map with ${groupEmailToName.size} groups`);
+        }
+
+        // 5. Compute permissions
         const permissions = computePermissions(
             templateNodes,
             userEmail,
-            userGroups
+            userGroups,
+            groupEmailToName
         );
 
         console.log(`[Permissions] Computed ${permissions.length} folder permissions`);
