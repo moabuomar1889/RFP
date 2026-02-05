@@ -258,6 +258,49 @@ export async function removePermission(
 }
 
 /**
+ * Apply limited access to a folder by removing inherited permissions
+ * Only keeps the owner and specified groups/users
+ */
+export async function applyLimitedAccess(
+    folderId: string,
+    allowedEmails: string[],
+    protectedEmails: string[] = ['admin@dtgsa.com', 'mo.abuomar@dtgsa.com']
+): Promise<void> {
+    console.log(`Applying limited access to folder ${folderId}`);
+    console.log(`Allowed emails: ${allowedEmails.join(', ')}`);
+
+    const permissions = await listPermissions(folderId);
+    console.log(`Found ${permissions.length} existing permissions`);
+
+    // Normalize allowed emails to lowercase
+    const allowedSet = new Set(allowedEmails.map(e => e.toLowerCase()));
+    const protectedSet = new Set(protectedEmails.map(e => e.toLowerCase()));
+
+    for (const perm of permissions) {
+        const email = perm.emailAddress?.toLowerCase();
+
+        // Skip if no email (e.g., domain permissions) OR if owner
+        if (!email || perm.role === 'owner') {
+            continue;
+        }
+
+        // Skip if this email is allowed or protected
+        if (allowedSet.has(email) || protectedSet.has(email)) {
+            console.log(`Keeping permission: ${email} (${perm.role})`);
+            continue;
+        }
+
+        // Remove this permission
+        try {
+            console.log(`Removing inherited permission: ${email} (${perm.role})`);
+            await removePermission(folderId, perm.id!);
+        } catch (error: any) {
+            console.error(`Failed to remove permission ${email}:`, error.message);
+        }
+    }
+}
+
+/**
  * Check if a permission is protected (should never be removed)
  */
 export async function isProtectedPermission(
@@ -493,6 +536,30 @@ export async function createProjectFolderStructure(
                         }
                     }
                 }
+            }
+
+            // Apply limited access - remove inherited permissions not in template
+            if (node.limitedAccess) {
+                console.log(`\n>>> Applying LIMITED ACCESS to ${folderName} <<<`);
+
+                // Build list of allowed emails from template groups and users
+                const allowedEmails: string[] = [];
+
+                if (node.groups) {
+                    for (const group of node.groups) {
+                        const email = group.email || group.name;
+                        if (email) allowedEmails.push(email);
+                    }
+                }
+
+                if (node.users) {
+                    for (const user of node.users) {
+                        if (user.email) allowedEmails.push(user.email);
+                    }
+                }
+
+                // Apply limited access (remove inherited permissions not in allowed list)
+                await applyLimitedAccess(folder.id!, allowedEmails);
             }
 
             // Create children recursively (nested inside this folder)
