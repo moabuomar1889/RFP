@@ -1,0 +1,111 @@
+FOLDER TEMPLATE SUMMARY
+========================
+
+├── Project Delivery [PUBLIC]
+    Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:reader
+  ├── Quantity Survuy [PUBLIC]
+      Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:fileOrganizer, Admins:organizer, Quality Control:reader, Projects Managers:fileOrganizer
+  ├── Engineering (EPC ONLY) [PUBLIC]
+      Groups: Technical Team:fileOrganizer, Document Control:reader, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:fileOrganizer
+  ├── Project Control [PUBLIC]
+      Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:fileOrganizer, Admins:organizer, Quality Control:reader, Projects Managers:reader
+    ├── Commercial [LIMITED]
+        Groups: Projects Control:reader, Admins:organizer, Projects Managers:fileOrganizer
+      ├── Invoices [LIMITED]
+          Groups: Admins:organizer, Projects Managers:fileOrganizer
+      ├── Agreements [LIMITED]
+          Groups: Admins:organizer, Projects Managers:fileOrganizer
+        ├── Change Orders [LIMITED]
+            Groups: Admins:organizer, Projects Managers:fileOrganizer
+        ├── Contract & PO [LIMITED]
+            Groups: Admins:organizer, Projects Managers:fileOrganizer
+    ├── Planning [LIMITED]
+        Groups: Projects Control:fileOrganizer, Admins:organizer
+      ├── Planning Deliverables [LIMITED]
+          Groups: Projects Control:fileOrganizer, Admins:organizer
+      ├── Reports [LIMITED]
+          Groups: Projects Control:fileOrganizer, Admins:organizer
+  ├── Quality Control [PUBLIC]
+      Groups: Technical Team:reader, Document Control:fileOrganizer, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:fileOrganizer, Projects Managers:writer
+  ├── Document Control [PUBLIC]
+      Groups: Technical Team:reader, Document Control:fileOrganizer, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:fileOrganizer
+    ├── MDR [LIMITED]
+        Groups: Document Control:reader, Admins:organizer, Projects Managers:reader
+    ├── Forms [LIMITED]
+        Groups: Document Control:reader, Admins:organizer, Projects Managers:reader
+    ├── Transmittals [LIMITED]
+        Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+      ├── Sent [LIMITED]
+          Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+      ├── Received [LIMITED]
+          Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+    ├── Submittals [LIMITED]
+        Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+      ├── Received [LIMITED]
+          Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── SI & CCCOR [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Letters [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Quality Control [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Project Control [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Procurment [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Minutes of Meetings [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── EHS [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Construction [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+      ├── Ongoing [LIMITED]
+          Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── SI & CCCOR [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Letters [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Quality Control [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Project Control [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Procurment [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Minutes of Meetings [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── EHS [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+        ├── Construction [LIMITED]
+            Groups: Document Control:fileOrganizer, Admins:organizer, Projects Managers:fileOrganizer
+  ├── Survey [PUBLIC]
+      Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:reader
+  ├── Operation [PUBLIC]
+      Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:reader
+  ├── IFC Drawings [PUBLIC]
+      Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:reader
+  ├── HSE [PUBLIC]
+      Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:reader
+├── Bidding [PUBLIC]
+    Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:reader
+  ├── Commercial Propsal [PUBLIC]
+      Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:writer
+    ├── Admin Only [LIMITED]
+        Groups: Admins:organizer, Projects Managers:reader
+  ├── Vendors Quotations [PUBLIC]
+      Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:fileOrganizer
+    ├── Civil and Finishes [LIMITED]
+        Groups: Admins:organizer, Projects Managers:fileOrganizer
+    ├── IT [LIMITED]
+        Groups: Admins:organizer, Projects Managers:fileOrganizer
+    ├── E&I [LIMITED]
+        Groups: Admins:organizer, Projects Managers:fileOrganizer
+    ├── Mechanical [LIMITED]
+        Groups: Admins:organizer, Projects Managers:fileOrganizer
+  ├── Technical Propsal [PUBLIC]
+      Groups: Technical Team:reader, Document Control:reader, Survey:reader, Projects Control:reader, Admins:organizer, Quality Control:reader, Projects Managers:writer
+    ├── TBE [LIMITED]
+        Groups: Admins:organizer, Projects Managers:writer
+    ├── Technical Proposal [LIMITED]
+        Groups: Admins:organizer, Projects Managers:writer
+  ├── SOW [PUBLIC]
+      Groups: Technical Team:writer, Document Control:fileOrganizer, Survey:reader, Projects Control:writer, Admins:organizer, Quality Control:reader, Projects Managers:writer

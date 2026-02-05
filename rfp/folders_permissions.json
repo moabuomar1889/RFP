@@ -1,0 +1,3357 @@
+[
+  {
+    "id": "1ZbPwtSJigwlyvpv7nJaq6g5WYSiUCIPd",
+    "name": "PRJ-014-Steam Turbine Generator",
+    "parent": null,
+    "path": "/",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1VB-y5W6Fugbt9Gu7M_q2qPKfTraqn4MK",
+    "name": "PRJ-014-PD",
+    "parent": "1ZbPwtSJigwlyvpv7nJaq6g5WYSiUCIPd",
+    "path": "/PRJ-014-PD",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1ax2gRtxaKeOVIKa3Qtizz6D5Nub3DZvJ",
+    "name": "7-PRJ-014-PD-Quantity Survuy",
+    "parent": "1VB-y5W6Fugbt9Gu7M_q2qPKfTraqn4MK",
+    "path": "/PRJ-014-PD/7-PRJ-014-PD-Quantity Survuy",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1K1aF9PRSql67CDxZ8VN90lQjVJekIlRS",
+    "name": "6-PRJ-014-PD-Engineering (EPC ONLY)",
+    "parent": "1VB-y5W6Fugbt9Gu7M_q2qPKfTraqn4MK",
+    "path": "/PRJ-014-PD/6-PRJ-014-PD-Engineering (EPC ONLY)",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1VNacAgGBOYNkdzrsoAx4nZ5EMjjODXhW",
+    "name": "4-PRJ-014-PD-Project Control",
+    "parent": "1VB-y5W6Fugbt9Gu7M_q2qPKfTraqn4MK",
+    "path": "/PRJ-014-PD/4-PRJ-014-PD-Project Control",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1oCBf7R1HJ1Xm7PnLrSrXfP6B9LuvmmqH",
+    "name": "2-PRJ-014-PD-Commercial",
+    "parent": "1VNacAgGBOYNkdzrsoAx4nZ5EMjjODXhW",
+    "path": "/PRJ-014-PD/4-PRJ-014-PD-Project Control/2-PRJ-014-PD-Commercial",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1bJTp58H0nXpXqp44d9l2smsJ2kiB4JPc",
+    "name": "2-PRJ-014-PD-Invoices",
+    "parent": "1oCBf7R1HJ1Xm7PnLrSrXfP6B9LuvmmqH",
+    "path": "/PRJ-014-PD/4-PRJ-014-PD-Project Control/2-PRJ-014-PD-Commercial/2-PRJ-014-PD-Invoices",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1Mqy3ATCu3FCBm4NuJQkIUtPJtQAyd9Hf",
+    "name": "1-PRJ-014-PD-Agreements",
+    "parent": "1oCBf7R1HJ1Xm7PnLrSrXfP6B9LuvmmqH",
+    "path": "/PRJ-014-PD/4-PRJ-014-PD-Project Control/2-PRJ-014-PD-Commercial/1-PRJ-014-PD-Agreements",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1yOl9jgLZbMtqCjvBL6g98VF-fjZu2m2X",
+    "name": "2-PRJ-014-PD-Change Orders",
+    "parent": "1Mqy3ATCu3FCBm4NuJQkIUtPJtQAyd9Hf",
+    "path": "/PRJ-014-PD/4-PRJ-014-PD-Project Control/2-PRJ-014-PD-Commercial/1-PRJ-014-PD-Agreements/2-PRJ-014-PD-Change Orders",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1857_BuSSEY8L-81j-GW6FXsmmOVA384E",
+    "name": "1-PRJ-014-PD-Contract & PO",
+    "parent": "1Mqy3ATCu3FCBm4NuJQkIUtPJtQAyd9Hf",
+    "path": "/PRJ-014-PD/4-PRJ-014-PD-Project Control/2-PRJ-014-PD-Commercial/1-PRJ-014-PD-Agreements/1-PRJ-014-PD-Contract & PO",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1lbgdaxM26tdwoxe1OzkVnkPmFJPmwmSi",
+    "name": "1-PRJ-014-PD-Planning",
+    "parent": "1VNacAgGBOYNkdzrsoAx4nZ5EMjjODXhW",
+    "path": "/PRJ-014-PD/4-PRJ-014-PD-Project Control/1-PRJ-014-PD-Planning",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1-mTMtD-E5bERviCUv8APe5SG_Veetv6w",
+    "name": "2-PRJ-014-PD-Planning Deliverables",
+    "parent": "1lbgdaxM26tdwoxe1OzkVnkPmFJPmwmSi",
+    "path": "/PRJ-014-PD/4-PRJ-014-PD-Project Control/1-PRJ-014-PD-Planning/2-PRJ-014-PD-Planning Deliverables",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1OpAnmuyOXUX6tu03AELNNu6WkfUIl6uB",
+    "name": "1-PRJ-014-PD-Reports",
+    "parent": "1lbgdaxM26tdwoxe1OzkVnkPmFJPmwmSi",
+    "path": "/PRJ-014-PD/4-PRJ-014-PD-Project Control/1-PRJ-014-PD-Planning/1-PRJ-014-PD-Reports",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1Dzar0_ZRoGopuxUu7uXqliJg1yJeynTj",
+    "name": "2-PRJ-014-PD-Quality Control",
+    "parent": "1VB-y5W6Fugbt9Gu7M_q2qPKfTraqn4MK",
+    "path": "/PRJ-014-PD/2-PRJ-014-PD-Quality Control",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "writer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1cIkGBZklqvsQSEOdjrvpqbPzRG7fyoDa",
+    "name": "1-PRJ-014-PD-Document Control",
+    "parent": "1VB-y5W6Fugbt9Gu7M_q2qPKfTraqn4MK",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1TWLu40h8VyUc9q50UqWsK_fO14v2coBM",
+    "name": "2-PRJ-014-PD-MDR",
+    "parent": "1cIkGBZklqvsQSEOdjrvpqbPzRG7fyoDa",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/2-PRJ-014-PD-MDR",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1FZem7wxKrCk1un2uLMH6M_HSJi7R2-uK",
+    "name": "1-PRJ-014-PD-Forms",
+    "parent": "1cIkGBZklqvsQSEOdjrvpqbPzRG7fyoDa",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/1-PRJ-014-PD-Forms",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1wvTriHqHXowaxEHxmPcWWnA0YParB3_N",
+    "name": "4-PRJ-014-PD-Transmittals",
+    "parent": "1cIkGBZklqvsQSEOdjrvpqbPzRG7fyoDa",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/4-PRJ-014-PD-Transmittals",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1IRMcHO-wkHqE9n_KG_P6vAal0wCpSKL3",
+    "name": "2-PRJ-014-PD-Sent",
+    "parent": "1wvTriHqHXowaxEHxmPcWWnA0YParB3_N",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/4-PRJ-014-PD-Transmittals/2-PRJ-014-PD-Sent",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1CppYrYJmNvsEbHKxsnJWPMoIAoHa0PBu",
+    "name": "1-PRJ-014-PD-Received",
+    "parent": "1wvTriHqHXowaxEHxmPcWWnA0YParB3_N",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/4-PRJ-014-PD-Transmittals/1-PRJ-014-PD-Received",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "16XVjm_mIQ-NkNhKp7zLGysBj7mkbev55",
+    "name": "3-PRJ-014-PD-Submittals",
+    "parent": "1cIkGBZklqvsQSEOdjrvpqbPzRG7fyoDa",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1hpplff3LnHTMyAiBVsmtV9jzGIXWJyDg",
+    "name": "2-PRJ-014-PD-Received",
+    "parent": "16XVjm_mIQ-NkNhKp7zLGysBj7mkbev55",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/2-PRJ-014-PD-Received",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1xTGoFyoUULl2f8Cq8G6IZm8TVTgj1TFy",
+    "name": "8-PRJ-014-PD-SI & CCCOR",
+    "parent": "1hpplff3LnHTMyAiBVsmtV9jzGIXWJyDg",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/2-PRJ-014-PD-Received/8-PRJ-014-PD-SI & CCCOR",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1DEhvpImK5Sj4RQIVvHXiAOANJKcDeV2f",
+    "name": "7-PRJ-014-PD-Letters",
+    "parent": "1hpplff3LnHTMyAiBVsmtV9jzGIXWJyDg",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/2-PRJ-014-PD-Received/7-PRJ-014-PD-Letters",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1OONDVgrrd6wFEzC2xnNKgKS5HzFpdzmH",
+    "name": "6-PRJ-014-PD-Quality Control",
+    "parent": "1hpplff3LnHTMyAiBVsmtV9jzGIXWJyDg",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/2-PRJ-014-PD-Received/6-PRJ-014-PD-Quality Control",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1JxYktBnDbZ0aegp_FqbEvhSgqRw9jNNW",
+    "name": "5-PRJ-014-PD-Project Control",
+    "parent": "1hpplff3LnHTMyAiBVsmtV9jzGIXWJyDg",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/2-PRJ-014-PD-Received/5-PRJ-014-PD-Project Control",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1t3xUH_niz-3nfu7-MzFN7N9zmUsgKU-6",
+    "name": "4-PRJ-014-PD-Procurment",
+    "parent": "1hpplff3LnHTMyAiBVsmtV9jzGIXWJyDg",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/2-PRJ-014-PD-Received/4-PRJ-014-PD-Procurment",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1ywC_Pe9iC6rvjHIVgV_kpa79n4boXWd2",
+    "name": "3-PRJ-014-PD-Minutes of Meetings",
+    "parent": "1hpplff3LnHTMyAiBVsmtV9jzGIXWJyDg",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/2-PRJ-014-PD-Received/3-PRJ-014-PD-Minutes of Meetings",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1eoj-qPCQtybc_nfl2ONfvvsbZJb-f6sz",
+    "name": "2-PRJ-014-PD-EHS",
+    "parent": "1hpplff3LnHTMyAiBVsmtV9jzGIXWJyDg",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/2-PRJ-014-PD-Received/2-PRJ-014-PD-EHS",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1gAzIyl9uOF2QR9zFDG5O1peOewEquLQq",
+    "name": "1-PRJ-014-PD-Construction",
+    "parent": "1hpplff3LnHTMyAiBVsmtV9jzGIXWJyDg",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/2-PRJ-014-PD-Received/1-PRJ-014-PD-Construction",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1dd_gDg5gu4DWx3UiK2p4TCANVSiFRdkR",
+    "name": "1-PRJ-014-PD-Ongoing",
+    "parent": "16XVjm_mIQ-NkNhKp7zLGysBj7mkbev55",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/1-PRJ-014-PD-Ongoing",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1QAozMc1rVbgu-4aBTHhxjQ4hM9dp2rhn",
+    "name": "8-PRJ-014-PD-SI & CCCOR",
+    "parent": "1dd_gDg5gu4DWx3UiK2p4TCANVSiFRdkR",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/1-PRJ-014-PD-Ongoing/8-PRJ-014-PD-SI & CCCOR",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1S3PDVIGCtALEkVNdTvTtdi3xZ9Ca3-Ib",
+    "name": "7-PRJ-014-PD-Letters",
+    "parent": "1dd_gDg5gu4DWx3UiK2p4TCANVSiFRdkR",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/1-PRJ-014-PD-Ongoing/7-PRJ-014-PD-Letters",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "10O8UwqGcKCo_E7AA1d9jBXwx9jDogEXW",
+    "name": "6-PRJ-014-PD-Quality Control",
+    "parent": "1dd_gDg5gu4DWx3UiK2p4TCANVSiFRdkR",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/1-PRJ-014-PD-Ongoing/6-PRJ-014-PD-Quality Control",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1dctaL_v4YMIcucFmuYyY8G48oAedWYgn",
+    "name": "5-PRJ-014-PD-Project Control",
+    "parent": "1dd_gDg5gu4DWx3UiK2p4TCANVSiFRdkR",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/1-PRJ-014-PD-Ongoing/5-PRJ-014-PD-Project Control",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1HmE2uSHFzhkmkylkazA2L8FqNCiHK5HJ",
+    "name": "4-PRJ-014-PD-Procurment",
+    "parent": "1dd_gDg5gu4DWx3UiK2p4TCANVSiFRdkR",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/1-PRJ-014-PD-Ongoing/4-PRJ-014-PD-Procurment",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1oi7SD5Xm5bOHHcN1H0bA9n2PC2QaOlmn",
+    "name": "3-PRJ-014-PD-Minutes of Meetings",
+    "parent": "1dd_gDg5gu4DWx3UiK2p4TCANVSiFRdkR",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/1-PRJ-014-PD-Ongoing/3-PRJ-014-PD-Minutes of Meetings",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1DL63O2V66vS6NgPOPpIEoCFtqjwfRsHn",
+    "name": "2-PRJ-014-PD-EHS",
+    "parent": "1dd_gDg5gu4DWx3UiK2p4TCANVSiFRdkR",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/1-PRJ-014-PD-Ongoing/2-PRJ-014-PD-EHS",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1SiNsuIxTgZLPAS6_Jsk7LFfCwSY6y4f4",
+    "name": "1-PRJ-014-PD-Construction",
+    "parent": "1dd_gDg5gu4DWx3UiK2p4TCANVSiFRdkR",
+    "path": "/PRJ-014-PD/1-PRJ-014-PD-Document Control/3-PRJ-014-PD-Submittals/1-PRJ-014-PD-Ongoing/1-PRJ-014-PD-Construction",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "19Xk5Pz8mB9ixhKuN5Zp2K7k8nzHxdZcp",
+    "name": "9-PRJ-014-PD-Survey",
+    "parent": "1VB-y5W6Fugbt9Gu7M_q2qPKfTraqn4MK",
+    "path": "/PRJ-014-PD/9-PRJ-014-PD-Survey",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1o5bVUewCc5bbeSDsXksu0Dj3aXA4cOW5",
+    "name": "8-PRJ-014-PD-Operation",
+    "parent": "1VB-y5W6Fugbt9Gu7M_q2qPKfTraqn4MK",
+    "path": "/PRJ-014-PD/8-PRJ-014-PD-Operation",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1Hi138NPWBLwFidzwipNk00j90iBPKxp9",
+    "name": "5-PRJ-014-PD-IFC Drawings",
+    "parent": "1VB-y5W6Fugbt9Gu7M_q2qPKfTraqn4MK",
+    "path": "/PRJ-014-PD/5-PRJ-014-PD-IFC Drawings",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1RFQGWJY5-cFDmIUgtu1HGQ81H8eDOfSq",
+    "name": "3-PRJ-014-PD-HSE",
+    "parent": "1VB-y5W6Fugbt9Gu7M_q2qPKfTraqn4MK",
+    "path": "/PRJ-014-PD/3-PRJ-014-PD-HSE",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "10K0koAYK5PCSCI1fu8ZdUa-cswh3avv5",
+    "name": "PRJ-014-RFP",
+    "parent": "1ZbPwtSJigwlyvpv7nJaq6g5WYSiUCIPd",
+    "path": "/PRJ-014-RFP",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1VRqCimf89i8nvpG3Ga9LrkYNG9v9bW1k",
+    "name": "4-PRJ-014-RFP-Commercial Propsal",
+    "parent": "10K0koAYK5PCSCI1fu8ZdUa-cswh3avv5",
+    "path": "/PRJ-014-RFP/4-PRJ-014-RFP-Commercial Propsal",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "writer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1Iy78UxSQZMzPtY7ym1dltsoAHUjgywIJ",
+    "name": "1-PRJ-014-RFP-Admin Only",
+    "parent": "1VRqCimf89i8nvpG3Ga9LrkYNG9v9bW1k",
+    "path": "/PRJ-014-RFP/4-PRJ-014-RFP-Commercial Propsal/1-PRJ-014-RFP-Admin Only",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1mzqLM2VwaT61QxLnWA5u5nMRgrHV1Ogg",
+    "name": "3-PRJ-014-RFP-Vendors Quotations",
+    "parent": "10K0koAYK5PCSCI1fu8ZdUa-cswh3avv5",
+    "path": "/PRJ-014-RFP/3-PRJ-014-RFP-Vendors Quotations",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1Uob80xJmmvKpGos1-PDPlO9FaPrgLW84",
+    "name": "1-PRJ-014-RFP-Civil and Finishes",
+    "parent": "1mzqLM2VwaT61QxLnWA5u5nMRgrHV1Ogg",
+    "path": "/PRJ-014-RFP/3-PRJ-014-RFP-Vendors Quotations/1-PRJ-014-RFP-Civil and Finishes",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1ZzS2qorLl839oEJKH0JKvBhCWOBTo3Sh",
+    "name": "4-PRJ-014-RFP-IT",
+    "parent": "1mzqLM2VwaT61QxLnWA5u5nMRgrHV1Ogg",
+    "path": "/PRJ-014-RFP/3-PRJ-014-RFP-Vendors Quotations/4-PRJ-014-RFP-IT",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1Ttd1ORjJWP-sWWQcL2x70OeqnZVNvxQc",
+    "name": "3-PRJ-014-RFP-E&I",
+    "parent": "1mzqLM2VwaT61QxLnWA5u5nMRgrHV1Ogg",
+    "path": "/PRJ-014-RFP/3-PRJ-014-RFP-Vendors Quotations/3-PRJ-014-RFP-E&I",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1m_MgatUFj5iCwV61PaaV3_jsKXzYrzJI",
+    "name": "2-PRJ-014-RFP-Mechanical",
+    "parent": "1mzqLM2VwaT61QxLnWA5u5nMRgrHV1Ogg",
+    "path": "/PRJ-014-RFP/3-PRJ-014-RFP-Vendors Quotations/2-PRJ-014-RFP-Mechanical",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1fqu5j2qsDqaqAuWJDYFlKDODYB9B3GmZ",
+    "name": "2-PRJ-014-RFP-Technical Propsal",
+    "parent": "10K0koAYK5PCSCI1fu8ZdUa-cswh3avv5",
+    "path": "/PRJ-014-RFP/2-PRJ-014-RFP-Technical Propsal",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "reader",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "reader",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "reader",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "writer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1bBoMfBZOQFQGqxR-ACytk2tBdgGqWGER",
+    "name": "1-PRJ-014-RFP-TBE",
+    "parent": "1fqu5j2qsDqaqAuWJDYFlKDODYB9B3GmZ",
+    "path": "/PRJ-014-RFP/2-PRJ-014-RFP-Technical Propsal/1-PRJ-014-RFP-TBE",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "writer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1QiNnx94hvTO13NS89YNRoDFxMBUTr9s3",
+    "name": "2-PRJ-014-RFP-Technical Proposal",
+    "parent": "1fqu5j2qsDqaqAuWJDYFlKDODYB9B3GmZ",
+    "path": "/PRJ-014-RFP/2-PRJ-014-RFP-Technical Propsal/2-PRJ-014-RFP-Technical Proposal",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "writer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  },
+  {
+    "id": "1giSbYGVpU7dF0KCLWlJEQ6Ch8gUIgBEv",
+    "name": "1-PRJ-014-RFP-SOW",
+    "parent": "10K0koAYK5PCSCI1fu8ZdUa-cswh3avv5",
+    "path": "/PRJ-014-RFP/1-PRJ-014-RFP-SOW",
+    "driveId": "0AKH9msTC0h2sUk9PVA",
+    "permissions": [
+      {
+        "id": "14057521005906357090",
+        "type": "domain",
+        "role": "reader",
+        "email": null,
+        "domain": "dtgsa.com",
+        "displayName": "Durrat Al-Tameer Copmany",
+        "deleted": false,
+        "allowFileDiscovery": false
+      },
+      {
+        "id": "01116928160566339709",
+        "type": "group",
+        "role": "writer",
+        "email": "Technical-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Technical Team",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "01544843091579272164",
+        "type": "group",
+        "role": "fileOrganizer",
+        "email": "DC-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Document Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "03270293926350430399",
+        "type": "group",
+        "role": "reader",
+        "email": "Survey-Team@dtgsa.com",
+        "domain": null,
+        "displayName": "Survey",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "05376391512616517003",
+        "type": "group",
+        "role": "writer",
+        "email": "Projects-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "07400164126184254836",
+        "type": "group",
+        "role": "organizer",
+        "email": "Admin@dtgsa.com",
+        "domain": null,
+        "displayName": "Admins",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "08824465278276784311",
+        "type": "group",
+        "role": "reader",
+        "email": "Quality-Control@dtgsa.com",
+        "domain": null,
+        "displayName": "Quality Control",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "11658563610721166819",
+        "type": "group",
+        "role": "writer",
+        "email": "Projects-Managers@dtgsa.com",
+        "domain": null,
+        "displayName": "Projects Managers",
+        "deleted": false,
+        "allowFileDiscovery": null
+      },
+      {
+        "id": "13141108027434468417",
+        "type": "user",
+        "role": "organizer",
+        "email": "mo.abuomar@dtgsa.com",
+        "domain": null,
+        "displayName": "Mohammad Abu Omar",
+        "deleted": false,
+        "allowFileDiscovery": null
+      }
+    ]
+  }
+]

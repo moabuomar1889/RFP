@@ -377,10 +377,10 @@ export default function TemplatePage() {
                                         {(selectedNode.groups || []).length > 0 ? (
                                             (selectedNode.groups || []).map((group: any, index: number) => (
                                                 <div
-                                                    key={group.name || index}
+                                                    key={group.name || group.email || index}
                                                     className="flex items-center justify-between p-3 rounded-lg border"
                                                 >
-                                                    <span className="text-sm font-medium">{group.name || group}</span>
+                                                    <span className="text-sm font-medium">{group.name || group.email || 'Unknown Group'}</span>
                                                     <Badge variant="outline">
                                                         {group.role || 'writer'}
                                                     </Badge>
