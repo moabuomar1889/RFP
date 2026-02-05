@@ -79,6 +79,7 @@ export default function UsersPage() {
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [showGroupModal, setShowGroupModal] = useState(false);
     const [savingGroups, setSavingGroups] = useState(false);
+    const [selectedGroupsToAdd, setSelectedGroupsToAdd] = useState<Set<string>>(new Set());
 
     const fetchUsers = async () => {
         try {
@@ -193,18 +194,25 @@ export default function UsersPage() {
         setExpandedGroups(new Set());
     };
 
-    const handleAddToGroup = async (user: User, groupEmail: string) => {
+    const handleAddToGroup = async (user: User, groupEmails: string[]) => {
+        if (groupEmails.length === 0) {
+            toast.error('Please select at least one group');
+            return;
+        }
+
         try {
             setSavingGroups(true);
             const res = await fetch(`/api/users/${user.id}/groups`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ groupEmail }),
+                body: JSON.stringify({ groupEmails }),
             });
             const data = await res.json();
 
             if (data.success) {
-                toast.success(`Added to group`);
+                toast.success(`Added to ${groupEmails.length} group(s)`);
+                setSelectedGroupsToAdd(new Set());
+                setShowGroupModal(false);
                 fetchUsers();
             } else {
                 toast.error(data.error || 'Failed to add to group');
@@ -457,6 +465,7 @@ export default function UsersPage() {
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     setSelectedUser(user);
+                                                                    setSelectedGroupsToAdd(new Set());
                                                                     setShowGroupModal(true);
                                                                 }}
                                                             >
@@ -565,6 +574,7 @@ export default function UsersPage() {
                                                     size="sm"
                                                     onClick={() => {
                                                         setSelectedUser(user);
+                                                        setSelectedGroupsToAdd(new Set());
                                                         setShowGroupModal(true);
                                                     }}
                                                     title="Manage groups"
@@ -633,22 +643,35 @@ export default function UsersPage() {
 
                         {/* Add to Groups - Multi-select with checkboxes */}
                         <div>
-                            <h4 className="text-sm font-medium mb-2">Add to Groups</h4>
-                            <div className="max-h-[200px] overflow-y-auto border rounded-md p-2 space-y-2">
+                            <h4 className="text-sm font-medium mb-2">
+                                Add to Groups
+                                {selectedGroupsToAdd.size > 0 && (
+                                    <span className="ml-2 text-primary">({selectedGroupsToAdd.size} selected)</span>
+                                )}
+                            </h4>
+                            <div className="max-h-[200px] overflow-y-auto border rounded-md p-2 space-y-1">
                                 {groups
                                     .filter((g) => !selectedUser?.groups?.includes(g.name))
                                     .map((group) => (
                                         <label
                                             key={group.id}
-                                            className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                                            className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${selectedGroupsToAdd.has(group.email)
+                                                ? 'bg-primary/10 border border-primary/30'
+                                                : 'hover:bg-muted'
+                                                }`}
                                         >
                                             <input
                                                 type="checkbox"
                                                 className="h-4 w-4 rounded border-gray-300"
+                                                checked={selectedGroupsToAdd.has(group.email)}
                                                 onChange={(e) => {
-                                                    if (e.target.checked && selectedUser) {
-                                                        handleAddToGroup(selectedUser, group.email);
+                                                    const newSet = new Set(selectedGroupsToAdd);
+                                                    if (e.target.checked) {
+                                                        newSet.add(group.email);
+                                                    } else {
+                                                        newSet.delete(group.email);
                                                     }
+                                                    setSelectedGroupsToAdd(newSet);
                                                 }}
                                                 disabled={savingGroups}
                                             />
@@ -668,12 +691,36 @@ export default function UsersPage() {
                             </div>
                         </div>
 
-                        {savingGroups && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Updating group memberships...
-                            </div>
-                        )}
+                        {/* Apply Button */}
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setSelectedGroupsToAdd(new Set());
+                                    setShowGroupModal(false);
+                                }}
+                                disabled={savingGroups}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    if (selectedUser && selectedGroupsToAdd.size > 0) {
+                                        handleAddToGroup(selectedUser, Array.from(selectedGroupsToAdd));
+                                    }
+                                }}
+                                disabled={savingGroups || selectedGroupsToAdd.size === 0}
+                            >
+                                {savingGroups ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Saving...
+                                    </>
+                                ) : (
+                                    `Apply (${selectedGroupsToAdd.size})`
+                                )}
+                            </Button>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>
