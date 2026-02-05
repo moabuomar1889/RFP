@@ -484,7 +484,7 @@ export async function createProjectFolderStructure(
     }
 
     // Step 1: Create the phase folder (PRJ-001-RFP or PRJ-001-PD) inside root
-    const phaseFolderName = prefix; // e.g., "PRJ-001-RFP"
+    const phaseFolderName = prefix;
     console.log(`Creating phase folder: ${phaseFolderName}`);
 
     const phaseFolder = await createFolder(phaseFolderName, projectRootFolderId);
@@ -496,11 +496,62 @@ export async function createProjectFolderStructure(
         limitedAccessEnabled: phaseNode.limitedAccess || false,
     });
 
+    // Apply Smart Permissions to Phase Folder
+    // Use the helper we defined below (hoisted) or ensure it's available
+    // Note: JS functions are hoisted, so hasLimitedDescendants is available if defined in scope
+    const phaseHasRestrictedDescendants = hasLimitedDescendants(phaseNode);
+
+    const phaseGroups = phaseNode.groups || [];
+
+    let phaseGroupsToApply: any[] = [];
+    let phaseGroupsToPush: any[] = [];
+
+    if (phaseNode.limitedAccess) {
+        phaseGroupsToApply = phaseGroups;
+        phaseGroupsToPush = [];
+    } else if (phaseHasRestrictedDescendants) {
+        console.log(`  [PRIVACY] Phase Node ${phaseFolderName} has LIMITED descendants.`);
+        phaseGroupsToApply = phaseGroups.filter((g: any) => {
+            const role = (g.role || 'reader').toLowerCase();
+            return role === 'organizer' || role === 'fileorganizer' || role === 'owner';
+        });
+        phaseGroupsToPush = phaseGroups.filter((g: any) => !phaseGroupsToApply.includes(g));
+    } else {
+        phaseGroupsToApply = phaseGroups;
+        phaseGroupsToPush = [];
+    }
+
+    // Apply safe permissions to phase folder
+    for (const group of phaseGroupsToApply) {
+        const email = group.email || group.name;
+        if (email) {
+            try {
+                await addPermission(phaseFolder.id!, 'group', group.role || 'reader', email);
+                console.log(`Applied phase permission: ${email}`);
+            } catch (e: any) {
+                console.error(`Failed phase permission ${email}:`, e.message);
+            }
+        }
+    }
+
+    // Helper: Check if a node has any limited access descendants
+    function hasLimitedDescendants(node: TemplateNode): boolean {
+        const children = node.nodes || node.children || [];
+        if (children.length === 0) return false;
+
+        // Immediate child check
+        if (children.some(child => child.limitedAccess)) return true;
+
+        // Recursive check
+        return children.some(child => hasLimitedDescendants(child));
+    }
+
     // Step 2: Create all child folders with the prefix
     async function createFoldersRecursively(
         nodes: TemplateNode[],
         parentId: string,
-        parentPath: string
+        parentPath: string,
+        pushedPermissions: any[] = [] // Permissions passed down from parent due to restriction
     ): Promise<void> {
         for (const node of nodes) {
             const nodeName = node.text || node.name;
@@ -510,13 +561,54 @@ export async function createProjectFolderStructure(
             const folderName = `${prefix}-${nodeName}`;
             const templatePath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
 
-            // DEBUG: Log template node data
+            // DEBUG: Log template node data (Reduced logs)
             console.log(`\n=== Creating folder: ${folderName} ===`);
-            console.log(`Template path: ${templatePath}`);
-            console.log(`limitedAccess: ${node.limitedAccess}`);
-            console.log(`groups: ${JSON.stringify(node.groups || [])}`);
-            console.log(`users: ${JSON.stringify(node.users || [])}`);
-            console.log(`Available node keys: ${Object.keys(node).join(', ')}`);
+            // console.log(`Template path: ${templatePath}`);
+
+            // Determine if we need to "Push Down" permissions
+            const isLimited = node.limitedAccess;
+            const hasRestrictedDescendants = hasLimitedDescendants(node);
+
+            // Combine template groups with pushed permissions
+            // We use a Map to merge duplicates by email/role key
+            const combinedGroups = [...(node.groups || []), ...pushedPermissions];
+
+            // Deduplicate groups (prefer template rule over pushed rule)
+            const uniqueGroupsMap = new Map();
+            for (const g of combinedGroups) {
+                const key = (g.email || g.name || '').toLowerCase();
+                if (key && !uniqueGroupsMap.has(key)) {
+                    uniqueGroupsMap.set(key, g);
+                }
+            }
+            const allGroups = Array.from(uniqueGroupsMap.values());
+
+            let groupsToApplyHere: any[] = [];
+            let groupsToPushDown: any[] = [];
+
+            if (isLimited) {
+                console.log(`  [PRIVACY] Node is LIMITED ACCESS. Breaking inheritance.`);
+                groupsToApplyHere = node.groups || [];
+                groupsToPushDown = [];
+            } else if (hasRestrictedDescendants) {
+                console.log(`  [PRIVACY] Node has LIMITED descendants. Pushing 'unsafe' permissions down.`);
+
+                // Apply ONLY Owners/Organizers/FileOrganizers (Admins/Managers).
+                groupsToApplyHere = allGroups.filter(g => {
+                    const role = (g.role || 'reader').toLowerCase();
+                    return role === 'organizer' || role === 'fileorganizer' || role === 'owner';
+                });
+
+                // Unsafe groups (Readers, Writers) are pushed to children
+                groupsToPushDown = allGroups.filter(g => !groupsToApplyHere.includes(g));
+
+                console.log(`  -> Applied to Self: ${groupsToApplyHere.map(g => g.email).join(', ')}`);
+                console.log(`  -> Pushed to Children: ${groupsToPushDown.map(g => g.email).join(', ')}`);
+            } else {
+                console.log(`  [PRIVACY] Node is SAFE (No limited descendants). Applying all permissions.`);
+                groupsToApplyHere = allGroups;
+                groupsToPushDown = [];
+            }
 
             // Create the folder in Drive
             const folder = await createFolder(folderName, parentId);
@@ -529,9 +621,9 @@ export async function createProjectFolderStructure(
                 limitedAccessEnabled: node.limitedAccess || false,
             });
 
-            // Apply group permissions from template
-            if (node.groups && node.groups.length > 0) {
-                for (const group of node.groups) {
+            // Apply calculated group permissions (Safe subset)
+            if (groupsToApplyHere.length > 0) {
+                for (const group of groupsToApplyHere) {
                     const groupEmail = group.email || group.name;
                     if (groupEmail) {
                         try {
@@ -596,7 +688,7 @@ export async function createProjectFolderStructure(
             // Support both 'nodes' and 'children' arrays
             const childNodes = node.nodes || node.children || [];
             if (childNodes.length > 0) {
-                await createFoldersRecursively(childNodes, folder.id!, templatePath);
+                await createFoldersRecursively(childNodes, folder.id!, templatePath, groupsToPushDown);
             }
         }
     }
@@ -606,7 +698,7 @@ export async function createProjectFolderStructure(
     const phaseChildren = phaseNode.nodes || phaseNode.children || [];
     const phaseNodeName = phaseNode.text || phaseNode.name || '';
     if (phaseChildren.length > 0) {
-        await createFoldersRecursively(phaseChildren, phaseFolder.id!, phaseNodeName);
+        await createFoldersRecursively(phaseChildren, phaseFolder.id!, phaseNodeName, phaseGroupsToPush);
     }
 
     console.log(`Created ${createdFolders.length} folders with prefix ${prefix}`);
