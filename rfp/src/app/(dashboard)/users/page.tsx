@@ -631,31 +631,49 @@ export default function UsersPage() {
                             </div>
                         </div>
 
-                        {/* Add to Group */}
+                        {/* Add to Groups - Multi-select with checkboxes */}
                         <div>
-                            <h4 className="text-sm font-medium mb-2">Add to Group</h4>
-                            <Select
-                                disabled={savingGroups}
-                                onValueChange={(groupEmail) => {
-                                    if (selectedUser) {
-                                        handleAddToGroup(selectedUser, groupEmail);
-                                    }
-                                }}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a group..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {groups
-                                        .filter((g) => !selectedUser?.groups?.includes(g.name))
-                                        .map((group) => (
-                                            <SelectItem key={group.id} value={group.email}>
-                                                {group.name}
-                                            </SelectItem>
-                                        ))}
-                                </SelectContent>
-                            </Select>
+                            <h4 className="text-sm font-medium mb-2">Add to Groups</h4>
+                            <div className="max-h-[200px] overflow-y-auto border rounded-md p-2 space-y-2">
+                                {groups
+                                    .filter((g) => !selectedUser?.groups?.includes(g.name))
+                                    .map((group) => (
+                                        <label
+                                            key={group.id}
+                                            className="flex items-center gap-2 p-2 rounded hover:bg-muted cursor-pointer"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                className="h-4 w-4 rounded border-gray-300"
+                                                onChange={(e) => {
+                                                    if (e.target.checked && selectedUser) {
+                                                        handleAddToGroup(selectedUser, group.email);
+                                                    }
+                                                }}
+                                                disabled={savingGroups}
+                                            />
+                                            <span className="text-sm">{group.name}</span>
+                                            {group.member_count !== undefined && (
+                                                <span className="text-xs text-muted-foreground">
+                                                    ({group.member_count} members)
+                                                </span>
+                                            )}
+                                        </label>
+                                    ))}
+                                {groups.filter((g) => !selectedUser?.groups?.includes(g.name)).length === 0 && (
+                                    <p className="text-sm text-muted-foreground text-center py-2">
+                                        User is already in all available groups
+                                    </p>
+                                )}
+                            </div>
                         </div>
+
+                        {savingGroups && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Updating group memberships...
+                            </div>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>
