@@ -404,7 +404,7 @@ export default function TemplatePage() {
                                         <Shield className="h-4 w-4" />
                                         Assigned Groups
                                     </h4>
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 max-h-32 overflow-y-auto">
                                         {(selectedNode.groups || []).length > 0 ? (
                                             (selectedNode.groups || []).map((group: any, index: number) => (
                                                 <div
@@ -423,6 +423,37 @@ export default function TemplatePage() {
                                     </div>
                                     <Button variant="outline" className="w-full mt-3">
                                         Add Group
+                                    </Button>
+                                </div>
+
+                                {/* Assigned Users */}
+                                <div>
+                                    <h4 className="font-medium mb-3 flex items-center gap-2">
+                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                                            <circle cx="12" cy="7" r="4" />
+                                        </svg>
+                                        Assigned Users
+                                    </h4>
+                                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                                        {(selectedNode.users || []).length > 0 ? (
+                                            (selectedNode.users || []).map((user: any, index: number) => (
+                                                <div
+                                                    key={user.email || index}
+                                                    className="flex items-center justify-between p-3 rounded-lg border"
+                                                >
+                                                    <span className="text-sm font-medium">{user.email || 'Unknown User'}</span>
+                                                    <Badge variant="outline">
+                                                        {user.role || 'writer'}
+                                                    </Badge>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">No users assigned</p>
+                                        )}
+                                    </div>
+                                    <Button variant="outline" className="w-full mt-3">
+                                        Add User
                                     </Button>
                                 </div>
                             </div>
