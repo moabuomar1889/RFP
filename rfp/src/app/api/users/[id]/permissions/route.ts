@@ -4,11 +4,13 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 export const dynamic = 'force-dynamic';
 
 interface TemplateNode {
-    text: string;
+    text?: string;      // Used by some templates
+    name?: string;      // Used by template page format
     limitedAccess?: boolean;
     groups?: { name: string; role: string; email?: string }[];
     users?: { email: string; role: string; type?: string }[];
-    nodes?: TemplateNode[];
+    nodes?: TemplateNode[];     // Used by some templates
+    children?: TemplateNode[];  // Used by template page format
     _expanded?: boolean;
     folderType?: string;
 }
@@ -35,7 +37,9 @@ function computePermissions(
     const permissions: FolderPermission[] = [];
 
     for (const node of nodes) {
-        const currentPath = parentPath ? `${parentPath}/${node.text}` : node.text;
+        // Handle both text (jstree format) and name (template page format)
+        const folderName = node.text || node.name || 'Unknown';
+        const currentPath = parentPath ? `${parentPath}/${folderName}` : folderName;
 
         let role: string | null = null;
         let accessType: 'direct' | 'group' | 'public' | 'none' = 'none';
@@ -84,17 +88,18 @@ function computePermissions(
 
         permissions.push({
             path: currentPath,
-            folderName: node.text,
+            folderName: folderName,
             role,
             accessType,
             groupName,
             depth,
         });
 
-        // Recursively process child nodes
-        if (node.nodes && node.nodes.length > 0) {
+        // Recursively process child nodes - handle both nodes and children formats
+        const childNodes = node.nodes || node.children || [];
+        if (childNodes.length > 0) {
             const childPermissions = computePermissions(
-                node.nodes,
+                childNodes,
                 userEmail,
                 userGroups,
                 currentPath,
@@ -173,11 +178,22 @@ export async function GET(
         const template = Array.isArray(templateData) ? templateData[0] : templateData;
         const templateJson = template?.template_json;
 
-        console.log(`[Permissions] Template JSON has 'template' key:`, !!templateJson?.template);
-        console.log(`[Permissions] Template JSON keys:`, Object.keys(templateJson || {}));
+        console.log(`[Permissions] Template JSON type:`, typeof templateJson, Array.isArray(templateJson) ? 'isArray' : 'notArray');
+        console.log(`[Permissions] Template JSON keys:`, Array.isArray(templateJson) ? `array of ${templateJson.length} items` : Object.keys(templateJson || {}));
 
-        if (!templateJson || !templateJson.template) {
-            console.error('[Permissions] No active template or missing template key in JSON');
+        // template_json can be either:
+        // 1. Directly an array of nodes (current production format)
+        // 2. An object with a 'template' key containing the array (legacy format)
+        let templateNodes: TemplateNode[];
+
+        if (Array.isArray(templateJson)) {
+            // Direct array format (current)
+            templateNodes = templateJson;
+        } else if (templateJson && templateJson.template && Array.isArray(templateJson.template)) {
+            // Nested format (legacy)
+            templateNodes = templateJson.template;
+        } else {
+            console.error('[Permissions] No valid template structure found');
             console.log('[Permissions] Full templateJson:', JSON.stringify(templateJson).slice(0, 500));
             return NextResponse.json(
                 { success: false, error: 'No active template found' },
@@ -185,12 +201,12 @@ export async function GET(
             );
         }
 
-        console.log(`[Permissions] Template has ${templateJson.template.length} top-level nodes`);
-        console.log(`[Permissions] First node:`, templateJson.template[0]?.text);
+        console.log(`[Permissions] Template has ${templateNodes.length} top-level nodes`);
+        console.log(`[Permissions] First node:`, templateNodes[0]?.text || templateNodes[0]?.name);
 
         // 4. Compute permissions
         const permissions = computePermissions(
-            templateJson.template as TemplateNode[],
+            templateNodes,
             userEmail,
             userGroups
         );
