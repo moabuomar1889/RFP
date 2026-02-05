@@ -120,9 +120,24 @@ export default function SettingsPage() {
                                         When enabled, bulk operations are disabled
                                     </p>
                                 </div>
-                                <Badge className={safeTestMode ? "bg-blue-500" : "bg-green-500"}>
-                                    {safeTestMode ? "ENABLED" : "DISABLED"}
-                                </Badge>
+                                <div className="flex items-center gap-3">
+                                    <Badge className={safeTestMode ? "bg-blue-500" : "bg-green-500"}>
+                                        {safeTestMode ? "ENABLED" : "DISABLED"}
+                                    </Badge>
+                                    <Button
+                                        variant={safeTestMode ? "destructive" : "default"}
+                                        size="sm"
+                                        onClick={() => {
+                                            setSafeTestMode(!safeTestMode);
+                                            toast.success(safeTestMode
+                                                ? "Safe Test Mode DISABLED - bulk operations now allowed"
+                                                : "Safe Test Mode ENABLED - bulk operations restricted"
+                                            );
+                                        }}
+                                    >
+                                        {safeTestMode ? "Disable" : "Enable"}
+                                    </Button>
+                                </div>
                             </div>
 
                             {safeTestMode && (
