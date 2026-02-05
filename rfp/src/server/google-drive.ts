@@ -266,8 +266,9 @@ export async function applyLimitedAccess(
     allowedEmails: string[],
     protectedEmails: string[] = ['admin@dtgsa.com', 'mo.abuomar@dtgsa.com']
 ): Promise<void> {
-    console.log(`Applying limited access to folder ${folderId}`);
-    console.log(`Allowed emails: ${allowedEmails.join(', ')}`);
+    console.log(`\n========== APPLYING LIMITED ACCESS ==========`);
+    console.log(`Folder ID: ${folderId}`);
+    console.log(`Allowed emails: ${JSON.stringify(allowedEmails)}`);
 
     const permissions = await listPermissions(folderId);
     console.log(`Found ${permissions.length} existing permissions`);
@@ -276,28 +277,57 @@ export async function applyLimitedAccess(
     const allowedSet = new Set(allowedEmails.map(e => e.toLowerCase()));
     const protectedSet = new Set(protectedEmails.map(e => e.toLowerCase()));
 
-    for (const perm of permissions) {
-        const email = perm.emailAddress?.toLowerCase();
+    let removedCount = 0;
+    let keptCount = 0;
 
-        // Skip if no email (e.g., domain permissions) OR if owner
-        if (!email || perm.role === 'owner') {
+    for (const perm of permissions) {
+        console.log(`Checking permission: type=${perm.type}, role=${perm.role}, email=${perm.emailAddress || perm.domain}`);
+
+        // Skip owner - cannot remove owner
+        if (perm.role === 'owner') {
+            console.log(`  -> KEEPING: Owner cannot be removed`);
+            keptCount++;
+            continue;
+        }
+
+        // For domain permissions - always remove for limited access folders
+        if (perm.type === 'domain') {
+            try {
+                console.log(`  -> REMOVING: Domain permission ${perm.domain}`);
+                await removePermission(folderId, perm.id!);
+                removedCount++;
+            } catch (error: any) {
+                console.error(`  -> FAILED to remove domain permission: ${error.message}`);
+            }
+            continue;
+        }
+
+        const email = perm.emailAddress?.toLowerCase();
+        if (!email) {
+            console.log(`  -> SKIPPING: No email address`);
             continue;
         }
 
         // Skip if this email is allowed or protected
         if (allowedSet.has(email) || protectedSet.has(email)) {
-            console.log(`Keeping permission: ${email} (${perm.role})`);
+            console.log(`  -> KEEPING: Email is allowed or protected`);
+            keptCount++;
             continue;
         }
 
         // Remove this permission
         try {
-            console.log(`Removing inherited permission: ${email} (${perm.role})`);
+            console.log(`  -> REMOVING: ${email} (${perm.role})`);
             await removePermission(folderId, perm.id!);
+            removedCount++;
         } catch (error: any) {
-            console.error(`Failed to remove permission ${email}:`, error.message);
+            console.error(`  -> FAILED to remove ${email}: ${error.message}`);
         }
     }
+
+    console.log(`========== LIMITED ACCESS COMPLETE ==========`);
+    console.log(`Removed: ${removedCount}, Kept: ${keptCount}`);
+    console.log(`=============================================\n`);
 }
 
 /**
