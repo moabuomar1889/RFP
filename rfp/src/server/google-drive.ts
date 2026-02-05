@@ -209,6 +209,38 @@ export async function listPermissions(
 }
 
 /**
+ * Create a shortcut in Google Drive
+ */
+export async function createShortcut(
+    targetId: string,
+    parentId: string,
+    shortcutName: string
+): Promise<string> {
+    const drive = await getDriveClient();
+
+    try {
+        const res = await drive.files.create({
+            requestBody: {
+                name: shortcutName,
+                mimeType: 'application/vnd.google-apps.shortcut',
+                parents: [parentId],
+                shortcutDetails: {
+                    targetId: targetId
+                }
+            },
+            fields: 'id',
+            supportsAllDrives: true,
+        });
+
+        console.log(`Created shortcut '${shortcutName}' pointing to ${targetId}`);
+        return res.data.id!;
+    } catch (error: any) {
+        console.error(`Failed to create shortcut ${shortcutName}:`, error.message);
+        throw error;
+    }
+}
+
+/**
  * Add a permission to a folder
  */
 export async function addPermission(
@@ -533,74 +565,111 @@ export async function createProjectFolderStructure(
             const folderName = `${prefix}-${nodeName}`;
             const templatePath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
 
-            // DEBUG: Log template node data
             console.log(`\n=== Creating folder: ${folderName} ===`);
-            // console.log(`Template path: ${templatePath}`);
 
-            // Create the folder in Drive
-            const folder = await createFolder(folderName, parentId);
+            const isLimited = node.limitedAccess;
+            let folderId: string; // The ID of the ACTUAL folder (wherever it is)
 
-            createdFolders.push({
-                templatePath: templatePath,
-                driveFolderId: folder.id!,
-                driveFolderName: folderName,
-                limitedAccessEnabled: node.limitedAccess || false,
-            });
+            // HOISTING LOGIC FOR LIMITED ACCESS
+            if (isLimited) {
+                console.log(`  [PRIVACY] Node is LIMITED ACCESS. Hoisting to Project Root.`);
 
-            // Standard Permission Logic: Apply ALL groups defined in template
-            const groupsToApply = node.groups || [];
+                // 1. Create the folder in the Safe Zone (Project Root)
+                // This breaks inheritance from the current parent (e.g., Project Delivery)
+                const safeFolder = await createFolder(folderName, projectRootFolderId);
+                folderId = safeFolder.id!;
 
-            // Apply groups
-            for (const group of groupsToApply) {
-                const email = group.email || group.name;
-                if (email) {
-                    try {
-                        await addPermission(
-                            folder.id!,
-                            'group',
-                            group.role || 'reader',
-                            email
-                        );
-                        console.log(`Applied group permission: ${email} (${group.role || 'reader'}) to ${folderName}`);
-                    } catch (err: any) {
-                        console.error(`Failed to add group ${email} to ${folderName}:`, err.message || err);
+                // 2. Create a Shortcut in the current hierarchy (parentId)
+                try {
+                    await createShortcut(folderId, parentId, folderName);
+                    console.log(`  [SHORTCUT] Created shortcut in parent ${parentId}`);
+                } catch (e: any) {
+                    console.error(`  [SHORTCUT_ERROR] Failed to create shortcut: ${e.message}`);
+                }
+
+                // 3. Apply ONLY Explicit Permissions (Admins/Managers) to the Safe Folder
+                // We do NOT apply broad permissions here.
+
+                // Apply defined groups 
+                if (node.groups && node.groups.length > 0) {
+                    for (const group of node.groups) {
+                        const email = group.email || group.name;
+                        if (email) {
+                            // Apply permissions strictly as defined in template for this restricted node
+                            try {
+                                await addPermission(folderId, 'group', group.role || 'reader', email);
+                                console.log(`  -> Applied ${email} (${group.role}) to Safe Folder`);
+                            }
+                            catch (e: any) { console.error(e.message); }
+                        }
                     }
                 }
-            }
 
-            // Apply user permissions
-            if (node.users && node.users.length > 0) {
-                for (const user of node.users) {
-                    if (user.email) {
-                        try {
-                            await addPermission(
-                                folder.id!,
-                                'user',
-                                user.role || 'reader',
-                                user.email
-                            );
-                            console.log(`Applied user permission: ${user.email} (${user.role || 'reader'}) to ${folderName}`);
-                        } catch (err: any) {
-                            console.error(`Failed to add user ${user.email} to ${folderName}:`, err.message || err);
+                if (node.users && node.users.length > 0) {
+                    for (const user of node.users) {
+                        if (user.email) {
+                            try {
+                                await addPermission(folderId, 'user', user.role || 'reader', user.email);
+                                console.log(`  -> Applied user ${user.email} (${user.role}) to Safe Folder`);
+                            }
+                            catch (e: any) { console.error(e.message); }
+                        }
+                    }
+                }
+
+                // Ensure no stray permissions exist on the safe folder (though likely clean)
+                // We call applyLimitedAccess to be double sure, but mostly for logging/consistency
+                const allowedEmails: string[] = [];
+                if (node.groups) node.groups.forEach((g: any) => g.email && allowedEmails.push(g.email));
+                if (node.users) node.users.forEach((u: any) => u.email && allowedEmails.push(u.email));
+                await applyLimitedAccess(folderId, allowedEmails);
+
+            } else {
+                // STANDARD CREATION (In-place)
+                // Create the folder in the current parent hierarchy
+                const folder = await createFolder(folderName, parentId);
+                folderId = folder.id!;
+
+                // Apply ALL template permissions (Visibility)
+                if (node.groups) {
+                    for (const group of node.groups) {
+                        const email = group.email || group.name;
+                        if (email) {
+                            try {
+                                await addPermission(folderId, 'group', group.role || 'reader', email);
+                                console.log(`  -> Applied group ${email} (${group.role})`);
+                            }
+                            catch (e: any) { console.error(e.message); }
+                        }
+                    }
+                }
+                if (node.users) {
+                    for (const user of node.users) {
+                        if (user.email) {
+                            try {
+                                await addPermission(folderId, 'user', user.role || 'reader', user.email);
+                                console.log(`  -> Applied user ${user.email} (${user.role})`);
+                            }
+                            catch (e: any) { console.error(e.message); }
                         }
                     }
                 }
             }
 
-            // Apply LIMITED ACCESS (Remove inherited permissions)
-            if (node.limitedAccess) {
-                console.log(`\n>>> Applying LIMITED ACCESS to ${folderName} <<<`);
-                const allowedEmails: string[] = [];
-                if (node.groups) node.groups.forEach((g: any) => g.email && allowedEmails.push(g.email));
-                if (node.users) node.users.forEach((u: any) => u.email && allowedEmails.push(u.email));
-
-                await applyLimitedAccess(folder.id!, allowedEmails);
-            }
+            createdFolders.push({
+                templatePath: templatePath,
+                driveFolderId: folderId,
+                driveFolderName: folderName,
+                limitedAccessEnabled: node.limitedAccess || false,
+            });
 
             // Recurse
+            // IMPORTANT: Children are created inside the NEW folderId.
+            // If Hoisted, children are created INSIDE the Hoisted folder (Safe Zone).
+            // They inherit the Hoisted folder's permissions (Clean).
             const childNodes = node.nodes || node.children || [];
             if (childNodes.length > 0) {
-                await createFoldersRecursively(childNodes, folder.id!, templatePath);
+                await createFoldersRecursively(childNodes, folderId, templatePath);
             }
         }
     }
