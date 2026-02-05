@@ -191,6 +191,7 @@ export default function TemplatePage() {
     const [safeTestMode, setSafeTestMode] = useState(true);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [applying, setApplying] = useState(false);
     const [templateTree, setTemplateTree] = useState<any[]>([]);
     const [templateVersion, setTemplateVersion] = useState<number | null>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -297,6 +298,35 @@ export default function TemplatePage() {
         const newGroups = currentGroups.filter((g: any) => g.email !== groupEmail);
         updateNode(selectedNode.id || selectedNode.name, { groups: newGroups });
         toast.success('Group removed');
+    };
+
+    // Apply template to all projects
+    const applyToAllProjects = async () => {
+        if (safeTestMode) {
+            toast.error('Cannot apply in Safe Test Mode');
+            return;
+        }
+
+        setApplying(true);
+        try {
+            const res = await fetch('/api/enforce', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ triggeredBy: 'admin' }),
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                toast.success(`Permission enforcement started! Job ID: ${data.jobId}`);
+            } else {
+                toast.error(data.error || 'Failed to start enforcement');
+            }
+        } catch (error: any) {
+            console.error('Error applying template:', error);
+            toast.error('Failed to apply template to projects');
+        } finally {
+            setApplying(false);
+        }
     };
 
     // Fetch template from database
@@ -444,9 +474,13 @@ export default function TemplatePage() {
                                         Apply to All Projects (Disabled in Safe Test Mode)
                                     </Button>
                                 ) : (
-                                    <Button>
-                                        <Play className="mr-2 h-4 w-4" />
-                                        Apply to All Projects
+                                    <Button onClick={applyToAllProjects} disabled={applying}>
+                                        {applying ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Play className="mr-2 h-4 w-4" />
+                                        )}
+                                        {applying ? 'Applying...' : 'Apply to All Projects'}
                                     </Button>
                                 )}
                             </div>
