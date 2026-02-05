@@ -24,6 +24,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
@@ -690,6 +691,9 @@ export default function UsersPage() {
                         <DialogTitle>
                             Manage Groups - {selectedUser?.name}
                         </DialogTitle>
+                        <DialogDescription>
+                            Add or remove group memberships for this user.
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         {/* Current Groups */}
@@ -820,6 +824,9 @@ export default function UsersPage() {
                             <FolderLock className="h-5 w-5" />
                             Folder Permissions for {selectedUser?.name}
                         </DialogTitle>
+                        <DialogDescription>
+                            View folder access based on group memberships and template settings.
+                        </DialogDescription>
                     </DialogHeader>
 
                     {selectedUser && (
