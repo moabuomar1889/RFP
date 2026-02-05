@@ -187,7 +187,7 @@ function updateNodeInTree(nodes: any[], nodeId: string, updates: Partial<any>): 
 export default function TemplatePage() {
     const [selectedNode, setSelectedNode] = useState<any>(null);
     const [hasChanges, setHasChanges] = useState(false);
-    const [safeTestMode] = useState(true);
+    const [safeTestMode, setSafeTestMode] = useState(true);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [templateTree, setTemplateTree] = useState<any[]>([]);
@@ -202,6 +202,20 @@ export default function TemplatePage() {
     const [userSearch, setUserSearch] = useState('');
     const [groupSearch, setGroupSearch] = useState('');
     const [selectedRole, setSelectedRole] = useState('writer');
+
+    // Fetch safe test mode setting
+    const fetchSettings = async () => {
+        try {
+            const res = await fetch('/api/settings');
+            const data = await res.json();
+            if (data.success && data.settings?.safe_test_mode) {
+                const enabled = data.settings.safe_test_mode.enabled;
+                setSafeTestMode(enabled !== false); // Default to true if undefined
+            }
+        } catch (error) {
+            console.error('Error fetching settings:', error);
+        }
+    };
 
     // Update a node property in the tree
     const updateNode = (nodeId: string, updates: Partial<any>) => {
@@ -320,6 +334,7 @@ export default function TemplatePage() {
 
     useEffect(() => {
         fetchTemplate();
+        fetchSettings();
     }, []);
 
     if (loading) {

@@ -62,7 +62,11 @@ export async function POST(request: NextRequest) {
 
         if (error) {
             console.error('Error saving template:', error);
-            throw error;
+            console.error('Error details:', JSON.stringify(error, null, 2));
+            return NextResponse.json(
+                { success: false, error: error.message || 'Database error saving template' },
+                { status: 500 }
+            );
         }
 
         // data is the version number directly
@@ -72,10 +76,11 @@ export async function POST(request: NextRequest) {
             success: true,
             version: version,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error saving template:', error);
+        console.error('Error stack:', error.stack);
         return NextResponse.json(
-            { success: false, error: 'Failed to save template' },
+            { success: false, error: error.message || 'Failed to save template' },
             { status: 500 }
         );
     }
