@@ -40,6 +40,8 @@ import {
     Users,
     UserPlus,
     X,
+    FolderLock,
+    Folder,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -64,6 +66,15 @@ interface Group {
     member_count?: number;
 }
 
+interface FolderPermission {
+    path: string;
+    folderName: string;
+    role: string | null;
+    accessType: 'direct' | 'group' | 'public' | 'none';
+    groupName?: string;
+    depth: number;
+}
+
 type ViewMode = "table" | "grouped";
 type GroupBy = "department" | "role" | "status";
 
@@ -80,6 +91,11 @@ export default function UsersPage() {
     const [showGroupModal, setShowGroupModal] = useState(false);
     const [savingGroups, setSavingGroups] = useState(false);
     const [selectedGroupsToAdd, setSelectedGroupsToAdd] = useState<Set<string>>(new Set());
+
+    // Permissions modal state
+    const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+    const [loadingPermissions, setLoadingPermissions] = useState(false);
+    const [userPermissions, setUserPermissions] = useState<FolderPermission[]>([]);
 
     const fetchUsers = async () => {
         try {
@@ -242,6 +258,58 @@ export default function UsersPage() {
             toast.error('Failed to remove from group');
         } finally {
             setSavingGroups(false);
+        }
+    };
+
+    const fetchPermissions = async (user: User) => {
+        try {
+            setLoadingPermissions(true);
+            setSelectedUser(user);
+            setShowPermissionsModal(true);
+
+            const res = await fetch(`/api/users/${user.id}/permissions`);
+            const data = await res.json();
+
+            if (data.success) {
+                setUserPermissions(data.permissions || []);
+            } else {
+                toast.error(data.error || 'Failed to load permissions');
+            }
+        } catch (error) {
+            console.error('Error fetching permissions:', error);
+            toast.error('Failed to load folder permissions');
+        } finally {
+            setLoadingPermissions(false);
+        }
+    };
+
+    const getRoleBadgeColor = (role: string | null, accessType: string) => {
+        if (accessType === 'none') return 'bg-gray-100 text-gray-500';
+        if (accessType === 'public') return 'bg-slate-100 text-slate-600';
+        switch (role) {
+            case 'organizer':
+            case 'fileOrganizer':
+                return 'bg-green-100 text-green-700';
+            case 'writer':
+                return 'bg-blue-100 text-blue-700';
+            case 'commenter':
+            case 'reader':
+                return 'bg-yellow-100 text-yellow-700';
+            default:
+                return 'bg-gray-100 text-gray-500';
+        }
+    };
+
+    const getRoleLabel = (role: string | null, accessType: string) => {
+        if (accessType === 'none') return 'No Access';
+        if (accessType === 'public') return 'Public';
+        switch (role) {
+            case 'organizer': return 'Organizer';
+            case 'fileOrganizer': return 'File Organizer';
+            case 'writer': return 'Writer';
+            case 'commenter': return 'Commenter';
+            case 'reader': return 'Reader';
+            default: return role || 'Unknown';
         }
     };
 
@@ -471,6 +539,17 @@ export default function UsersPage() {
                                                             >
                                                                 <Users className="h-4 w-4" />
                                                             </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    fetchPermissions(user);
+                                                                }}
+                                                                title="View folder permissions"
+                                                            >
+                                                                <FolderLock className="h-4 w-4" />
+                                                            </Button>
                                                             <Link href={`/users/${user.id}`}>
                                                                 <Button variant="ghost" size="sm">
                                                                     <Eye className="h-4 w-4" />
@@ -580,6 +659,14 @@ export default function UsersPage() {
                                                     title="Manage groups"
                                                 >
                                                     <Users className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => fetchPermissions(user)}
+                                                    title="View folder permissions"
+                                                >
+                                                    <FolderLock className="h-4 w-4" />
                                                 </Button>
                                                 <Link href={`/users/${user.id}`}>
                                                     <Button variant="ghost" size="sm" title="View details">
@@ -721,6 +808,106 @@ export default function UsersPage() {
                                 )}
                             </Button>
                         </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Permissions Modal */}
+            <Dialog open={showPermissionsModal} onOpenChange={setShowPermissionsModal}>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <FolderLock className="h-5 w-5" />
+                            Folder Permissions for {selectedUser?.name}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {selectedUser && (
+                        <div className="mb-3">
+                            <p className="text-sm text-muted-foreground">
+                                {selectedUser.email}
+                            </p>
+                            {selectedUser.groups && selectedUser.groups.length > 0 && (
+                                <div className="flex gap-1 mt-2 flex-wrap">
+                                    <span className="text-sm font-medium">Groups:</span>
+                                    {selectedUser.groups.map((group) => (
+                                        <Badge key={group} variant="outline">{group}</Badge>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex gap-2 text-xs mb-2">
+                        <span className="flex items-center gap-1">
+                            <span className="w-3 h-3 rounded bg-green-100"></span> Organizer
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <span className="w-3 h-3 rounded bg-blue-100"></span> Writer
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <span className="w-3 h-3 rounded bg-yellow-100"></span> Reader
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <span className="w-3 h-3 rounded bg-slate-100"></span> Public
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <span className="w-3 h-3 rounded bg-gray-100"></span> No Access
+                        </span>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto border rounded-md p-3">
+                        {loadingPermissions ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                                Loading permissions...
+                            </div>
+                        ) : userPermissions.length === 0 ? (
+                            <p className="text-center text-muted-foreground py-8">
+                                No folder permissions found
+                            </p>
+                        ) : (
+                            <div className="space-y-1">
+                                {userPermissions.map((perm, idx) => (
+                                    <div
+                                        key={idx}
+                                        className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50"
+                                        style={{ paddingLeft: `${perm.depth * 20 + 8}px` }}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Folder className="h-4 w-4 text-muted-foreground" />
+                                            <span className={perm.accessType === 'none' ? 'text-muted-foreground' : ''}>
+                                                {perm.folderName}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {perm.groupName && perm.accessType === 'group' && (
+                                                <span className="text-xs text-muted-foreground">
+                                                    via {perm.groupName}
+                                                </span>
+                                            )}
+                                            {perm.accessType === 'direct' && (
+                                                <span className="text-xs text-muted-foreground">
+                                                    direct
+                                                </span>
+                                            )}
+                                            <Badge
+                                                variant="secondary"
+                                                className={`text-xs ${getRoleBadgeColor(perm.role, perm.accessType)}`}
+                                            >
+                                                {getRoleLabel(perm.role, perm.accessType)}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex justify-end pt-3">
+                        <Button variant="outline" onClick={() => setShowPermissionsModal(false)}>
+                            Close
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
