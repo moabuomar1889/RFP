@@ -450,6 +450,45 @@ export async function createProjectFolderStructure(
                 limitedAccessEnabled: node.limitedAccess || false,
             });
 
+            // Apply group permissions from template
+            if (node.groups && node.groups.length > 0) {
+                for (const group of node.groups) {
+                    const groupEmail = group.email || group.name;
+                    if (groupEmail) {
+                        try {
+                            await addPermission(
+                                folder.id!,
+                                'group',
+                                group.role || 'reader',
+                                groupEmail
+                            );
+                            console.log(`Applied group permission: ${groupEmail} (${group.role || 'reader'}) to ${folderName}`);
+                        } catch (err: any) {
+                            console.error(`Failed to add group ${groupEmail} to ${folderName}:`, err.message || err);
+                        }
+                    }
+                }
+            }
+
+            // Apply user permissions from template
+            if (node.users && node.users.length > 0) {
+                for (const user of node.users) {
+                    if (user.email) {
+                        try {
+                            await addPermission(
+                                folder.id!,
+                                'user',
+                                user.role || 'reader',
+                                user.email
+                            );
+                            console.log(`Applied user permission: ${user.email} (${user.role || 'reader'}) to ${folderName}`);
+                        } catch (err: any) {
+                            console.error(`Failed to add user ${user.email} to ${folderName}:`, err.message || err);
+                        }
+                    }
+                }
+            }
+
             // Create children recursively (nested inside this folder)
             // Support both 'nodes' and 'children' arrays
             const childNodes = node.nodes || node.children || [];
