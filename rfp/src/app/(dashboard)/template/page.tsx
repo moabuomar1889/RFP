@@ -18,6 +18,7 @@ import {
     Folder,
     Loader2,
     RefreshCw,
+    Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -359,6 +360,19 @@ export default function TemplatePage() {
                         <Button variant="outline" onClick={fetchTemplate}>
                             <RefreshCw className="mr-2 h-4 w-4" />
                             Refresh
+                        </Button>
+                        <Button variant="outline" onClick={() => {
+                            const blob = new Blob([JSON.stringify(templateTree, null, 2)], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `template_v${templateVersion || 1}_${new Date().toISOString().split('T')[0]}.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            toast.success('Template downloaded');
+                        }}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Download
                         </Button>
                         <Button variant="outline">
                             <History className="mr-2 h-4 w-4" />
