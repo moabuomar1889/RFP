@@ -549,9 +549,12 @@ export async function createProjectFolderStructure(
 
             // Apply ALL template permissions (Visibility)
             const groupsToApply = node.groups || [];
+            console.log(`[DEBUG] Folder ${folderName} has ${groupsToApply.length} groups to apply:`, JSON.stringify(groupsToApply));
 
-            for (const group of groupsToApply) {
+            for (let i = 0; i < groupsToApply.length; i++) {
+                const group = groupsToApply[i];
                 const email = group.email || group.name;
+                console.log(`[DEBUG] Processing group ${i + 1}/${groupsToApply.length}: email=${email}, role=${group.role}`);
                 if (email) {
                     try {
                         await addPermission(
@@ -560,10 +563,12 @@ export async function createProjectFolderStructure(
                             group.role || 'reader',
                             email
                         );
-                        console.log(`Applied group permission: ${email} (${group.role || 'reader'}) to ${folderName}`);
+                        console.log(`[SUCCESS] Applied group permission: ${email} (${group.role || 'reader'}) to ${folderName}`);
                     } catch (err: any) {
-                        console.error(`Failed to add group ${email} to ${folderName}:`, err.message || err);
+                        console.error(`[FAILED] Failed to add group ${email} to ${folderName}:`, err.message || err);
                     }
+                } else {
+                    console.warn(`[SKIPPED] Group ${i + 1} has no email:`, JSON.stringify(group));
                 }
             }
 
