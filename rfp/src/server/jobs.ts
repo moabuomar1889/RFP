@@ -895,10 +895,44 @@ async function createSubfoldersFromTemplate(
                 await createSubfoldersFromTemplate(newFolder.id, children, prNumber, phasePrefix, depth + 1);
             }
 
-            // Apply permissions if limitedAccess
-            if (folderDef.limitedAccess && (folderDef.groups || folderDef.roles)) {
-                // Apply permissions based on template
-                // (Implementation would add permissions here)
+            // Apply group permissions from template
+            if (folderDef.groups && folderDef.groups.length > 0) {
+                for (const group of folderDef.groups) {
+                    if (group.email) {
+                        try {
+                            await addPermission(
+                                newFolder.id!,
+                                'group',
+                                group.role || 'reader',
+                                group.email
+                            );
+                            console.log(`Applied group permission: ${group.email} (${group.role || 'reader'}) to ${folderName}`);
+                            await sleep(RATE_LIMIT_DELAY);
+                        } catch (err) {
+                            console.error(`Failed to add group ${group.email} to ${folderName}:`, err);
+                        }
+                    }
+                }
+            }
+
+            // Apply user permissions from template
+            if (folderDef.users && folderDef.users.length > 0) {
+                for (const user of folderDef.users) {
+                    if (user.email) {
+                        try {
+                            await addPermission(
+                                newFolder.id!,
+                                'user',
+                                user.role || 'reader',
+                                user.email
+                            );
+                            console.log(`Applied user permission: ${user.email} (${user.role || 'reader'}) to ${folderName}`);
+                            await sleep(RATE_LIMIT_DELAY);
+                        } catch (err) {
+                            console.error(`Failed to add user ${user.email} to ${folderName}:`, err);
+                        }
+                    }
+                }
             }
         } catch (error) {
             console.error(`Failed to create folder ${folderName}:`, error);
