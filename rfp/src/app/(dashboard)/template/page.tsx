@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import {
     Save,
     History,
@@ -155,6 +156,26 @@ function FolderNode({ node, level, onSelect, selectedId }: FolderNodeProps) {
 }
 
 
+// Helper to update a node in the template tree by id/name
+function updateNodeInTree(nodes: any[], nodeId: string, updates: Partial<any>): any[] {
+    return nodes.map(node => {
+        const currentId = node.id || node.text || node.name;
+        if (currentId === nodeId) {
+            return { ...node, ...updates };
+        }
+        const children = node.nodes || node.children;
+        if (children && children.length > 0) {
+            const updatedChildren = updateNodeInTree(children, nodeId, updates);
+            if (node.nodes) {
+                return { ...node, nodes: updatedChildren };
+            } else {
+                return { ...node, children: updatedChildren };
+            }
+        }
+        return node;
+    });
+}
+
 export default function TemplatePage() {
     const [selectedNode, setSelectedNode] = useState<any>(null);
     const [hasChanges, setHasChanges] = useState(false);
@@ -164,6 +185,13 @@ export default function TemplatePage() {
     const [templateTree, setTemplateTree] = useState<any[]>([]);
     const [templateVersion, setTemplateVersion] = useState<number | null>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+    // Update a node property in the tree
+    const updateNode = (nodeId: string, updates: Partial<any>) => {
+        setTemplateTree(prev => updateNodeInTree(prev, nodeId, updates));
+        setSelectedNode((prev: any) => prev ? { ...prev, ...updates } : null);
+        setHasChanges(true);
+    };
 
     // Fetch template from database
     const fetchTemplate = async () => {
@@ -362,9 +390,12 @@ export default function TemplatePage() {
                                             </p>
                                         </div>
                                     </div>
-                                    <Badge variant={selectedNode.limitedAccess ? "default" : "secondary"}>
-                                        {selectedNode.limitedAccess ? "Enabled" : "Disabled"}
-                                    </Badge>
+                                    <Switch
+                                        checked={selectedNode.limitedAccess ?? false}
+                                        onCheckedChange={(checked) => {
+                                            updateNode(selectedNode.id, { limitedAccess: checked });
+                                        }}
+                                    />
                                 </div>
 
                                 {/* Assigned Groups */}
