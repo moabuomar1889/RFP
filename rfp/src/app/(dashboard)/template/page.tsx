@@ -19,6 +19,7 @@ import {
     Loader2,
     RefreshCw,
     Download,
+    X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -280,6 +281,24 @@ export default function TemplatePage() {
         toast.success('Group added');
     };
 
+    // Remove user from selected node
+    const handleRemoveUser = (email: string) => {
+        if (!selectedNode) return;
+        const currentUsers = selectedNode.users || [];
+        const newUsers = currentUsers.filter((u: any) => u.email !== email);
+        updateNode(selectedNode.id || selectedNode.name, { users: newUsers });
+        toast.success('User removed');
+    };
+
+    // Remove group from selected node
+    const handleRemoveGroup = (groupEmail: string) => {
+        if (!selectedNode) return;
+        const currentGroups = selectedNode.groups || [];
+        const newGroups = currentGroups.filter((g: any) => g.email !== groupEmail);
+        updateNode(selectedNode.id || selectedNode.name, { groups: newGroups });
+        toast.success('Group removed');
+    };
+
     // Fetch template from database
     const fetchTemplate = async () => {
         try {
@@ -514,9 +533,18 @@ export default function TemplatePage() {
                                                         className="flex items-center justify-between p-3 rounded-lg border"
                                                     >
                                                         <span className="text-sm font-medium">{group.name || group.email || 'Unknown Group'}</span>
-                                                        <Badge variant="outline">
-                                                            {group.role || 'writer'}
-                                                        </Badge>
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge variant="outline">
+                                                                {group.role || 'writer'}
+                                                            </Badge>
+                                                            <button
+                                                                onClick={() => handleRemoveGroup(group.email)}
+                                                                className="text-muted-foreground hover:text-destructive transition-colors"
+                                                                title="Remove group"
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ))
                                             ) : (
@@ -548,9 +576,18 @@ export default function TemplatePage() {
                                                         className="flex items-center justify-between p-3 rounded-lg border"
                                                     >
                                                         <span className="text-sm font-medium">{user.email || 'Unknown User'}</span>
-                                                        <Badge variant="outline">
-                                                            {user.role || 'writer'}
-                                                        </Badge>
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge variant="outline">
+                                                                {user.role || 'writer'}
+                                                            </Badge>
+                                                            <button
+                                                                onClick={() => handleRemoveUser(user.email)}
+                                                                className="text-muted-foreground hover:text-destructive transition-colors"
+                                                                title="Remove user"
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 ))
                                             ) : (
