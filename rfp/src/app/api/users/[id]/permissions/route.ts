@@ -143,37 +143,24 @@ export async function GET(
             );
         }
 
-        // 2. Get user's group memberships
-        const { data: memberships, error: membershipError } = await supabase
-            .from('rfp.user_group_membership')
-            .select('group_email')
-            .eq('user_email', userEmail);
+        // 2. Get user's groups using the get_users_with_groups RPC
+        const { data: usersWithGroups, error: groupsError } = await supabase.rpc('get_users_with_groups');
 
-        // Fallback: query using RPC if direct access fails
-        let userGroups: string[] = [];
-        if (membershipError) {
-            console.log('Direct membership query failed, using groups from user data');
-            // Get from users with groups RPC
-            const { data: usersWithGroups } = await supabase.rpc('get_users_with_groups');
-            const userWithGroups = usersWithGroups?.find(
-                (u: any) => u.email?.toLowerCase() === userEmail
-            );
-            userGroups = userWithGroups?.groups || [];
-        } else {
-            // Get group names from group_directory
-            const groupEmails = (memberships || []).map((m: any) => m.group_email);
-            if (groupEmails.length > 0) {
-                const { data: groups } = await supabase.rpc('get_groups');
-                userGroups = (groups || [])
-                    .filter((g: any) => groupEmails.includes(g.email?.toLowerCase()))
-                    .map((g: any) => g.name);
-            }
+        if (groupsError) {
+            console.error('Error fetching users with groups:', groupsError);
         }
 
-        console.log(`User ${userEmail} groups:`, userGroups);
+        const userWithGroups = usersWithGroups?.find(
+            (u: any) => u.email?.toLowerCase() === userEmail
+        );
+        const userGroups: string[] = userWithGroups?.groups || [];
+
+        console.log(`[Permissions] User ${userEmail} groups:`, userGroups);
 
         // 3. Get active template
         const { data: templateData, error: templateError } = await supabase.rpc('get_active_template');
+
+        console.log(`[Permissions] Template data:`, templateData ? 'found' : 'not found', templateError ? `error: ${templateError.message}` : '');
 
         if (templateError) {
             console.error('Template error:', templateError);
@@ -186,12 +173,20 @@ export async function GET(
         const template = Array.isArray(templateData) ? templateData[0] : templateData;
         const templateJson = template?.template_json;
 
+        console.log(`[Permissions] Template JSON has 'template' key:`, !!templateJson?.template);
+        console.log(`[Permissions] Template JSON keys:`, Object.keys(templateJson || {}));
+
         if (!templateJson || !templateJson.template) {
+            console.error('[Permissions] No active template or missing template key in JSON');
+            console.log('[Permissions] Full templateJson:', JSON.stringify(templateJson).slice(0, 500));
             return NextResponse.json(
                 { success: false, error: 'No active template found' },
                 { status: 404 }
             );
         }
+
+        console.log(`[Permissions] Template has ${templateJson.template.length} top-level nodes`);
+        console.log(`[Permissions] First node:`, templateJson.template[0]?.text);
 
         // 4. Compute permissions
         const permissions = computePermissions(
@@ -199,6 +194,10 @@ export async function GET(
             userEmail,
             userGroups
         );
+
+        console.log(`[Permissions] Computed ${permissions.length} folder permissions`);
+
+
 
         return NextResponse.json({
             success: true,

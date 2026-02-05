@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +25,8 @@ import {
 import { toast } from "sonner";
 
 export default function SettingsPage() {
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [protectedPrincipals, setProtectedPrincipals] = useState([
         "mo.abuomar@dtgsa.com",
         "admins@dtgsa.com",
@@ -35,6 +37,57 @@ export default function SettingsPage() {
     const [bulkApproved, setBulkApproved] = useState(false);
     const [scanning, setScanning] = useState(false);
     const [scanResults, setScanResults] = useState<any>(null);
+
+    // Load settings on mount
+    useEffect(() => {
+        const loadSettings = async () => {
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+                if (data.success && data.settings) {
+                    const s = data.settings;
+                    if (s.safe_test_mode) setSafeTestMode(s.safe_test_mode.enabled ?? true);
+                    if (s.strict_mode) setStrictModeEnabled(s.strict_mode.enabled ?? true);
+                    if (s.bulk_approved) setBulkApproved(s.bulk_approved.approved ?? false);
+                    if (s.protected_principals) setProtectedPrincipals(s.protected_principals.emails ?? []);
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadSettings();
+    }, []);
+
+    const saveSettings = async () => {
+        setSaving(true);
+        try {
+            const response = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    settings: {
+                        safe_test_mode: { enabled: safeTestMode },
+                        strict_mode: { enabled: strictModeEnabled },
+                        bulk_approved: { approved: bulkApproved },
+                        protected_principals: { emails: protectedPrincipals },
+                    }
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                toast.success('Settings saved successfully!');
+            } else {
+                toast.error(data.error || 'Failed to save settings');
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            toast.error('Failed to save settings');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const addPrincipal = () => {
         if (newPrincipal && !protectedPrincipals.includes(newPrincipal)) {
@@ -68,6 +121,7 @@ export default function SettingsPage() {
         }
     };
 
+
     return (
         <div className="space-y-6">
             {/* Page Header */}
@@ -78,9 +132,18 @@ export default function SettingsPage() {
                         Configure system behavior and security
                     </p>
                 </div>
-                <Button>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Settings
+                <Button onClick={saveSettings} disabled={saving || loading}>
+                    {saving ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                        </>
+                    ) : (
+                        <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Save Settings
+                        </>
+                    )}
                 </Button>
             </div>
 
