@@ -73,21 +73,32 @@ export async function POST(
             const googleResult = await tryGoogleSync('add', email, userEmail);
 
             // Add to local database
-            const { error: dbError } = await supabase.rpc('add_user_to_group', {
+            console.log(`[DB] Calling add_user_to_group with:`, {
                 p_user_email: userEmail,
                 p_group_email: email.toLowerCase(),
                 p_added_by: 'admin',
             });
 
+            const { data: dbData, error: dbError } = await supabase.rpc('add_user_to_group', {
+                p_user_email: userEmail,
+                p_group_email: email.toLowerCase(),
+                p_added_by: 'admin',
+            });
+
+            console.log(`[DB] Result for ${email}:`, { dbData, dbError });
+
             results.push({
                 groupEmail: email,
                 dbSuccess: !dbError,
+                dbData,
                 googleSynced: googleResult.success,
                 error: dbError?.message,
             });
         }
 
         const allSuccess = results.every(r => r.dbSuccess);
+
+        console.log(`[DB] Final results:`, results);
 
         return NextResponse.json({
             success: allSuccess,
