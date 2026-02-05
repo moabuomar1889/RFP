@@ -20,6 +20,13 @@ import {
     RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 // Default template structure
 const defaultTemplate = [
@@ -186,11 +193,76 @@ export default function TemplatePage() {
     const [templateVersion, setTemplateVersion] = useState<number | null>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
+    // Add User/Group modal states
+    const [showAddUserModal, setShowAddUserModal] = useState(false);
+    const [showAddGroupModal, setShowAddGroupModal] = useState(false);
+    const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [allGroups, setAllGroups] = useState<any[]>([]);
+    const [userSearch, setUserSearch] = useState('');
+    const [groupSearch, setGroupSearch] = useState('');
+    const [selectedRole, setSelectedRole] = useState('writer');
+
     // Update a node property in the tree
     const updateNode = (nodeId: string, updates: Partial<any>) => {
         setTemplateTree(prev => updateNodeInTree(prev, nodeId, updates));
         setSelectedNode((prev: any) => prev ? { ...prev, ...updates } : null);
         setHasChanges(true);
+    };
+
+    // Fetch users for Add User modal
+    const fetchUsers = async () => {
+        try {
+            const res = await fetch('/api/users');
+            const data = await res.json();
+            if (data.success) {
+                setAllUsers(data.users || []);
+            }
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        }
+    };
+
+    // Fetch groups for Add Group modal
+    const fetchGroups = async () => {
+        try {
+            const res = await fetch('/api/groups');
+            const data = await res.json();
+            if (data.success) {
+                setAllGroups(data.groups || []);
+            }
+        } catch (error) {
+            console.error('Error fetching groups:', error);
+        }
+    };
+
+    // Add user to selected node
+    const handleAddUser = (email: string) => {
+        if (!selectedNode) return;
+        const currentUsers = selectedNode.users || [];
+        if (currentUsers.some((u: any) => u.email === email)) {
+            toast.error('User already assigned');
+            return;
+        }
+        const newUsers = [...currentUsers, { email, role: selectedRole }];
+        updateNode(selectedNode.id || selectedNode.name, { users: newUsers });
+        setShowAddUserModal(false);
+        setUserSearch('');
+        toast.success('User added');
+    };
+
+    // Add group to selected node
+    const handleAddGroup = (groupEmail: string) => {
+        if (!selectedNode) return;
+        const currentGroups = selectedNode.groups || [];
+        if (currentGroups.some((g: any) => g.email === groupEmail)) {
+            toast.error('Group already assigned');
+            return;
+        }
+        const newGroups = [...currentGroups, { email: groupEmail, role: selectedRole }];
+        updateNode(selectedNode.id || selectedNode.name, { groups: newGroups });
+        setShowAddGroupModal(false);
+        setGroupSearch('');
+        toast.success('Group added');
     };
 
     // Fetch template from database
@@ -258,213 +330,315 @@ export default function TemplatePage() {
     }
 
     return (
-        <div className="space-y-6">
-            {/* Safe Test Mode Warning */}
-            {safeTestMode && (
-                <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20">
-                        <Lock className="h-4 w-4 text-blue-500" />
+        <>
+            <div className="space-y-6">
+                {/* Safe Test Mode Warning */}
+                {safeTestMode && (
+                    <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20">
+                            <Lock className="h-4 w-4 text-blue-500" />
+                        </div>
+                        <div>
+                            <p className="font-medium text-blue-600 dark:text-blue-400">Safe Test Mode Active</p>
+                            <p className="text-sm text-muted-foreground">
+                                Bulk operations disabled. Go to Settings → Safe Test to enable after approval.
+                            </p>
+                        </div>
                     </div>
+                )}
+
+                {/* Page Header */}
+                <div className="flex items-center justify-between">
                     <div>
-                        <p className="font-medium text-blue-600 dark:text-blue-400">Safe Test Mode Active</p>
-                        <p className="text-sm text-muted-foreground">
-                            Bulk operations disabled. Go to Settings → Safe Test to enable after approval.
+                        <h1 className="text-3xl font-bold tracking-tight">Template</h1>
+                        <p className="text-muted-foreground">
+                            Define folder structure and permission rules
                         </p>
                     </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={fetchTemplate}>
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Refresh
+                        </Button>
+                        <Button variant="outline">
+                            <History className="mr-2 h-4 w-4" />
+                            Version History
+                        </Button>
+                        <Button onClick={saveTemplate} disabled={!hasChanges || saving}>
+                            {saving ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="mr-2 h-4 w-4" />
+                            )}
+                            Save Template
+                        </Button>
+                    </div>
                 </div>
-            )}
 
-            {/* Page Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Template</h1>
-                    <p className="text-muted-foreground">
-                        Define folder structure and permission rules
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={fetchTemplate}>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Refresh
-                    </Button>
-                    <Button variant="outline">
-                        <History className="mr-2 h-4 w-4" />
-                        Version History
-                    </Button>
-                    <Button onClick={saveTemplate} disabled={!hasChanges || saving}>
-                        {saving ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Save className="mr-2 h-4 w-4" />
-                        )}
-                        Save Template
-                    </Button>
+                {/* Current Version Info */}
+                <Card>
+                    <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <Badge variant="outline" className="text-lg px-3 py-1">
+                                    {templateVersion ? `Version ${templateVersion}` : 'No Version Saved'}
+                                </Badge>
+                                <span className="text-sm text-muted-foreground">
+                                    {lastUpdated
+                                        ? `Last updated: ${new Date(lastUpdated).toLocaleString()}`
+                                        : 'Not saved yet'}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {safeTestMode ? (
+                                    <Button disabled className="cursor-not-allowed">
+                                        <Lock className="mr-2 h-4 w-4" />
+                                        Apply to All Projects (Disabled in Safe Test Mode)
+                                    </Button>
+                                ) : (
+                                    <Button>
+                                        <Play className="mr-2 h-4 w-4" />
+                                        Apply to All Projects
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Template Editor */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                    {/* Folder Tree */}
+                    <Card className="h-[600px] flex flex-col">
+                        <CardHeader className="flex-shrink-0">
+                            <div className="flex items-center justify-between">
+                                <CardTitle>Folder Structure</CardTitle>
+                                <Button variant="outline" size="sm">
+                                    <FolderPlus className="mr-2 h-4 w-4" />
+                                    Add Folder
+                                </Button>
+                            </div>
+                            <CardDescription>
+                                Click a folder to edit its permissions
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-1 overflow-hidden">
+                            <ScrollArea className="h-full">
+                                {templateTree.map((node) => (
+                                    <FolderNode
+                                        key={node.id}
+                                        node={node}
+                                        level={0}
+                                        onSelect={setSelectedNode}
+                                        selectedId={selectedNode?.id}
+                                    />
+                                ))}
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
+
+                    {/* Folder Details */}
+                    <Card className="h-[600px] flex flex-col">
+                        <CardHeader className="flex-shrink-0">
+                            <CardTitle>
+                                {selectedNode ? selectedNode.name : "Folder Details"}
+                            </CardTitle>
+                            <CardDescription>
+                                {selectedNode
+                                    ? selectedNode.path
+                                    : "Select a folder to view and edit details"}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                            {selectedNode ? (
+                                <div className="space-y-6">
+                                    {/* Limited Access Toggle */}
+                                    <div className="flex items-center justify-between p-4 rounded-lg border">
+                                        <div className="flex items-center gap-3">
+                                            <Lock className="h-5 w-5 text-amber-500" />
+                                            <div>
+                                                <p className="font-medium">Limited Access</p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Restrict folder permissions
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Switch
+                                            checked={selectedNode.limitedAccess ?? false}
+                                            onCheckedChange={(checked) => {
+                                                updateNode(selectedNode.id, { limitedAccess: checked });
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Assigned Groups */}
+                                    <div>
+                                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                                            <Shield className="h-4 w-4" />
+                                            Assigned Groups
+                                        </h4>
+                                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                                            {(selectedNode.groups || []).length > 0 ? (
+                                                (selectedNode.groups || []).map((group: any, index: number) => (
+                                                    <div
+                                                        key={group.name || group.email || index}
+                                                        className="flex items-center justify-between p-3 rounded-lg border"
+                                                    >
+                                                        <span className="text-sm font-medium">{group.name || group.email || 'Unknown Group'}</span>
+                                                        <Badge variant="outline">
+                                                            {group.role || 'writer'}
+                                                        </Badge>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground">No groups assigned</p>
+                                            )}
+                                        </div>
+                                        <Button variant="outline" className="w-full mt-3" onClick={() => {
+                                            fetchGroups();
+                                            setShowAddGroupModal(true);
+                                        }}>
+                                            Add Group
+                                        </Button>
+                                    </div>
+
+                                    {/* Assigned Users */}
+                                    <div>
+                                        <h4 className="font-medium mb-3 flex items-center gap-2">
+                                            <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                                                <circle cx="12" cy="7" r="4" />
+                                            </svg>
+                                            Assigned Users
+                                        </h4>
+                                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                                            {(selectedNode.users || []).length > 0 ? (
+                                                (selectedNode.users || []).map((user: any, index: number) => (
+                                                    <div
+                                                        key={user.email || index}
+                                                        className="flex items-center justify-between p-3 rounded-lg border"
+                                                    >
+                                                        <span className="text-sm font-medium">{user.email || 'Unknown User'}</span>
+                                                        <Badge variant="outline">
+                                                            {user.role || 'writer'}
+                                                        </Badge>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground">No users assigned</p>
+                                            )}
+                                        </div>
+                                        <Button variant="outline" className="w-full mt-3" onClick={() => {
+                                            fetchUsers();
+                                            setShowAddUserModal(true);
+                                        }}>
+                                            Add User
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-muted-foreground">
+                                    Select a folder from the tree to edit
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
 
-            {/* Current Version Info */}
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Badge variant="outline" className="text-lg px-3 py-1">
-                                {templateVersion ? `Version ${templateVersion}` : 'No Version Saved'}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                                {lastUpdated
-                                    ? `Last updated: ${new Date(lastUpdated).toLocaleString()}`
-                                    : 'Not saved yet'}
-                            </span>
+            {/* Add Group Modal */}
+            <Dialog open={showAddGroupModal} onOpenChange={setShowAddGroupModal}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Add Group to {selectedNode?.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                        <Input
+                            placeholder="Search groups..."
+                            value={groupSearch}
+                            onChange={(e) => setGroupSearch(e.target.value)}
+                        />
+                        <div className="max-h-[250px] overflow-y-auto space-y-1 border rounded-md p-2">
+                            {allGroups
+                                .filter(g => g.name?.toLowerCase().includes(groupSearch.toLowerCase()) || g.email?.toLowerCase().includes(groupSearch.toLowerCase()))
+                                .slice(0, 20)
+                                .map(group => (
+                                    <div
+                                        key={group.id}
+                                        className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer"
+                                        onClick={() => handleAddGroup(group.email)}
+                                    >
+                                        <div>
+                                            <p className="font-medium text-sm">{group.name}</p>
+                                            <p className="text-xs text-muted-foreground">{group.email}</p>
+                                        </div>
+                                        <Badge variant="outline" className="text-xs">{selectedRole}</Badge>
+                                    </div>
+                                ))}
+                            {allGroups.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No groups available</p>}
                         </div>
                         <div className="flex items-center gap-2">
-                            {safeTestMode ? (
-                                <Button disabled className="cursor-not-allowed">
-                                    <Lock className="mr-2 h-4 w-4" />
-                                    Apply to All Projects (Disabled in Safe Test Mode)
-                                </Button>
-                            ) : (
-                                <Button>
-                                    <Play className="mr-2 h-4 w-4" />
-                                    Apply to All Projects
-                                </Button>
-                            )}
+                            <span className="text-sm">Role:</span>
+                            <select
+                                value={selectedRole}
+                                onChange={(e) => setSelectedRole(e.target.value)}
+                                className="flex-1 border rounded px-2 py-1 text-sm"
+                            >
+                                <option value="organizer">Organizer</option>
+                                <option value="writer">Writer</option>
+                                <option value="reader">Reader</option>
+                            </select>
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+                </DialogContent>
+            </Dialog>
 
-            {/* Template Editor */}
-            <div className="grid gap-6 lg:grid-cols-2">
-                {/* Folder Tree */}
-                <Card className="h-[600px] flex flex-col">
-                    <CardHeader className="flex-shrink-0">
-                        <div className="flex items-center justify-between">
-                            <CardTitle>Folder Structure</CardTitle>
-                            <Button variant="outline" size="sm">
-                                <FolderPlus className="mr-2 h-4 w-4" />
-                                Add Folder
-                            </Button>
-                        </div>
-                        <CardDescription>
-                            Click a folder to edit its permissions
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-hidden">
-                        <ScrollArea className="h-full">
-                            {templateTree.map((node) => (
-                                <FolderNode
-                                    key={node.id}
-                                    node={node}
-                                    level={0}
-                                    onSelect={setSelectedNode}
-                                    selectedId={selectedNode?.id}
-                                />
-                            ))}
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
-
-                {/* Folder Details */}
-                <Card className="h-[600px] flex flex-col">
-                    <CardHeader className="flex-shrink-0">
-                        <CardTitle>
-                            {selectedNode ? selectedNode.name : "Folder Details"}
-                        </CardTitle>
-                        <CardDescription>
-                            {selectedNode
-                                ? selectedNode.path
-                                : "Select a folder to view and edit details"}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1">
-                        {selectedNode ? (
-                            <div className="space-y-6">
-                                {/* Limited Access Toggle */}
-                                <div className="flex items-center justify-between p-4 rounded-lg border">
-                                    <div className="flex items-center gap-3">
-                                        <Lock className="h-5 w-5 text-amber-500" />
+            {/* Add User Modal */}
+            <Dialog open={showAddUserModal} onOpenChange={setShowAddUserModal}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Add User to {selectedNode?.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                        <Input
+                            placeholder="Search users..."
+                            value={userSearch}
+                            onChange={(e) => setUserSearch(e.target.value)}
+                        />
+                        <div className="max-h-[250px] overflow-y-auto space-y-1 border rounded-md p-2">
+                            {allUsers
+                                .filter(u => u.name?.toLowerCase().includes(userSearch.toLowerCase()) || u.email?.toLowerCase().includes(userSearch.toLowerCase()))
+                                .slice(0, 20)
+                                .map(user => (
+                                    <div
+                                        key={user.id}
+                                        className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer"
+                                        onClick={() => handleAddUser(user.email)}
+                                    >
                                         <div>
-                                            <p className="font-medium">Limited Access</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Restrict folder permissions
-                                            </p>
+                                            <p className="font-medium text-sm">{user.name}</p>
+                                            <p className="text-xs text-muted-foreground">{user.email}</p>
                                         </div>
+                                        <Badge variant="outline" className="text-xs">{selectedRole}</Badge>
                                     </div>
-                                    <Switch
-                                        checked={selectedNode.limitedAccess ?? false}
-                                        onCheckedChange={(checked) => {
-                                            updateNode(selectedNode.id, { limitedAccess: checked });
-                                        }}
-                                    />
-                                </div>
-
-                                {/* Assigned Groups */}
-                                <div>
-                                    <h4 className="font-medium mb-3 flex items-center gap-2">
-                                        <Shield className="h-4 w-4" />
-                                        Assigned Groups
-                                    </h4>
-                                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                                        {(selectedNode.groups || []).length > 0 ? (
-                                            (selectedNode.groups || []).map((group: any, index: number) => (
-                                                <div
-                                                    key={group.name || group.email || index}
-                                                    className="flex items-center justify-between p-3 rounded-lg border"
-                                                >
-                                                    <span className="text-sm font-medium">{group.name || group.email || 'Unknown Group'}</span>
-                                                    <Badge variant="outline">
-                                                        {group.role || 'writer'}
-                                                    </Badge>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground">No groups assigned</p>
-                                        )}
-                                    </div>
-                                    <Button variant="outline" className="w-full mt-3">
-                                        Add Group
-                                    </Button>
-                                </div>
-
-                                {/* Assigned Users */}
-                                <div>
-                                    <h4 className="font-medium mb-3 flex items-center gap-2">
-                                        <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                                            <circle cx="12" cy="7" r="4" />
-                                        </svg>
-                                        Assigned Users
-                                    </h4>
-                                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                                        {(selectedNode.users || []).length > 0 ? (
-                                            (selectedNode.users || []).map((user: any, index: number) => (
-                                                <div
-                                                    key={user.email || index}
-                                                    className="flex items-center justify-between p-3 rounded-lg border"
-                                                >
-                                                    <span className="text-sm font-medium">{user.email || 'Unknown User'}</span>
-                                                    <Badge variant="outline">
-                                                        {user.role || 'writer'}
-                                                    </Badge>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground">No users assigned</p>
-                                        )}
-                                    </div>
-                                    <Button variant="outline" className="w-full mt-3">
-                                        Add User
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="h-full flex items-center justify-center text-muted-foreground">
-                                Select a folder from the tree to edit
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+                                ))}
+                            {allUsers.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No users available</p>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm">Role:</span>
+                            <select
+                                value={selectedRole}
+                                onChange={(e) => setSelectedRole(e.target.value)}
+                                className="flex-1 border rounded px-2 py-1 text-sm"
+                            >
+                                <option value="organizer">Organizer</option>
+                                <option value="writer">Writer</option>
+                                <option value="reader">Reader</option>
+                            </select>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }

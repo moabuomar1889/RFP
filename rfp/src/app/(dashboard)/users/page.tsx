@@ -98,6 +98,10 @@ export default function UsersPage() {
     const [loadingPermissions, setLoadingPermissions] = useState(false);
     const [userPermissions, setUserPermissions] = useState<FolderPermission[]>([]);
 
+    // User Details modal state
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
+    const [detailsLoading, setDetailsLoading] = useState(false);
+
     const fetchUsers = async () => {
         try {
             setLoading(true);
@@ -281,6 +285,29 @@ export default function UsersPage() {
             toast.error('Failed to load folder permissions');
         } finally {
             setLoadingPermissions(false);
+        }
+    };
+
+    const fetchUserDetails = async (user: User) => {
+        try {
+            setDetailsLoading(true);
+            setSelectedUser(user);
+            setShowDetailsModal(true);
+
+            // Fetch permissions for folder access
+            const res = await fetch(`/api/users/${user.id}/permissions`);
+            const data = await res.json();
+
+            if (data.success) {
+                setUserPermissions(data.permissions || []);
+            } else {
+                console.error('Error loading permissions:', data.error);
+                setUserPermissions([]);
+            }
+        } catch (error) {
+            console.error('Error fetching user details:', error);
+        } finally {
+            setDetailsLoading(false);
         }
     };
 
@@ -551,11 +578,17 @@ export default function UsersPage() {
                                                             >
                                                                 <FolderLock className="h-4 w-4" />
                                                             </Button>
-                                                            <Link href={`/users/${user.id}`}>
-                                                                <Button variant="ghost" size="sm">
-                                                                    <Eye className="h-4 w-4" />
-                                                                </Button>
-                                                            </Link>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    fetchUserDetails(user);
+                                                                }}
+                                                                title="View details"
+                                                            >
+                                                                <Eye className="h-4 w-4" />
+                                                            </Button>
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -669,11 +702,14 @@ export default function UsersPage() {
                                                 >
                                                     <FolderLock className="h-4 w-4" />
                                                 </Button>
-                                                <Link href={`/users/${user.id}`}>
-                                                    <Button variant="ghost" size="sm" title="View details">
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
-                                                </Link>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => fetchUserDetails(user)}
+                                                    title="View details"
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -913,6 +949,142 @@ export default function UsersPage() {
 
                     <div className="flex justify-end pt-3">
                         <Button variant="outline" onClick={() => setShowPermissionsModal(false)}>
+                            Close
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* User Details Modal */}
+            <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+                <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-3">
+                            {selectedUser && (
+                                <>
+                                    <Avatar className="h-12 w-12">
+                                        <AvatarFallback className="text-lg">
+                                            {getInitials(selectedUser.name)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <div className="text-xl">{selectedUser.name}</div>
+                                        <div className="text-sm font-normal text-muted-foreground">
+                                            {selectedUser.email}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {selectedUser && (
+                        <div className="flex-1 overflow-y-auto space-y-6 py-4">
+                            {/* User Info */}
+                            <div className="grid grid-cols-4 gap-4 p-4 border rounded-lg bg-muted/20">
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Role</p>
+                                    <Badge variant="secondary">{selectedUser.role || 'User'}</Badge>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Department</p>
+                                    <p className="font-medium">{selectedUser.department || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Status</p>
+                                    <Badge variant="outline" className={selectedUser.status === 'Active' ? 'text-green-600 border-green-600' : ''}>
+                                        {selectedUser.status || 'Active'}
+                                    </Badge>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Last Login</p>
+                                    <p className="font-medium text-sm">{selectedUser.last_login ? new Date(selectedUser.last_login).toLocaleDateString() : '-'}</p>
+                                </div>
+                            </div>
+
+                            {/* Groups */}
+                            <div>
+                                <h4 className="font-medium mb-3 flex items-center gap-2">
+                                    <Users className="h-4 w-4" />
+                                    Group Memberships ({selectedUser.groups?.length || 0})
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedUser.groups && selectedUser.groups.length > 0 ? (
+                                        selectedUser.groups.map((group) => (
+                                            <Badge key={group} variant="secondary" className="text-sm py-1">
+                                                {group}
+                                            </Badge>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">Not a member of any groups</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Folder Access */}
+                            <div>
+                                <h4 className="font-medium mb-3 flex items-center gap-2">
+                                    <FolderLock className="h-4 w-4" />
+                                    Folder Access
+                                </h4>
+                                <div className="flex gap-2 text-xs mb-2">
+                                    <span className="flex items-center gap-1">
+                                        <span className="w-3 h-3 rounded bg-green-100"></span> Organizer
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <span className="w-3 h-3 rounded bg-blue-100"></span> Writer
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <span className="w-3 h-3 rounded bg-yellow-100"></span> Reader
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <span className="w-3 h-3 rounded bg-slate-100"></span> Public
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <span className="w-3 h-3 rounded bg-gray-100"></span> No Access
+                                    </span>
+                                </div>
+                                <div className="border rounded-lg p-3 max-h-[280px] overflow-y-auto">
+                                    {detailsLoading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                                            Loading folder access...
+                                        </div>
+                                    ) : userPermissions.length === 0 ? (
+                                        <p className="text-center text-muted-foreground py-8">
+                                            No folder access found
+                                        </p>
+                                    ) : (
+                                        <div className="space-y-0.5">
+                                            {userPermissions.map((perm, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className="flex items-center justify-between py-1 px-2 rounded hover:bg-muted/50"
+                                                    style={{ paddingLeft: `${perm.depth * 16 + 8}px` }}
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <Folder className="h-4 w-4 text-muted-foreground" />
+                                                        <span className={perm.accessType === 'none' ? 'text-muted-foreground' : ''}>
+                                                            {perm.folderName}
+                                                        </span>
+                                                    </div>
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className={`text-xs ${getRoleBadgeColor(perm.role, perm.accessType)}`}
+                                                    >
+                                                        {getRoleLabel(perm.role, perm.accessType)}
+                                                    </Badge>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex justify-end pt-3 border-t">
+                        <Button variant="outline" onClick={() => setShowDetailsModal(false)}>
                             Close
                         </Button>
                     </div>
