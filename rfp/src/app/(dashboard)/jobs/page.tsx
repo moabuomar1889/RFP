@@ -15,6 +15,12 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
     RefreshCw,
     CheckCircle2,
     XCircle,
@@ -29,6 +35,8 @@ import {
     UserMinus,
     AlertCircle,
     Info,
+    Shield,
+    FolderSync,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -288,6 +296,30 @@ export default function JobsPage() {
         }
     };
 
+    const triggerJob = async (jobType: 'rebuild_index' | 'enforce_permissions') => {
+        try {
+            const endpoint = jobType === 'rebuild_index'
+                ? '/api/sync/rebuild-index'
+                : '/api/sync/enforce-permissions';
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                toast.success(`Started ${jobType === 'rebuild_index' ? 'Rebuild Index' : 'Enforce Permissions'} job`);
+                fetchJobs();
+            } else {
+                toast.error(data.error || `Failed to start ${jobType} job`);
+            }
+        } catch (error) {
+            console.error('Error triggering job:', error);
+            toast.error(`Failed to start ${jobType} job`);
+        }
+    };
 
     const filteredJobs = jobs.filter((job) => {
         if (tab === "all") return true;
@@ -332,10 +364,25 @@ export default function JobsPage() {
                         )}
                         Clear Jobs
                     </Button>
-                    <Button>
-                        <Play className="mr-2 h-4 w-4" />
-                        New Job
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button>
+                                <Play className="mr-2 h-4 w-4" />
+                                New Job
+                                <ChevronDown className="ml-2 h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => triggerJob('rebuild_index')}>
+                                <FolderSync className="mr-2 h-4 w-4" />
+                                Rebuild Index
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => triggerJob('enforce_permissions')}>
+                                <Shield className="mr-2 h-4 w-4" />
+                                Enforce Permissions
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 
