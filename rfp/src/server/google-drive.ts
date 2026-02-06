@@ -418,6 +418,43 @@ export async function getAllFoldersRecursive(
     return results;
 }
 
+/**
+ * Normalize a Drive folder path to match template path format
+ * Examples:
+ * - "PRJ-001-PD" → "Project Delivery"
+ * - "PRJ-001-RFP" → "Bidding"
+ * - "PRJ-001-PD/1-PRJ-001-PD-Document Control" → "Project Delivery/Document Control"
+ * - "PRJ-020-RFP/1-PRJ-020-RFP-SOW" → "Bidding/SOW"
+ */
+export function normalizeFolderPath(drivePath: string): string {
+    const parts = drivePath.split('/');
+    const normalizedParts: string[] = [];
+
+    for (const part of parts) {
+        // Root folder: PRJ-XXX-PD or PRJ-XXX-RFP
+        if (/^PRJ-\d{3}-(PD|RFP)$/.test(part)) {
+            const phaseCode = part.slice(-2);
+            normalizedParts.push(phaseCode === 'PD' ? 'Project Delivery' : 'Bidding');
+        }
+        // Child folder pattern: N-PRJ-XXX-PHASE-Name (e.g., "1-PRJ-001-PD-Document Control")
+        else if (/^\d+-PRJ-\d{3}-(PD|RFP)-.+$/.test(part)) {
+            // Extract everything after "N-PRJ-XXX-PHASE-"
+            const match = part.match(/^\d+-PRJ-\d{3}-(PD|RFP)-(.+)$/);
+            if (match) {
+                normalizedParts.push(match[2]);
+            } else {
+                normalizedParts.push(part);
+            }
+        }
+        // Unknown format - use as-is
+        else {
+            normalizedParts.push(part);
+        }
+    }
+
+    return normalizedParts.join('/');
+}
+
 interface TemplateNode {
     text?: string;
     name?: string;

@@ -3,6 +3,7 @@ import { supabaseAdmin, getRawSupabaseAdmin } from '@/lib/supabase';
 import {
     getAllProjects,
     getAllFoldersRecursive,
+    normalizeFolderPath,
     createFolder,
     renameFolder,
     listPermissions,
@@ -465,11 +466,15 @@ export const buildFolderIndex = inngest.createFunction(
                 // Upsert to folder_index using RPC
                 let upsertedCount = 0;
                 for (const folder of folders) {
+                    // Calculate normalized template path for matching
+                    const normalizedPath = normalizeFolderPath(folder.path);
+
                     const { error } = await client.rpc('upsert_folder_index', {
                         p_project_id: project.id,
                         p_template_path: folder.path,
                         p_drive_folder_id: folder.id,
                         p_drive_folder_name: folder.name,
+                        p_normalized_path: normalizedPath,
                     });
 
                     if (error) {
@@ -849,7 +854,8 @@ async function enforceProjectPermissionsWithLogging(
 
     // Step 3: Process each folder
     for (const folder of folders) {
-        const templatePath = folder.template_path;
+        // Use normalized path for matching against template
+        const templatePath = folder.normalized_template_path || folder.template_path;
         const expectedPerms = permissionsMap[templatePath];
 
         if (!expectedPerms) {

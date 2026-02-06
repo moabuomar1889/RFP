@@ -88,11 +88,15 @@ GRANT EXECUTE ON FUNCTION public.clear_all_jobs() TO anon, authenticated, servic
 -- Upsert folder index entry
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- Drop old function first to allow signature change
+DROP FUNCTION IF EXISTS public.upsert_folder_index(UUID, TEXT, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION public.upsert_folder_index(
     p_project_id UUID,
     p_template_path TEXT,
     p_drive_folder_id TEXT,
-    p_drive_folder_name TEXT
+    p_drive_folder_name TEXT,
+    p_normalized_path TEXT DEFAULT NULL
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -102,12 +106,13 @@ AS $$
 DECLARE
     v_id UUID;
 BEGIN
-    INSERT INTO rfp.folder_index (project_id, template_path, drive_folder_id, drive_folder_name, last_verified_at)
-    VALUES (p_project_id, p_template_path, p_drive_folder_id, p_drive_folder_name, NOW())
+    INSERT INTO rfp.folder_index (project_id, template_path, drive_folder_id, drive_folder_name, normalized_template_path, last_verified_at)
+    VALUES (p_project_id, p_template_path, p_drive_folder_id, p_drive_folder_name, COALESCE(p_normalized_path, p_template_path), NOW())
     ON CONFLICT (project_id, template_path) 
     DO UPDATE SET 
         drive_folder_id = p_drive_folder_id,
         drive_folder_name = p_drive_folder_name,
+        normalized_template_path = COALESCE(p_normalized_path, rfp.folder_index.normalized_template_path),
         last_verified_at = NOW()
     RETURNING id INTO v_id;
     
@@ -115,7 +120,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.upsert_folder_index(UUID, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.upsert_folder_index(UUID, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Insert sync task (for detailed job logs)
@@ -198,4 +203,27 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.list_job_logs(UUID, INT) TO anon, authenticated, service_role;
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- List project folders (for enforce permissions)
+-- ═══════════════════════════════════════════════════════════════════════════
 
+DROP FUNCTION IF EXISTS public.list_project_folders(UUID);
+
+CREATE OR REPLACE FUNCTION public.list_project_folders(
+    p_project_id UUID
+)
+RETURNS SETOF rfp.folder_index
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, rfp
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT *
+    FROM rfp.folder_index
+    WHERE project_id = p_project_id
+    ORDER BY template_path;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.list_project_folders(UUID) TO anon, authenticated, service_role;
