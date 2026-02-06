@@ -932,27 +932,29 @@ async function enforceProjectPermissionsWithLogging(
             actualEmails: Array.from(actualEmailsMap.keys())
         });
 
-        // Step 3a: ADD missing permissions
+        // Step 3a: ADD group permissions
+        // NOTE: Always try to add groups because "Access removed" permissions
+        // appear as active in the API but are not actually usable
         for (const group of expectedPerms.groups) {
             if (!group.email) continue;
-            const emailLower = group.email.toLowerCase();
-            if (!actualEmailsMap.has(emailLower)) {
-                try {
-                    await addPermission(folder.drive_folder_id, 'group', group.role || 'reader', group.email);
-                    added++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
-                        email: group.email,
-                        type: 'group',
-                        role: group.role
-                    });
-                } catch (err: any) {
+            try {
+                await addPermission(folder.drive_folder_id, 'group', group.role || 'reader', group.email);
+                added++;
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
+                    email: group.email,
+                    type: 'group',
+                    role: group.role
+                });
+            } catch (err: any) {
+                // Ignore "already has access" errors
+                if (!err.message?.includes('already')) {
                     await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
                         email: group.email,
                         error: err.message
                     });
                 }
-                await sleep(RATE_LIMIT_DELAY);
             }
+            await sleep(RATE_LIMIT_DELAY);
         }
 
         for (const user of expectedPerms.users) {
