@@ -1,35 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { inngest } from '@/lib/inngest';
-import { getRawSupabaseAdmin } from '@/lib/supabase';
-import { JOB_STATUS } from '@/lib/config';
+import { v4 as uuidv4 } from 'uuid';
 
+export const dynamic = 'force-dynamic';
+
+/**
+ * POST /api/jobs/rebuild-index
+ * Trigger folder index rebuild job
+ */
 export async function POST(request: NextRequest) {
     try {
-        const supabase = getRawSupabaseAdmin();
+        const supabase = getSupabaseAdmin();
+        const jobId = uuidv4();
 
-        // Create a job record for tracking
-        const { data: job, error: jobError } = await supabase
-            .schema('rfp')
-            .from('sync_jobs')
-            .insert({
-                job_type: 'build_folder_index',
-                status: JOB_STATUS.PENDING,
-                triggered_by: 'admin',
-                metadata: { action: 'rebuild_all' }
-            })
-            .select()
-            .single();
+        // Create job record using RPC
+        const { error: jobError } = await supabase.rpc('create_sync_job', {
+            p_id: jobId,
+            p_job_type: 'build_folder_index',
+            p_status: 'pending',
+            p_triggered_by: 'admin',
+            p_job_details: { action: 'rebuild_all' },
+        });
 
         if (jobError) {
-            console.error('Failed to create job:', jobError);
-            return NextResponse.json({ success: false, error: 'Failed to create job' }, { status: 500 });
+            console.error('Error creating job:', jobError);
+            return NextResponse.json(
+                { success: false, error: 'Failed to create job' },
+                { status: 500 }
+            );
         }
 
-        // Trigger the Inngest function
+        // Trigger Inngest job
         await inngest.send({
             name: 'folder-index/build',
             data: {
-                jobId: job.id,
+                jobId,
                 triggeredBy: 'admin',
                 rebuildAll: true,
             },
@@ -37,7 +43,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            jobId: job.id,
+            jobId,
             message: 'Folder index rebuild job started'
         });
     } catch (error) {
