@@ -1003,10 +1003,20 @@ async function enforceProjectPermissionsWithLogging(
                         role: actual.role
                     });
                 } catch (err: any) {
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission_failed', 'error', {
-                        email: actual.emailAddress,
-                        error: err.message
-                    });
+                    // "Permission not found" means it was already removed (e.g., by Limited Access)
+                    if (err.message?.includes('Permission not found') || err.message?.includes('not found')) {
+                        reverted++; // Count as success since the goal was achieved
+                        await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission', 'success', {
+                            email: actual.emailAddress,
+                            role: actual.role,
+                            note: 'Already removed (Limited Access)'
+                        });
+                    } else {
+                        await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission_failed', 'error', {
+                            email: actual.emailAddress,
+                            error: err.message
+                        });
+                    }
                 }
                 await sleep(RATE_LIMIT_DELAY);
             }
