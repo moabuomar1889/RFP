@@ -464,18 +464,44 @@ export const buildFolderIndex = inngest.createFunction(
                 const folders = await getAllFoldersRecursive(project.drive_folder_id);
                 console.log(`Found ${folders.length} folders for ${project.pr_number}`);
 
-                // Upsert to folder_index using RPC
+                // Load template to get expected permissions
+                const { data: templateData } = await client
+                    .from('folder_templates')
+                    .select('template')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                const template = templateData?.template || [];
+
+                // Helper to find template node by path
+                function findTemplateNode(path: string, nodes: any[]): any {
+                    for (const node of nodes) {
+                        const nodePath = `/${node.name}`;
+                        if (path === nodePath || path.startsWith(nodePath + '/')) {
+                            if (path === nodePath) return node;
+                            if (node.children) {
+                                const found = findTemplateNode(path.replace(nodePath, ''), node.children);
+                                if (found) return found;
+                            }
+                        }
+                    }
+                    return null;
+                }
+
+                // Upsert to folder_index using new RPC
                 let upsertedCount = 0;
                 for (const folder of folders) {
-                    // Calculate normalized template path for matching
-                    const normalizedPath = normalizeFolderPath(folder.path);
+                    // Find matching template node
+                    const templateNode = findTemplateNode(folder.path, template);
 
                     const { error } = await client.rpc('upsert_folder_index', {
                         p_project_id: project.id,
                         p_template_path: folder.path,
                         p_drive_folder_id: folder.id,
-                        p_drive_folder_name: folder.name,
-                        p_normalized_path: normalizedPath,
+                        p_expected_limited_access: templateNode?.limitedAccess || false,
+                        p_expected_groups: templateNode?.groups || [],
+                        p_expected_users: templateNode?.users || [],
                     });
 
                     if (error) {
