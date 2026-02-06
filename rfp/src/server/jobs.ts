@@ -890,6 +890,13 @@ async function enforceProjectPermissionsWithLogging(
             }
         }
 
+        // Debug: Log expected vs actual permissions
+        await writeJobLog(jobId, project.id, project.name, templatePath, 'debug_permissions', 'info', {
+            expectedGroupCount: expectedPerms.groups.length,
+            expectedGroups: expectedPerms.groups.map((g: any) => g.email),
+            actualEmails: Array.from(actualEmailsMap.keys())
+        });
+
         // Step 3a: ADD missing permissions
         for (const group of expectedPerms.groups) {
             if (!group.email) continue;
