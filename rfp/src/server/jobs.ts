@@ -497,6 +497,21 @@ export const buildFolderIndex = inngest.createFunction(
                     p_total_tasks: totalProjects,
                     p_status: JOB_STATUS.RUNNING
                 });
+
+                // Insert detailed log
+                const result = stepResult as any;
+                await client.rpc('insert_sync_task', {
+                    p_job_id: jobId,
+                    p_project_id: project.id,
+                    p_task_type: 'folder_index',
+                    p_task_details: {
+                        pr_number: project.pr_number,
+                        foldersFound: result?.foldersFound || 0,
+                        foldersUpserted: result?.foldersUpserted || 0,
+                        message: `Indexed ${result?.foldersUpserted || 0} of ${result?.foldersFound || 0} folders`
+                    },
+                    p_status: 'completed'
+                });
             });
         }
 

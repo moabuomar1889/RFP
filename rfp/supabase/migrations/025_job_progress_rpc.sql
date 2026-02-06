@@ -116,3 +116,47 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.upsert_folder_index(UUID, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- Insert sync task (for detailed job logs)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.insert_sync_task(
+    p_job_id UUID,
+    p_project_id UUID DEFAULT NULL,
+    p_task_type TEXT DEFAULT 'info',
+    p_task_details JSONB DEFAULT '{}',
+    p_status TEXT DEFAULT 'completed'
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, rfp
+AS $$
+DECLARE
+    v_id UUID;
+BEGIN
+    INSERT INTO rfp.sync_tasks (
+        job_id, 
+        project_id, 
+        task_type, 
+        task_details, 
+        status,
+        completed_at
+    )
+    VALUES (
+        p_job_id, 
+        p_project_id, 
+        p_task_type, 
+        p_task_details, 
+        p_status,
+        CASE WHEN p_status IN ('completed', 'failed') THEN NOW() ELSE NULL END
+    )
+    RETURNING id INTO v_id;
+    
+    RETURN v_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.insert_sync_task(UUID, UUID, TEXT, JSONB, TEXT) TO anon, authenticated, service_role;
+
