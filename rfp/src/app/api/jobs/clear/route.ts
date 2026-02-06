@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { getRawSupabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,29 +9,48 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
     try {
-        const supabase = getSupabaseAdmin();
+        const supabase = getRawSupabaseAdmin();
 
-        // Call the RPC to clear all jobs
-        const { data, error } = await supabase.rpc('clear_all_jobs');
+        // First try to delete sync_tasks
+        await supabase
+            .from('rfp.sync_tasks')
+            .delete()
+            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+        // Then delete sync_jobs with non-running status
+        const { data, error, count } = await supabase
+            .from('rfp.sync_jobs')
+            .delete()
+            .in('status', ['completed', 'failed', 'cancelled', 'pending'])
+            .select('id');
 
         if (error) {
             console.error('Error clearing jobs:', error);
-            return NextResponse.json(
-                { success: false, error: 'Failed to clear jobs' },
-                { status: 500 }
-            );
+            // Try using RPC as fallback
+            const { data: rpcData, error: rpcError } = await supabase.rpc('clear_all_jobs');
+            if (rpcError) {
+                return NextResponse.json(
+                    { success: false, error: `Failed to clear jobs: ${rpcError.message}` },
+                    { status: 500 }
+                );
+            }
+            return NextResponse.json({
+                success: true,
+                deleted: rpcData || 0,
+                message: 'Jobs cleared via RPC'
+            });
         }
 
         return NextResponse.json({
             success: true,
-            deleted: data || 0,
+            deleted: data?.length || 0,
             message: 'Jobs cleared successfully'
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error clearing jobs:', error);
         return NextResponse.json({
             success: false,
-            error: 'Failed to clear jobs'
+            error: `Failed to clear jobs: ${error.message}`
         }, { status: 500 });
     }
 }
