@@ -123,6 +123,56 @@ $$;
 GRANT EXECUTE ON FUNCTION public.upsert_folder_index(UUID, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated, service_role;
 
 -- ═══════════════════════════════════════════════════════════════════════════
+-- Insert job log (for writeJobLog function)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.insert_job_log(
+    p_job_id UUID,
+    p_project_id UUID DEFAULT NULL,
+    p_project_name TEXT DEFAULT NULL,
+    p_folder_path TEXT DEFAULT NULL,
+    p_action TEXT DEFAULT 'info',
+    p_status TEXT DEFAULT 'info',
+    p_details JSONB DEFAULT '{}'
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, rfp
+AS $$
+DECLARE
+    v_id UUID;
+BEGIN
+    INSERT INTO rfp.sync_tasks (
+        job_id, 
+        project_id, 
+        task_type, 
+        task_details, 
+        status,
+        completed_at
+    )
+    VALUES (
+        p_job_id, 
+        p_project_id, 
+        p_action, 
+        jsonb_build_object(
+            'message', COALESCE(p_folder_path, ''),
+            'project_name', COALESCE(p_project_name, ''),
+            'details', p_details,
+            'log_status', p_status
+        ),
+        CASE WHEN p_status = 'error' THEN 'failed' ELSE 'completed' END,
+        NOW()
+    )
+    RETURNING id INTO v_id;
+    
+    RETURN v_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.insert_job_log(UUID, UUID, TEXT, TEXT, TEXT, TEXT, JSONB) TO anon, authenticated, service_role;
+
+-- ═══════════════════════════════════════════════════════════════════════════
 -- Insert sync task (for detailed job logs)
 -- ═══════════════════════════════════════════════════════════════════════════
 
