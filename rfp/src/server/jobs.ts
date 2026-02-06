@@ -412,68 +412,71 @@ export const buildFolderIndex = inngest.createFunction(
 
         // Update job to running
         await step.run('update-job-running', async () => {
-            await supabaseAdmin
-                .schema('rfp')
-                .from('sync_jobs')
-                .update({
-                    status: JOB_STATUS.RUNNING,
-                    started_at: new Date().toISOString()
-                })
-                .eq('id', jobId);
+            const client = getRawSupabaseAdmin();
+            await client.rpc('update_job_progress', {
+                p_job_id: jobId,
+                p_progress: 0,
+                p_completed_tasks: 0,
+                p_total_tasks: 0,
+                p_status: JOB_STATUS.RUNNING
+            });
         });
 
-        // Get projects
-        let projectsQuery = supabaseAdmin
-            .schema('rfp')
-            .from('projects')
-            .select('*');
-
-        if (projectIds && projectIds.length > 0) {
-            projectsQuery = projectsQuery.in('id', projectIds);
-        }
-
+        // Get projects using RPC
         const projects = await step.run('get-projects', async () => {
-            const { data } = await projectsQuery.order('pr_number');
+            const client = getRawSupabaseAdmin();
+            const { data, error } = await client.rpc('list_projects', { p_limit: 100 });
+
+            console.log('list_projects result:', { data, error, count: data?.length });
+
+            if (error) {
+                console.error('Error fetching projects:', error);
+                throw new Error(`Failed to fetch projects: ${error.message}`);
+            }
+
+            if (projectIds && projectIds.length > 0) {
+                return (data || []).filter((p: any) => projectIds.includes(p.id));
+            }
             return data || [];
         });
 
         // Build index for each project
+        let indexedCount = 0;
         for (const project of projects) {
             await step.run(`index-${project.pr_number}`, async () => {
+                const client = getRawSupabaseAdmin();
+
                 // Get all folders from Drive
                 const folders = await getAllFoldersRecursive(project.drive_folder_id);
 
-                // Upsert to folder_index
+                // Upsert to folder_index using RPC
                 for (const folder of folders) {
-                    await supabaseAdmin
-                        .schema('rfp')
-                        .from('folder_index')
-                        .upsert({
-                            project_id: project.id,
-                            template_path: folder.path,
-                            drive_folder_id: folder.id,
-                            drive_folder_name: folder.name,
-                            last_verified_at: new Date().toISOString(),
-                        }, { onConflict: 'project_id,template_path' });
+                    await client.rpc('upsert_folder_index', {
+                        p_project_id: project.id,
+                        p_template_path: folder.path,
+                        p_drive_folder_id: folder.id,
+                        p_drive_folder_name: folder.name,
+                    });
                 }
 
+                indexedCount += folders.length;
                 await sleep(RATE_LIMIT_DELAY);
             });
         }
 
         // Mark job complete
         await step.run('complete-job', async () => {
-            await supabaseAdmin
-                .schema('rfp')
-                .from('sync_jobs')
-                .update({
-                    status: JOB_STATUS.COMPLETED,
-                    completed_at: new Date().toISOString()
-                })
-                .eq('id', jobId);
+            const client = getRawSupabaseAdmin();
+            await client.rpc('update_job_progress', {
+                p_job_id: jobId,
+                p_progress: 100,
+                p_completed_tasks: projects.length,
+                p_total_tasks: projects.length,
+                p_status: JOB_STATUS.COMPLETED
+            });
         });
 
-        return { success: true, projectsIndexed: projects.length };
+        return { success: true, projectsIndexed: projects.length, foldersIndexed: indexedCount };
     }
 );
 

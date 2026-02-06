@@ -141,6 +141,27 @@ export default function SettingsPage() {
         }
     };
 
+    const [clearingJobs, setClearingJobs] = useState(false);
+
+    const clearAllJobs = async () => {
+        setClearingJobs(true);
+        try {
+            const response = await fetch("/api/jobs/clear", {
+                method: "POST",
+            });
+            const data = await response.json();
+            if (data.success) {
+                toast.success(`Cleared ${data.deleted} jobs`);
+            } else {
+                toast.error(data.error || "Failed to clear jobs");
+            }
+        } catch (error) {
+            toast.error("Failed to clear jobs");
+        } finally {
+            setClearingJobs(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Page Header */}
@@ -597,7 +618,20 @@ export default function SettingsPage() {
                                         Remove all completed and failed job history
                                     </p>
                                 </div>
-                                <Button variant="destructive">Clear Jobs</Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={clearAllJobs}
+                                    disabled={clearingJobs}
+                                >
+                                    {clearingJobs ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Clearing...
+                                        </>
+                                    ) : (
+                                        "Clear Jobs"
+                                    )}
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
