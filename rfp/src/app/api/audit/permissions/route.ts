@@ -118,22 +118,21 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'projectId is required' }, { status: 400 });
         }
 
-        // Get project info
+        // Get project info using RPC (schema-based queries not supported)
         console.log('Fetching project with ID:', projectId);
-        const { data: project, error: projectError } = await supabaseAdmin
-            .schema('rfp')
-            .from('projects')
-            .select('*')
-            .eq('id', projectId)
-            .single();
+        const { data: projectsData, error: projectError } = await supabaseAdmin.rpc('get_projects', {
+            p_status: null,
+            p_phase: null
+        });
 
+        const project = projectsData?.find((p: any) => p.id === projectId);
         console.log('Project result:', { project, projectError });
 
         if (projectError || !project) {
             console.error('Project lookup failed:', projectError);
             return NextResponse.json({
                 error: 'Project not found',
-                details: projectError?.message,
+                details: projectError?.message || 'Project ID not in list',
                 projectId
             }, { status: 404 });
         }
