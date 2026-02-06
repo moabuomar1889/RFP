@@ -1,5 +1,5 @@
 import { inngest } from '@/lib/inngest';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin, getRawSupabaseAdmin } from '@/lib/supabase';
 import {
     getAllProjects,
     getAllFoldersRecursive,
@@ -323,7 +323,17 @@ export const enforcePermissions = inngest.createFunction(
 
         // Get projects to enforce
         const projects = await step.run('get-projects', async () => {
-            const { data } = await supabaseAdmin.rpc('list_projects', { p_limit: 100 });
+            // Use getRawSupabaseAdmin to ensure proper client in Inngest context
+            const client = getRawSupabaseAdmin();
+            const { data, error } = await client.rpc('list_projects', { p_limit: 100 });
+
+            console.log('list_projects result:', { data, error, count: data?.length });
+
+            if (error) {
+                console.error('Error fetching projects:', error);
+                throw new Error(`Failed to fetch projects: ${error.message}`);
+            }
+
             if (projectIds && projectIds.length > 0) {
                 return (data || []).filter((p: any) => projectIds.includes(p.id));
             }
