@@ -30,9 +30,20 @@ export function getSupabaseAdmin(): SupabaseClient {
     return _supabaseAdmin;
 }
 
-// Legacy export for backwards compatibility
+// Export a getter that returns the actual client for proper method chaining
 export const supabaseAdmin = {
-    schema: (name: string) => getSupabaseAdmin().schema(name),
-    from: (table: string) => getSupabaseAdmin().from(table),
-    rpc: (fn: string, params?: any) => getSupabaseAdmin().rpc(fn, params),
+    get schema() {
+        return (name: string) => getSupabaseAdmin().schema(name);
+    },
+    get from() {
+        return (table: string) => getSupabaseAdmin().from(table);
+    },
+    get rpc() {
+        return (fn: string, params?: Record<string, unknown>) => getSupabaseAdmin().rpc(fn, params);
+    },
 };
+
+// Also export a function to get the raw client when needed
+export function getRawSupabaseAdmin(): SupabaseClient {
+    return getSupabaseAdmin();
+}
