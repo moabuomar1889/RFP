@@ -17,6 +17,22 @@ export default function NewProjectPage() {
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [submittedPrNumber, setSubmittedPrNumber] = useState<string>("");
 
+    // Fetch next PR number on mount
+    useEffect(() => {
+        const fetchNextNumber = async () => {
+            try {
+                const res = await fetch('/api/next-pr-number');
+                const data = await res.json();
+                if (data.success) {
+                    setNextPrNumber(data.nextNumber);
+                }
+            } catch (error) {
+                console.error('Failed to fetch next PR number:', error);
+            }
+        };
+        fetchNextNumber();
+    }, []);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!projectName.trim()) return;
@@ -151,7 +167,7 @@ export default function NewProjectPage() {
                                     Folder Preview (after approval)
                                 </h4>
                                 <div className="font-mono text-sm">
-                                    PRJ-XXX-{projectName.replace(/\s+/g, '-')}
+                                    {nextPrNumber || 'PRJ-XXX'}-{projectName.replace(/\s+/g, '-')}
                                 </div>
                                 <p className="text-xs text-muted-foreground mt-2">
                                     This folder will be created in the Shared Drive after approval
