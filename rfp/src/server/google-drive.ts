@@ -53,10 +53,25 @@ export async function getOAuth2Client(): Promise<OAuth2Client> {
 }
 
 /**
- * Get Google Drive API v3 client
+ * Get Google Drive API v3 client using Service Account with Domain-Wide Delegation
+ * This allows the service account to act on behalf of an admin user within the organization
  */
 export async function getDriveClient(): Promise<drive_v3.Drive> {
-    const auth = await getOAuth2Client();
+    // Use Service Account with Domain-Wide Delegation for admin operations
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}');
+
+    // The admin email to impersonate (must be in the same Google Workspace domain)
+    const impersonateEmail = 'mo.abuomar@dtgsa.com';
+
+    const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/drive'],
+        // This is the key: impersonate the admin user
+        clientOptions: {
+            subject: impersonateEmail
+        }
+    });
+
     return google.drive({ version: 'v3', auth });
 }
 
