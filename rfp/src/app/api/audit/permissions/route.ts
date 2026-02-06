@@ -120,6 +120,7 @@ export async function GET(request: NextRequest) {
 
         // Get project info
         const { data: project, error: projectError } = await supabaseAdmin
+            .schema('rfp')
             .from('projects')
             .select('*')
             .eq('id', projectId)
