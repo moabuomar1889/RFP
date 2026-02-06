@@ -9,29 +9,26 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
     try {
-        // Get highest project number from rfp.projects
-        const { data, error } = await supabaseAdmin
-            .schema('rfp')
-            .from('projects')
-            .select('pr_number')
-            .order('pr_number', { ascending: false })
-            .limit(1);
+        // Call public.get_next_pr_number() wrapper
+        const { data, error } = await supabaseAdmin.rpc('get_next_pr_number');
 
-        let nextNumber = 'PRJ-001';
-
-        if (!error && data && data.length > 0) {
-            const lastPrNumber = data[0].pr_number;
-            // Extract number from PR-XXX or PRJ-XXX format
-            const numMatch = lastPrNumber.match(/\d+/);
-            if (numMatch) {
-                const nextNum = parseInt(numMatch[0], 10) + 1;
-                nextNumber = `PRJ-${String(nextNum).padStart(3, '0')}`;
-            }
+        if (error) {
+            console.error('Error getting next PR number:', error);
+            return NextResponse.json({
+                success: true,
+                nextNumber: 'PRJ-XXX' // Fallback
+            });
         }
+
+        // Convert PR-XXX to PRJ-XXX format for display
+        const prNumber = data || 'PR-001';
+        const prjNumber = prNumber.startsWith('PR-')
+            ? prNumber.replace('PR-', 'PRJ-')
+            : prNumber;
 
         return NextResponse.json({
             success: true,
-            nextNumber: nextNumber
+            nextNumber: prjNumber
         });
     } catch (error) {
         console.error('Error:', error);
