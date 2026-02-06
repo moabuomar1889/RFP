@@ -1024,14 +1024,31 @@ async function enforceProjectPermissionsWithLogging(
                             note: 'Already removed (Limited Access)'
                         });
                     } else {
-                        await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission_failed', 'error', {
-                            email: actual.emailAddress,
-                            role: actual.role,
-                            type: actual.type,
-                            permissionId: actual.id,
-                            inherited: actual.permissionDetails?.[0]?.inherited,
-                            error: err.message
-                        });
+                        // Check if this is an inherited permission issue
+                        const isInherited = actual.permissionDetails?.[0]?.inherited;
+                        const inheritedFrom = actual.permissionDetails?.[0]?.inheritedFrom;
+
+                        if (isInherited || err.message?.includes('required access to delete')) {
+                            await writeJobLog(jobId, project.id, project.name, templatePath, 'permission_delete_blocked', 'error', {
+                                reason: 'INHERITED_PERMISSION',
+                                email: actual.emailAddress,
+                                role: actual.role,
+                                type: actual.type,
+                                permissionId: actual.id,
+                                sourceFolderId: inheritedFrom || 'unknown',
+                                message: 'Cannot delete inherited permission. Must be removed from source folder.',
+                                sourceLink: inheritedFrom ? `https://drive.google.com/drive/folders/${inheritedFrom}` : null
+                            });
+                        } else {
+                            await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission_failed', 'error', {
+                                email: actual.emailAddress,
+                                role: actual.role,
+                                type: actual.type,
+                                permissionId: actual.id,
+                                inherited: isInherited,
+                                error: err.message
+                            });
+                        }
                     }
                 }
                 await sleep(RATE_LIMIT_DELAY);
