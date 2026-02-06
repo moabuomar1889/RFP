@@ -17,13 +17,9 @@ export async function POST(request: NextRequest) {
 
         console.log(`Starting HSE-Team cleanup (dryRun: ${dryRun}, target: ${targetEmail})`);
 
-        // Get all Bidding folders from folder_index
+        // Get all Bidding folders from folder_index using RPC
         const { data: biddingFolders, error } = await supabaseAdmin
-            .schema('rfp')
-            .from('folder_index')
-            .select('id, project_id, drive_folder_id, template_path, physical_path')
-            .ilike('template_path', '%Bidding%')
-            .not('drive_folder_id', 'is', null);
+            .rpc('get_bidding_folders');
 
         if (error) {
             console.error('Error fetching folders:', error);
