@@ -912,6 +912,19 @@ async function enforceProjectPermissionsWithLogging(
             }
         }
 
+        // Debug: Log RAW permissions from Google API to understand structure
+        await writeJobLog(jobId, project.id, project.name, templatePath, 'debug_raw_perms', 'info', {
+            rawPermsSample: actualPerms.slice(0, 3).map((p: any) => ({
+                email: p.emailAddress,
+                type: p.type,
+                role: p.role,
+                deleted: p.deleted,
+                pendingOwner: p.pendingOwner,
+                inherited: p.inherited,
+                allFields: Object.keys(p)
+            }))
+        });
+
         // Debug: Log expected vs actual permissions
         await writeJobLog(jobId, project.id, project.name, templatePath, 'debug_permissions', 'info', {
             expectedGroupCount: expectedPerms.groups.length,
