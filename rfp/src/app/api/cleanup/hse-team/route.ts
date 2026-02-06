@@ -53,7 +53,17 @@ export async function POST(request: NextRequest) {
                     continue;
                 }
 
-                const result = {
+                const result: {
+                    folder_id: any;
+                    drive_folder_id: any;
+                    template_path: any;
+                    permission_id: string | null | undefined;
+                    email: string | null | undefined;
+                    role: string | null | undefined;
+                    inherited: boolean;
+                    action: string;
+                    error?: string;
+                } = {
                     folder_id: folder.id,
                     drive_folder_id: folder.drive_folder_id,
                     template_path: folder.template_path,
