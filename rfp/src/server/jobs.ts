@@ -11,6 +11,7 @@ import {
     removePermission,
     isProtectedPermission,
     setLimitedAccess,
+    hardResetPermissions,
 } from '@/server/google-drive';
 import { JOB_STATUS, TASK_STATUS } from '@/lib/config';
 
@@ -1478,6 +1479,242 @@ async function createSubfoldersFromTemplate(
         }
     }
 }
+
+// ============= PERMISSION RESET SYSTEM =============
+
+/**
+ * Write a permission audit log entry
+ */
+async function writePermissionAudit(
+    jobId: string,
+    folderId: string | null,
+    action: string,
+    details: {
+        principalType?: string;
+        principalEmail?: string;
+        principalRole?: string;
+        permissionId?: string;
+        isInherited?: boolean;
+        inheritedFrom?: string;
+        beforeState?: any;
+        afterState?: any;
+        result: 'success' | 'failed' | 'skipped';
+        errorMessage?: string;
+    }
+): Promise<void> {
+    try {
+        await supabaseAdmin.from('permission_audit').insert({
+            job_id: jobId,
+            folder_id: folderId,
+            action,
+            principal_type: details.principalType,
+            principal_email: details.principalEmail,
+            principal_role: details.principalRole,
+            permission_id: details.permissionId,
+            is_inherited: details.isInherited ?? false,
+            inherited_from: details.inheritedFrom,
+            before_state: details.beforeState,
+            after_state: details.afterState,
+            result: details.result,
+            error_message: details.errorMessage
+        });
+    } catch (err) {
+        console.error('Failed to write permission audit:', err);
+    }
+}
+
+/**
+ * Reset a single folder's permissions to match template (AC-2, AC-3)
+ */
+async function resetSingleFolder(
+    folder: any,
+    permissionsMap: Record<string, { groups: any[]; users: any[]; limitedAccess: boolean }>,
+    jobId: string
+): Promise<void> {
+    const expected = permissionsMap[folder.template_path];
+    if (!expected) {
+        throw new Error(`No template found for path: ${folder.template_path}`);
+    }
+
+    console.log(`\n--- Resetting folder: ${folder.template_path} (${folder.drive_folder_id}) ---`);
+
+    // Step 1: Limited Access (AC-1 + AC-3)
+    let actualLimitedAccess = folder.actual_limited_access;
+
+    if (expected.limitedAccess !== actualLimitedAccess) {
+        console.log(`Limited Access mismatch: expected=${expected.limitedAccess}, actual=${actualLimitedAccess}`);
+
+        try {
+            actualLimitedAccess = await setLimitedAccess(
+                folder.drive_folder_id,
+                expected.limitedAccess
+            );
+
+            await writePermissionAudit(jobId, folder.id,
+                expected.limitedAccess ? 'enable_limited_access' : 'disable_limited_access',
+                {
+                    beforeState: { limitedAccess: folder.actual_limited_access },
+                    afterState: { limitedAccess: actualLimitedAccess },
+                    result: 'success'
+                }
+            );
+        } catch (error: any) {
+            await writePermissionAudit(jobId, folder.id, 'enable_limited_access', {
+                result: 'failed',
+                errorMessage: error.message
+            });
+            throw error;
+        }
+    } else {
+        console.log(`✓ Limited Access correct: ${actualLimitedAccess}`);
+    }
+
+    // Step 2: Hard reset permissions (AC-2)
+    console.log(`Applying hard reset...`);
+    const stats = await hardResetPermissions(
+        folder.drive_folder_id,
+        expected.groups || [],
+        expected.users || []
+    );
+
+    // Log stats
+    await writePermissionAudit(jobId, folder.id, 'hard_reset', {
+        result: 'success',
+        beforeState: { message: 'See individual add/remove logs' },
+        afterState: stats
+    });
+
+    // Step 3: Update folder_index (AC-3)
+    await supabaseAdmin
+        .from('folder_index')
+        .update({
+            actual_limited_access: actualLimitedAccess,
+            last_verified_at: new Date().toISOString()
+        })
+        .eq('id', folder.id);
+
+    console.log(`✓ Folder reset complete`);
+}
+
+/**
+ * Reset permissions for all folders in a project (AC-5: batched)
+ * MANUAL ONLY - triggered via POST /api/permissions/reset
+ */
+export async function resetPermissionsForProject(
+    projectId: string,
+    jobId: string
+): Promise<void> {
+    console.log(`\n========== RESET PROJECT PERMISSIONS ==========`);
+    console.log(`Project ID: ${projectId}`);
+    console.log(`Job ID: ${jobId}`);
+
+    try {
+        // Update job status to running
+        await supabaseAdmin
+            .from('reset_jobs')
+            .update({
+                status: 'running',
+                started_at: new Date().toISOString()
+            })
+            .eq('id', jobId);
+
+        // Step 1: Load active template
+        const { data: templateData, error: templateError } = await supabaseAdmin
+            .rpc('get_active_template')
+            .single();
+
+        if (templateError || !templateData) {
+            throw new Error(`Failed to load template: ${templateError?.message}`);
+        }
+
+        const template = (templateData as any).template_json;
+        const permissionsMap = buildPermissionsMap(template);
+        console.log(`Template loaded: ${Object.keys(permissionsMap).length} folder definitions`);
+
+        // Step 2: Load folders for project
+        const { data: folders, error: foldersError } = await supabaseAdmin
+            .from('folder_index')
+            .select('*')
+            .eq('project_id', projectId);
+
+        if (foldersError || !folders) {
+            throw new Error(`Failed to load folders: ${foldersError?.message}`);
+        }
+
+        const totalFolders = folders.length;
+        console.log(`Folders to reset: ${totalFolders}`);
+
+        let processed = 0;
+        let successful = 0;
+        let failed = 0;
+
+        // Step 3: Process in batches (AC-5)
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < totalFolders; i += BATCH_SIZE) {
+            const batch = folders.slice(i, i + BATCH_SIZE);
+            console.log(`\n--- Batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(totalFolders / BATCH_SIZE)} ---`);
+
+            const results = await Promise.allSettled(
+                batch.map(folder => resetSingleFolder(folder, permissionsMap, jobId))
+            );
+
+            for (const result of results) {
+                if (result.status === 'fulfilled') {
+                    successful++;
+                } else {
+                    failed++;
+                    console.error(`Reset failed:`, result.reason);
+                }
+                processed++;
+            }
+
+            // Update progress
+            await supabaseAdmin
+                .from('reset_jobs')
+                .update({
+                    processed_folders: processed,
+                    successful_folders: successful,
+                    failed_folders: failed
+                })
+                .eq('id', jobId);
+
+            console.log(`Progress: ${processed}/${totalFolders} (${successful} success, ${failed} failed)`);
+
+            // Rate limiting
+            if (i + BATCH_SIZE < totalFolders) {
+                await sleep(RATE_LIMIT_DELAY);
+            }
+        }
+
+        // Final status
+        const finalStatus = failed > 0 ? 'completed' : 'completed'; // Still 'completed' even with some failures
+        await supabaseAdmin
+            .from('reset_jobs')
+            .update({
+                status: finalStatus,
+                completed_at: new Date().toISOString()
+            })
+            .eq('id', jobId);
+
+        console.log(`\n========== RESET COMPLETE ==========`);
+        console.log(`Total: ${totalFolders}, Success: ${successful}, Failed: ${failed}`);
+
+    } catch (error: any) {
+        console.error(`Reset job ${jobId} failed with fatal error:`, error);
+
+        // Mark job as failed
+        await supabaseAdmin
+            .from('reset_jobs')
+            .update({
+                status: 'failed',
+                completed_at: new Date().toISOString()
+            })
+            .eq('id', jobId);
+
+        throw error;
+    }
+}
+
 
 // Export all functions for the Inngest serve handler
 export const functions = [

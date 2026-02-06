@@ -4,6 +4,42 @@ import { GOOGLE_CONFIG, APP_CONFIG, DriveRole, PermissionType } from '@/lib/conf
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { decrypt, encrypt } from '@/lib/crypto';
 
+// Enhanced permission interfaces for reset-based enforcement
+export interface PermissionDetails {
+    id: string;
+    type: string;
+    role: string;
+    emailAddress?: string;
+    domain?: string;
+    deleted: boolean;
+    permissionDetails?: any[];
+    inherited: boolean;
+    inheritedFrom?: string;
+}
+
+export interface VerificationReport {
+    folderId: string;
+    templatePath: string;
+    limitedAccess: {
+        expected: boolean;
+        actual: boolean;
+        matches: boolean;
+    };
+    permissions: {
+        expected: any[];
+        actual: PermissionDetails[];
+        missing: any[];
+        extra: PermissionDetails[];
+        inherited: PermissionDetails[];
+    };
+}
+
+// Protected principals that must never be removed
+const PROTECTED_PRINCIPALS = [
+    'mo.abuomar@dtgsa.com',
+    'rfp-admin-sdk@projects-folders-rfp.iam.gserviceaccount.com'
+];
+
 /**
  * Get OAuth2 client with valid tokens
  */
@@ -201,27 +237,44 @@ export async function moveFolder(
 /**
  * Enable/disable inherited permissions (Limited Access)
  * Uses Google's official inheritedPermissionsDisabled API flag
- * When enabled: folder is visible but content is restricted to direct members only
+ * WITH READ-AFTER-WRITE VERIFICATION (AC-1)
+ * Returns actual boolean status after verification
  */
 export async function setLimitedAccess(
     folderId: string,
     enabled: boolean
-): Promise<void> {
+): Promise<boolean> {
     const drive = await getDriveClient();
 
     try {
+        // Step 1: Apply Limited Access
         await drive.files.update({
             fileId: folderId,
             requestBody: {
-                // This is the official API flag for Limited Access
-                // When true: inherited permissions are disabled (folder visible, content restricted)
-                // When false: normal inheritance applies
                 inheritedPermissionsDisabled: enabled
-            } as any, // Type assertion needed as googleapis types may not include this new field
+            } as any,
             supportsAllDrives: true,
-            fields: 'id,name,inheritedPermissionsDisabled'
+            fields: 'id,name'
         });
-        console.log(`Limited Access ${enabled ? 'ENABLED' : 'DISABLED'} for folder ${folderId}`);
+
+        // Step 2: Verify with read-after-write (CRITICAL for AC-1)
+        const verification = await drive.files.get({
+            fileId: folderId,
+            fields: 'inheritedPermissionsDisabled',
+            supportsAllDrives: true
+        });
+
+        const actual = verification.data.inheritedPermissionsDisabled ?? false;
+
+        // Step 3: Validate
+        if (actual !== enabled) {
+            throw new Error(
+                `Limited Access verification FAILED: expected=${enabled}, actual=${actual} for folder ${folderId}`
+            );
+        }
+
+        console.log(`✓ Limited Access ${enabled ? 'ENABLED' : 'DISABLED'} and VERIFIED for folder ${folderId}`);
+        return actual;
     } catch (error: any) {
         console.error(`Failed to set Limited Access on ${folderId}:`, error.message);
         throw error;
@@ -229,20 +282,34 @@ export async function setLimitedAccess(
 }
 
 /**
- * List permissions on a folder
+ * List permissions on a folder with full inheritance details (AC-4)
+ * Returns enhanced PermissionDetails interface
  */
 export async function listPermissions(
     folderId: string
-): Promise<drive_v3.Schema$Permission[]> {
+): Promise<PermissionDetails[]> {
     const drive = await getDriveClient();
 
     const response = await drive.permissions.list({
         fileId: folderId,
         supportsAllDrives: true,
-        fields: 'permissions(id, type, role, emailAddress, domain, displayName, deleted, permissionDetails)',
+        fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,permissionDetails)',
     });
 
-    return response.data.permissions || [];
+    const permissions = response.data.permissions || [];
+
+    // Map to enhanced interface with inherited tracking
+    return permissions.map(p => ({
+        id: p.id!,
+        type: p.type!,
+        role: p.role!,
+        emailAddress: p.emailAddress ?? undefined,
+        domain: p.domain ?? undefined,
+        deleted: p.deleted ?? false,
+        permissionDetails: p.permissionDetails ?? undefined,
+        inherited: p.permissionDetails?.some(d => d.inherited) ?? false,
+        inheritedFrom: p.permissionDetails?.find(d => d.inherited)?.inheritedFrom
+    }));
 }
 
 /**
@@ -311,20 +378,182 @@ export async function addPermission(
 }
 
 /**
- * Remove a permission from a folder
+ * Remove a permission from a folder (AC-4: skips inherited)
+ * Returns true if removed, false if skipped (inherited)
  */
 export async function removePermission(
     folderId: string,
-    permissionId: string
-): Promise<void> {
+    permissionId: string,
+    options: {
+        skipInherited?: boolean;
+        logSkipped?: boolean;
+    } = { skipInherited: true, logSkipped: true }
+): Promise<boolean> {
     const drive = await getDriveClient();
 
-    await drive.permissions.delete({
-        fileId: folderId,
-        permissionId,
-        supportsAllDrives: true,
-    });
+    // Check if permission is inherited before attempting delete
+    if (options.skipInherited) {
+        try {
+            const perm = await drive.permissions.get({
+                fileId: folderId,
+                permissionId,
+                fields: 'permissionDetails',
+                supportsAllDrives: true
+            });
+
+            const isInherited = perm.data.permissionDetails?.some(d => d.inherited) ?? false;
+            const inheritedFrom = perm.data.permissionDetails?.find(d => d.inherited)?.inheritedFrom;
+
+            if (isInherited) {
+                if (options.logSkipped) {
+                    console.warn(
+                        `⚠️  SKIPPED: Cannot remove inherited permission ${permissionId} ` +
+                        `(inherited from ${inheritedFrom || 'parent folder'})`
+                    );
+                }
+                return false;
+            }
+        } catch (error: any) {
+            // Permission might not exist or already deleted, continue
+            console.warn(`Could not check inheritance for ${permissionId}:`, error.message);
+        }
+    }
+
+    // Delete permission
+    try {
+        await drive.permissions.delete({
+            fileId: folderId,
+            permissionId,
+            supportsAllDrives: true,
+        });
+        console.log(`✓ Removed permission ${permissionId}`);
+        return true;
+    } catch (error: any) {
+        console.error(`Failed to remove permission ${permissionId}:`, error.message);
+        throw error;
+    }
 }
+
+/**
+ * HARD RESET permissions on a folder (AC-2: Remove ALL unexpected)
+ * Removes:
+ * - Domain shares
+ * - Anyone/link shares  
+ * - Any user/group not in expected lists
+ * Protects:
+ * - mo.abuomar@dtgsa.com
+ * - rfp-admin-sdk service account
+ * Skips:
+ * - Inherited permissions (logs only)
+ */
+export async function hardResetPermissions(
+    folderId: string,
+    expectedGroups: Array<{ email: string; role: string }>,
+    expectedUsers: Array<{ email: string; role: string }>,
+    protectedPrincipals: string[] = PROTECTED_PRINCIPALS
+): Promise<{
+    removed: number;
+    added: number;
+    skipped: number;
+    protected: number;
+}> {
+    const stats = {
+        removed: 0,
+        added: 0,
+        skipped: 0,
+        protected: 0
+    };
+
+    console.log(`\n========== HARD RESET PERMISSIONS ==========`);
+    console.log(`Folder: ${folderId}`);
+    console.log(`Expected: ${expectedGroups.length} groups, ${expectedUsers.length} users`);
+
+    // Step 1: List current permissions
+    const currentPerms = await listPermissions(folderId);
+    console.log(`Current: ${currentPerms.length} permissions`);
+
+    // Step 2: Build expected email set (case-insensitive)
+    const expectedEmails = new Set([
+        ...expectedGroups.map(g => g.email.toLowerCase()),
+        ...expectedUsers.map(u => u.email.toLowerCase()),
+        ...protectedPrincipals.map(p => p.toLowerCase())
+    ]);
+
+    // Step 3: Remove ALL unexpected permissions
+    for (const perm of currentPerms) {
+        const email = perm.emailAddress?.toLowerCase();
+
+        // Protected principals
+        if (email && protectedPrincipals.some(p => p.toLowerCase() === email)) {
+            console.log(`✓ PROTECTED: ${perm.emailAddress}`);
+            stats.protected++;
+            continue;
+        }
+
+        // Domain share (HARD RESET: remove it)
+        if (perm.type === 'domain') {
+            console.log(`✗ REMOVING domain share: ${perm.domain}`);
+            const removed = await removePermission(folderId, perm.id, { skipInherited: false, logSkipped: false });
+            if (removed) stats.removed++;
+            continue;
+        }
+
+        // Anyone/link share (HARD RESET: remove it)
+        if (perm.type === 'anyone') {
+            console.log(`✗ REMOVING anyone/link share`);
+            const removed = await removePermission(folderId, perm.id, { skipInherited: false, logSkipped: false });
+            if (removed) stats.removed++;
+            continue;
+        }
+
+        // Inherited permissions (cannot delete, log only)
+        if (perm.inherited) {
+            console.warn(`⚠️  INHERITED: ${email || perm.type} from ${perm.inheritedFrom || 'parent'} (cannot remove)`);
+            stats.skipped++;
+            continue;
+        }
+
+        // User/group not in expected list
+        if (!email || !expectedEmails.has(email)) {
+            console.log(`✗ REMOVING unexpected: ${email || perm.type} (${perm.role})`);
+            const removed = await removePermission(folderId, perm.id, { skipInherited: true, logSkipped: false });
+            if (removed) stats.removed++;
+            else stats.skipped++;
+            continue;
+        }
+
+        console.log(`✓ KEEPING expected: ${email} (${perm.role})`);
+    }
+
+    // Step 4: Add missing expected permissions
+    const currentEmails = new Set(
+        currentPerms
+            .filter(p => !p.inherited && p.emailAddress)
+            .map(p => p.emailAddress!.toLowerCase())
+    );
+
+    for (const group of expectedGroups) {
+        if (!currentEmails.has(group.email.toLowerCase())) {
+            console.log(`+ ADDING group: ${group.email} as ${group.role}`);
+            await addPermission(folderId, 'group', group.role as DriveRole, group.email);
+            stats.added++;
+        }
+    }
+
+    for (const user of expectedUsers) {
+        if (!currentEmails.has(user.email.toLowerCase())) {
+            console.log(`+ ADDING user: ${user.email} as ${user.role}`);
+            await addPermission(folderId, 'user', user.role as DriveRole, user.email);
+            stats.added++;
+        }
+    }
+
+    console.log(`========== RESET COMPLETE ==========`);
+    console.log(`Removed: ${stats.removed}, Added: ${stats.added}, Skipped: ${stats.skipped}, Protected: ${stats.protected}\n`);
+
+    return stats;
+}
+
 
 /**
  * Apply limited access to a folder using Google's official inheritedPermissionsDisabled API

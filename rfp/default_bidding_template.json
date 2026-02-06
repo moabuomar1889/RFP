@@ -1,0 +1,235 @@
+[
+    {
+        "id": "bidding",
+        "name": "Bidding",
+        "path": "/Bidding",
+        "limitedAccess": false,
+        "groups": [
+            {
+                "email": "admin@dtgsa.com",
+                "role": "organizer"
+            },
+            {
+                "email": "projects-managers@dtgsa.com",
+                "role": "fileOrganizer"
+            },
+            {
+                "email": "technical-team@dtgsa.com",
+                "role": "reader"
+            }
+        ],
+        "users": [],
+        "children": [
+            {
+                "id": "bidding-sow",
+                "name": "SOW",
+                "path": "/Bidding/SOW",
+                "limitedAccess": true,
+                "groups": [
+                    {
+                        "email": "admin@dtgsa.com",
+                        "role": "organizer"
+                    },
+                    {
+                        "email": "projects-managers@dtgsa.com",
+                        "role": "fileOrganizer"
+                    },
+                    {
+                        "email": "projects-control@dtgsa.com",
+                        "role": "writer"
+                    },
+                    {
+                        "email": "technical-team@dtgsa.com",
+                        "role": "writer"
+                    }
+                ],
+                "users": [],
+                "children": []
+            },
+            {
+                "id": "bidding-technical",
+                "name": "Technical Propsal",
+                "path": "/Bidding/Technical Propsal",
+                "limitedAccess": true,
+                "groups": [
+                    {
+                        "email": "admin@dtgsa.com",
+                        "role": "organizer"
+                    },
+                    {
+                        "email": "technical-team@dtgsa.com",
+                        "role": "writer"
+                    },
+                    {
+                        "email": "projects-managers@dtgsa.com",
+                        "role": "reader"
+                    }
+                ],
+                "users": [],
+                "children": [
+                    {
+                        "id": "bidding-tbe",
+                        "name": "TBE",
+                        "path": "/Bidding/Technical Propsal/TBE",
+                        "limitedAccess": true,
+                        "groups": [
+                            {
+                                "email": "admin@dtgsa.com",
+                                "role": "organizer"
+                            },
+                            {
+                                "email": "technical-team@dtgsa.com",
+                                "role": "writer"
+                            }
+                        ],
+                        "users": [],
+                        "children": []
+                    },
+                    {
+                        "id": "bidding-technical-proposal",
+                        "name": "Technical Proposal",
+                        "path": "/Bidding/Technical Propsal/Technical Proposal",
+                        "limitedAccess": true,
+                        "groups": [
+                            {
+                                "email": "admin@dtgsa.com",
+                                "role": "organizer"
+                            },
+                            {
+                                "email": "technical-team@dtgsa.com",
+                                "role": "writer"
+                            }
+                        ],
+                        "users": [],
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "id": "bidding-vendors",
+                "name": "Vendors Quotations",
+                "path": "/Bidding/Vendors Quotations",
+                "limitedAccess": true,
+                "groups": [
+                    {
+                        "email": "admin@dtgsa.com",
+                        "role": "organizer"
+                    },
+                    {
+                        "email": "quality-control@dtgsa.com",
+                        "role": "reader"
+                    },
+                    {
+                        "email": "dc-team@dtgsa.com",
+                        "role": "reader"
+                    },
+                    {
+                        "email": "survey-team@dtgsa.com",
+                        "role": "reader"
+                    },
+                    {
+                        "email": "projects-control@dtgsa.com",
+                        "role": "reader"
+                    }
+                ],
+                "users": [],
+                "children": [
+                    {
+                        "id": "vendors-civil",
+                        "name": "Civil and Finishes",
+                        "path": "/Bidding/Vendors Quotations/Civil and Finishes",
+                        "limitedAccess": true,
+                        "groups": [
+                            {
+                                "email": "admin@dtgsa.com",
+                                "role": "organizer"
+                            },
+                            {
+                                "email": "technical-team@dtgsa.com",
+                                "role": "writer"
+                            }
+                        ],
+                        "users": [],
+                        "children": []
+                    },
+                    {
+                        "id": "vendors-mechanical",
+                        "name": "Mechanical",
+                        "path": "/Bidding/Vendors Quotations/Mechanical",
+                        "limitedAccess": true,
+                        "groups": [
+                            {
+                                "email": "admin@dtgsa.com",
+                                "role": "organizer"
+                            },
+                            {
+                                "email": "technical-team@dtgsa.com",
+                                "role": "writer"
+                            }
+                        ],
+                        "users": [],
+                        "children": []
+                    },
+                    {
+                        "id": "vendors-ei",
+                        "name": "E&I",
+                        "path": "/Bidding/Vendors Quotations/E&I",
+                        "limitedAccess": true,
+                        "groups": [
+                            {
+                                "email": "admin@dtgsa.com",
+                                "role": "organizer"
+                            },
+                            {
+                                "email": "technical-team@dtgsa.com",
+                                "role": "writer"
+                            }
+                        ],
+                        "users": [],
+                        "children": []
+                    },
+                    {
+                        "id": "vendors-it",
+                        "name": "IT",
+                        "path": "/Bidding/Vendors Quotations/IT",
+                        "limitedAccess": true,
+                        "groups": [
+                            {
+                                "email": "admin@dtgsa.com",
+                                "role": "organizer"
+                            },
+                            {
+                                "email": "technical-team@dtgsa.com",
+                                "role": "writer"
+                            }
+                        ],
+                        "users": [],
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "id": "bidding-commercial",
+                "name": "Commercial Propsal",
+                "path": "/Bidding/Commercial Propsal",
+                "limitedAccess": true,
+                "groups": [
+                    {
+                        "email": "admin@dtgsa.com",
+                        "role": "organizer"
+                    },
+                    {
+                        "email": "projects-managers@dtgsa.com",
+                        "role": "writer"
+                    },
+                    {
+                        "email": "projects-control@dtgsa.com",
+                        "role": "reader"
+                    }
+                ],
+                "users": [],
+                "children": []
+            }
+        ]
+    }
+]
