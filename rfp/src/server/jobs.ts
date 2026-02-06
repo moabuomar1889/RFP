@@ -932,22 +932,38 @@ async function enforceProjectPermissionsWithLogging(
             actualEmails: Array.from(actualEmailsMap.keys())
         });
 
-        // Step 3a: ADD group permissions
-        // NOTE: Always try to add groups because "Access removed" permissions
-        // appear as active in the API but are not actually usable
+        // Step 3a: ADD group permissions (with pre-check)
         for (const group of expectedPerms.groups) {
             if (!group.email) continue;
+            const groupEmailLower = group.email.toLowerCase();
+            const expectedRole = group.role || 'reader';
+
+            // Check if permission already exists with correct role
+            const existingPerm = actualEmailsMap.get(groupEmailLower);
+            if (existingPerm && existingPerm.role === expectedRole) {
+                // Already has correct permission - skip silently or log as info
+                continue;
+            }
+
             try {
-                await addPermission(folder.drive_folder_id, 'group', group.role || 'reader', group.email);
+                await addPermission(folder.drive_folder_id, 'group', expectedRole, group.email);
                 added++;
                 await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
                     email: group.email,
                     type: 'group',
-                    role: group.role
+                    role: expectedRole,
+                    action: existingPerm ? 'UPDATED' : 'ADDED'
                 });
             } catch (err: any) {
                 // Ignore "already has access" errors
-                if (!err.message?.includes('already')) {
+                if (err.message?.includes('already')) {
+                    // Log as info, not success
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'permission_already_exists', 'info', {
+                        email: group.email,
+                        type: 'group',
+                        role: expectedRole
+                    });
+                } else {
                     await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
                         email: group.email,
                         error: err.message
@@ -996,16 +1012,26 @@ async function enforceProjectPermissionsWithLogging(
             if (!expectedEmails.has(emailLower)) {
                 violations++;
 
-                // Log detailed permission info for diagnosis
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'debug_remove_attempt', 'info', {
-                    email: actual.emailAddress,
-                    role: actual.role,
-                    type: actual.type,
-                    permissionId: actual.id,
-                    inherited: actual.permissionDetails?.[0]?.inherited || false,
-                    inheritedFrom: actual.permissionDetails?.[0]?.inheritedFrom || 'direct',
-                    deleted: actual.deleted
-                });
+                // RULE: Block delete for inherited permissions
+                const isInherited = actual.permissionDetails?.[0]?.inherited || false;
+                const inheritedFrom = actual.permissionDetails?.[0]?.inheritedFrom;
+
+                if (isInherited) {
+                    // LOG: DRIVE_INHERITED_PERMISSION - Cannot delete, show source
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_permission_skipped', 'warning', {
+                        action: 'BLOCKED',
+                        reason: 'DRIVE_INHERITED_PERMISSION',
+                        email: actual.emailAddress,
+                        role: actual.role,
+                        type: actual.type,
+                        permissionId: actual.id,
+                        sourceFolderId: inheritedFrom,
+                        sourceLink: inheritedFrom ? `https://drive.google.com/drive/folders/${inheritedFrom}` : null,
+                        message: 'Permission is inherited. Must be removed from source folder.'
+                    });
+                    await sleep(RATE_LIMIT_DELAY);
+                    continue; // Skip to next permission
+                }
 
                 try {
                     await removePermission(folder.drive_folder_id, actual.id!);
