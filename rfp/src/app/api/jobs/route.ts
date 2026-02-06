@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,9 +13,7 @@ export async function GET(request: NextRequest) {
         const status = searchParams.get('status');
         const limit = parseInt(searchParams.get('limit') || '50');
 
-        const supabase = getSupabaseAdmin();
-
-        let query = supabase
+        let query = supabaseAdmin
             .schema('rfp')
             .from('sync_jobs')
             .select('*')
