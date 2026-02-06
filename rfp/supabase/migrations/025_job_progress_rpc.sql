@@ -160,3 +160,42 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.insert_sync_task(UUID, UUID, TEXT, JSONB, TEXT) TO anon, authenticated, service_role;
 
+-- ═══════════════════════════════════════════════════════════════════════════
+-- List job logs (for Live Logs display)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.list_job_logs(
+    p_job_id UUID,
+    p_limit INT DEFAULT 200
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, rfp
+AS $$
+BEGIN
+    RETURN (
+        SELECT json_agg(row_to_json(t)) FROM (
+            SELECT 
+                st.id,
+                st.job_id,
+                st.project_id,
+                p.pr_number as project_name,
+                st.task_details->>'message' as folder_path,
+                st.task_type as action,
+                st.status,
+                st.task_details as details,
+                st.created_at
+            FROM rfp.sync_tasks st
+            LEFT JOIN rfp.projects p ON st.project_id = p.id
+            WHERE st.job_id = p_job_id
+            ORDER BY st.created_at DESC
+            LIMIT p_limit
+        ) t
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.list_job_logs(UUID, INT) TO anon, authenticated, service_role;
+
+
