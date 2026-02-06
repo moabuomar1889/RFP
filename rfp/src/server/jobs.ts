@@ -57,7 +57,8 @@ async function updateJobProgress(
     status?: string
 ): Promise<void> {
     try {
-        await supabaseAdmin.rpc('update_job_progress', {
+        const client = getRawSupabaseAdmin();
+        await client.rpc('update_job_progress', {
             p_job_id: jobId,
             p_progress: progressPercent,
             p_completed_tasks: completedTasks,
