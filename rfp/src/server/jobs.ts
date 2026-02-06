@@ -411,17 +411,7 @@ export const buildFolderIndex = inngest.createFunction(
     async ({ event, step }) => {
         const { jobId, projectIds, triggeredBy } = event.data;
 
-        // Update job to running
-        await step.run('update-job-running', async () => {
-            const client = getRawSupabaseAdmin();
-            await client.rpc('update_job_progress', {
-                p_job_id: jobId,
-                p_progress: 0,
-                p_completed_tasks: 0,
-                p_total_tasks: 0,
-                p_status: JOB_STATUS.RUNNING
-            });
-        });
+
 
         // Get projects using RPC
         const projects = await step.run('get-projects', async () => {
@@ -441,8 +431,22 @@ export const buildFolderIndex = inngest.createFunction(
             return data || [];
         });
 
+        // Update job to running with total projects count
+        const totalProjects = projects.length;
+        await step.run('update-job-running', async () => {
+            const client = getRawSupabaseAdmin();
+            await client.rpc('update_job_progress', {
+                p_job_id: jobId,
+                p_progress: 0,
+                p_completed_tasks: 0,
+                p_total_tasks: totalProjects,
+                p_status: JOB_STATUS.RUNNING
+            });
+        });
+
         // Build index for each project
         let indexedCount = 0;
+        let completedProjects = 0;
         for (const project of projects) {
             const stepResult = await step.run(`index-${project.pr_number}`, async () => {
                 const client = getRawSupabaseAdmin();
@@ -480,6 +484,20 @@ export const buildFolderIndex = inngest.createFunction(
             });
 
             indexedCount += (stepResult as any)?.foldersUpserted || 0;
+            completedProjects++;
+
+            // Update progress after each project
+            await step.run(`progress-${project.pr_number}`, async () => {
+                const client = getRawSupabaseAdmin();
+                const progress = Math.round((completedProjects / totalProjects) * 100);
+                await client.rpc('update_job_progress', {
+                    p_job_id: jobId,
+                    p_progress: progress,
+                    p_completed_tasks: completedProjects,
+                    p_total_tasks: totalProjects,
+                    p_status: JOB_STATUS.RUNNING
+                });
+            });
         }
 
         // Mark job complete
@@ -488,13 +506,13 @@ export const buildFolderIndex = inngest.createFunction(
             await client.rpc('update_job_progress', {
                 p_job_id: jobId,
                 p_progress: 100,
-                p_completed_tasks: projects.length,
-                p_total_tasks: projects.length,
+                p_completed_tasks: totalProjects,
+                p_total_tasks: totalProjects,
                 p_status: JOB_STATUS.COMPLETED
             });
         });
 
-        return { success: true, projectsIndexed: projects.length, foldersIndexed: indexedCount };
+        return { success: true, projectsIndexed: totalProjects, foldersIndexed: indexedCount };
     }
 );
 
