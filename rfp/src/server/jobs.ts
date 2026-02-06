@@ -443,25 +443,42 @@ export const buildFolderIndex = inngest.createFunction(
         // Build index for each project
         let indexedCount = 0;
         for (const project of projects) {
-            await step.run(`index-${project.pr_number}`, async () => {
+            const stepResult = await step.run(`index-${project.pr_number}`, async () => {
                 const client = getRawSupabaseAdmin();
+
+                console.log(`Indexing project ${project.pr_number} with drive_folder_id: ${project.drive_folder_id}`);
+
+                if (!project.drive_folder_id) {
+                    console.error(`Project ${project.pr_number} has no drive_folder_id`);
+                    return { foldersIndexed: 0, error: 'No drive_folder_id' };
+                }
 
                 // Get all folders from Drive
                 const folders = await getAllFoldersRecursive(project.drive_folder_id);
+                console.log(`Found ${folders.length} folders for ${project.pr_number}`);
 
                 // Upsert to folder_index using RPC
+                let upsertedCount = 0;
                 for (const folder of folders) {
-                    await client.rpc('upsert_folder_index', {
+                    const { error } = await client.rpc('upsert_folder_index', {
                         p_project_id: project.id,
                         p_template_path: folder.path,
                         p_drive_folder_id: folder.id,
                         p_drive_folder_name: folder.name,
                     });
+
+                    if (error) {
+                        console.error(`Failed to upsert folder ${folder.path}:`, error);
+                    } else {
+                        upsertedCount++;
+                    }
                 }
 
-                indexedCount += folders.length;
                 await sleep(RATE_LIMIT_DELAY);
+                return { foldersFound: folders.length, foldersUpserted: upsertedCount };
             });
+
+            indexedCount += (stepResult as any)?.foldersUpserted || 0;
         }
 
         // Mark job complete
