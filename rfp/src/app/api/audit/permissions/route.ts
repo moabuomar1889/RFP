@@ -87,10 +87,22 @@ function comparePermissions(
     }
 
     // Check for extra permissions
-    for (const email of actualEmails) {
-        if (!expectedEmails.has(email) && !protectedEmails.includes(email)) {
-            discrepancies.push(`Extra: ${email}`);
+    for (const p of actual) {
+        if (!p.emailAddress || p.type === 'domain') continue;
+
+        const email = p.emailAddress.toLowerCase();
+        if (expectedEmails.has(email)) continue;
+        if (protectedEmails.includes(email)) continue;
+
+        // NEW RULE: If Limited Access is enabled, ignore inherited permissions
+        // They exist in the API but cannot actually access the content
+        const isInherited = p.permissionDetails?.[0]?.inherited || false;
+        if (expected.limitedAccess && isInherited) {
+            // Skip - inherited permission on Limited Access folder = OK
+            continue;
         }
+
+        discrepancies.push(`Extra: ${email}`);
     }
 
     if (discrepancies.length === 0) {
