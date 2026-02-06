@@ -199,9 +199,9 @@ function JobLogs({ jobId }: { jobId: string }) {
                 <div
                     key={log.id}
                     className={`flex items-start gap-2 px-2 py-1.5 rounded text-sm ${log.status === 'error' ? 'bg-red-50 dark:bg-red-950' :
-                            log.status === 'warning' ? 'bg-yellow-50 dark:bg-yellow-950' :
-                                log.status === 'success' ? 'bg-green-50 dark:bg-green-950' :
-                                    'bg-gray-50 dark:bg-gray-900'
+                        log.status === 'warning' ? 'bg-yellow-50 dark:bg-yellow-950' :
+                            log.status === 'success' ? 'bg-green-50 dark:bg-green-950' :
+                                'bg-gray-50 dark:bg-gray-900'
                         }`}
                 >
                     <div className="mt-0.5">{getLogIcon(log.action, log.status)}</div>
@@ -228,6 +228,7 @@ export default function JobsPage() {
     const [stats, setStats] = useState({ running: 0, completedToday: 0, failedThisWeek: 0 });
     const [tab, setTab] = useState("all");
     const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
+    const [clearingJobs, setClearingJobs] = useState(false);
 
     const fetchJobs = useCallback(async () => {
         try {
@@ -267,6 +268,27 @@ export default function JobsPage() {
         });
     };
 
+    const clearAllJobs = async () => {
+        setClearingJobs(true);
+        try {
+            const response = await fetch("/api/jobs/clear", {
+                method: "POST",
+            });
+            const data = await response.json();
+            if (data.success) {
+                toast.success(`Cleared ${data.deleted} jobs`);
+                fetchJobs();
+            } else {
+                toast.error(data.error || "Failed to clear jobs");
+            }
+        } catch (error) {
+            toast.error("Failed to clear jobs");
+        } finally {
+            setClearingJobs(false);
+        }
+    };
+
+
     const filteredJobs = jobs.filter((job) => {
         if (tab === "all") return true;
         return job.status === tab;
@@ -296,6 +318,19 @@ export default function JobsPage() {
                     <Button variant="outline" onClick={fetchJobs}>
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Refresh
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={clearAllJobs}
+                        disabled={clearingJobs}
+                        className="text-red-600 hover:text-red-700"
+                    >
+                        {clearingJobs ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <XCircle className="mr-2 h-4 w-4" />
+                        )}
+                        Clear Jobs
                     </Button>
                     <Button>
                         <Play className="mr-2 h-4 w-4" />
