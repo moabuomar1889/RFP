@@ -299,8 +299,8 @@ export default function JobsPage() {
     const triggerJob = async (jobType: 'rebuild_index' | 'enforce_permissions') => {
         try {
             const endpoint = jobType === 'rebuild_index'
-                ? '/api/sync/rebuild-index'
-                : '/api/sync/enforce-permissions';
+                ? '/api/jobs/rebuild-index'
+                : '/api/jobs/enforce-permissions';
 
             const response = await fetch(endpoint, {
                 method: 'POST',
