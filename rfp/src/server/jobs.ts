@@ -995,6 +995,18 @@ async function enforceProjectPermissionsWithLogging(
             // Check if this permission is expected
             if (!expectedEmails.has(emailLower)) {
                 violations++;
+
+                // Log detailed permission info for diagnosis
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'debug_remove_attempt', 'info', {
+                    email: actual.emailAddress,
+                    role: actual.role,
+                    type: actual.type,
+                    permissionId: actual.id,
+                    inherited: actual.permissionDetails?.[0]?.inherited || false,
+                    inheritedFrom: actual.permissionDetails?.[0]?.inheritedFrom || 'direct',
+                    deleted: actual.deleted
+                });
+
                 try {
                     await removePermission(folder.drive_folder_id, actual.id!);
                     reverted++;
@@ -1014,6 +1026,10 @@ async function enforceProjectPermissionsWithLogging(
                     } else {
                         await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission_failed', 'error', {
                             email: actual.emailAddress,
+                            role: actual.role,
+                            type: actual.type,
+                            permissionId: actual.id,
+                            inherited: actual.permissionDetails?.[0]?.inherited,
                             error: err.message
                         });
                     }
