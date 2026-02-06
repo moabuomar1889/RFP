@@ -57,11 +57,21 @@ export async function getOAuth2Client(): Promise<OAuth2Client> {
  * This allows the service account to act on behalf of an admin user within the organization
  */
 export async function getDriveClient(): Promise<drive_v3.Drive> {
-    // Use Service Account with Domain-Wide Delegation for admin operations
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS || '{}');
+    // Build credentials from separate environment variables
+    const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+    if (!serviceAccountEmail || !privateKey) {
+        throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_EMAIL or GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
+    }
+
+    const credentials = {
+        client_email: serviceAccountEmail,
+        private_key: privateKey,
+    };
 
     // The admin email to impersonate (must be in the same Google Workspace domain)
-    const impersonateEmail = 'mo.abuomar@dtgsa.com';
+    const impersonateEmail = process.env.GOOGLE_ADMIN_EMAIL || 'mo.abuomar@dtgsa.com';
 
     const auth = new google.auth.GoogleAuth({
         credentials,
