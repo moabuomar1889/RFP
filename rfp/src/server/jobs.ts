@@ -901,9 +901,12 @@ async function enforceProjectPermissionsWithLogging(
             if (u.email) expectedEmails.add(u.email.toLowerCase());
         }
 
-        // Build map of actual emails
+        // Build map of actual ACTIVE emails (exclude deleted permissions from Limited Access)
         const actualEmailsMap = new Map<string, any>();
         for (const perm of actualPerms) {
+            // Skip permissions that were removed due to Limited Access
+            // These have "deleted" set to true
+            if (perm.deleted === true) continue;
             if (perm.emailAddress) {
                 actualEmailsMap.set(perm.emailAddress.toLowerCase(), perm);
             }
