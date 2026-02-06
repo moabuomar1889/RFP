@@ -119,6 +119,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Get project info
+        console.log('Fetching project with ID:', projectId);
         const { data: project, error: projectError } = await supabaseAdmin
             .schema('rfp')
             .from('projects')
@@ -126,8 +127,15 @@ export async function GET(request: NextRequest) {
             .eq('id', projectId)
             .single();
 
+        console.log('Project result:', { project, projectError });
+
         if (projectError || !project) {
-            return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+            console.error('Project lookup failed:', projectError);
+            return NextResponse.json({
+                error: 'Project not found',
+                details: projectError?.message,
+                projectId
+            }, { status: 404 });
         }
 
         // Get active template
