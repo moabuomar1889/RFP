@@ -23,6 +23,7 @@ import {
     Users,
     UsersRound,
     Shield,
+    ShieldCheck,
     Cog,
     History,
     ClipboardList,
@@ -45,6 +46,7 @@ const menuItems = [
     { title: "Roles", icon: Shield, href: "/roles" },
     { title: "Jobs", icon: History, href: "/jobs" },
     { title: "Audit Log", icon: ClipboardList, href: "/audit" },
+    { title: "Permission Audit", icon: ShieldCheck, href: "/permission-audit" },
     { title: "Settings", icon: Cog, href: "/settings" },
 ];
 
