@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
                 result: {
                     projectId: project.id,
                     projectName: project.name,
-                    projectCode: project.project_code,
+                    projectCode: project.pr_number,
                     totalFolders: 0,
                     matchCount: 0,
                     extraCount: 0,
@@ -233,7 +233,7 @@ export async function GET(request: NextRequest) {
         const result: AuditResult = {
             projectId: project.id,
             projectName: project.name,
-            projectCode: project.project_code,
+            projectCode: project.pr_number,
             totalFolders: comparisons.length,
             matchCount,
             extraCount,
