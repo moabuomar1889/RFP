@@ -842,6 +842,13 @@ async function enforceProjectPermissionsWithLogging(
 
     const permissionsMap = buildPermissionsMap(templateNodes);
 
+    // Debug: Log permissions map keys
+    await writeJobLog(jobId, project.id, project.name, null, 'debug_map', 'info', {
+        message: 'Built permissions map',
+        totalPaths: Object.keys(permissionsMap).length,
+        samplePaths: Object.keys(permissionsMap).slice(0, 5)
+    });
+
     // Step 2: Get all indexed folders for this project
     const { data: folders } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
 
@@ -859,8 +866,20 @@ async function enforceProjectPermissionsWithLogging(
         const expectedPerms = permissionsMap[templatePath];
 
         if (!expectedPerms) {
+            // Debug: Log skipped folder
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'skipped_no_match', 'info', {
+                normalizedPath: folder.normalized_template_path,
+                originalPath: folder.template_path
+            });
             continue;
         }
+
+        // Debug: Log matched folder
+        await writeJobLog(jobId, project.id, project.name, templatePath, 'matched_folder', 'info', {
+            groupCount: expectedPerms.groups?.length || 0,
+            userCount: expectedPerms.users?.length || 0,
+            limitedAccess: expectedPerms.limitedAccess
+        });
 
         // Get actual permissions from Drive
         let actualPerms;
