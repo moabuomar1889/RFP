@@ -37,6 +37,7 @@ export default function SettingsPage() {
     const [bulkApproved, setBulkApproved] = useState(false);
     const [scanning, setScanning] = useState(false);
     const [scanResults, setScanResults] = useState<any>(null);
+    const [rebuildingIndex, setRebuildingIndex] = useState(false);
 
     // Load settings on mount
     useEffect(() => {
@@ -121,6 +122,24 @@ export default function SettingsPage() {
         }
     };
 
+    const rebuildFolderIndex = async () => {
+        setRebuildingIndex(true);
+        try {
+            const response = await fetch("/api/jobs/rebuild-index", {
+                method: "POST",
+            });
+            const data = await response.json();
+            if (data.success) {
+                toast.success("Folder index rebuild job started! Check Jobs page for progress.");
+            } else {
+                toast.error(data.error || "Failed to start rebuild");
+            }
+        } catch (error) {
+            toast.error("Failed to start folder index rebuild");
+        } finally {
+            setRebuildingIndex(false);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -543,8 +562,19 @@ export default function SettingsPage() {
                                         Scan all projects and rebuild the folder index from Drive
                                     </p>
                                 </div>
-                                <Button variant="outline" disabled={safeTestMode}>
-                                    {safeTestMode ? "Disabled in Test Mode" : "Rebuild Index"}
+                                <Button
+                                    variant="outline"
+                                    onClick={rebuildFolderIndex}
+                                    disabled={rebuildingIndex}
+                                >
+                                    {rebuildingIndex ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Starting...
+                                        </>
+                                    ) : (
+                                        "Rebuild Index"
+                                    )}
                                 </Button>
                             </div>
 
