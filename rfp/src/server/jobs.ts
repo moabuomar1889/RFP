@@ -17,6 +17,58 @@ import { JOB_STATUS, TASK_STATUS } from '@/lib/config';
 const RATE_LIMIT_DELAY = 300; // ms between API calls
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// ============= JOB LOGGING HELPERS =============
+
+/**
+ * Write a log entry for a job
+ */
+async function writeJobLog(
+    jobId: string,
+    projectId: string | null,
+    projectName: string | null,
+    folderPath: string | null,
+    action: string,
+    status: 'info' | 'success' | 'warning' | 'error',
+    details: Record<string, unknown> = {}
+): Promise<void> {
+    try {
+        await supabaseAdmin.rpc('insert_job_log', {
+            p_job_id: jobId,
+            p_project_id: projectId,
+            p_project_name: projectName,
+            p_folder_path: folderPath,
+            p_action: action,
+            p_status: status,
+            p_details: details
+        });
+    } catch (err) {
+        console.error('Failed to write job log:', err);
+    }
+}
+
+/**
+ * Update job progress
+ */
+async function updateJobProgress(
+    jobId: string,
+    progressPercent: number,
+    completedTasks: number,
+    totalTasks: number,
+    status?: string
+): Promise<void> {
+    try {
+        await supabaseAdmin.rpc('update_job_progress', {
+            p_job_id: jobId,
+            p_progress: progressPercent,
+            p_completed_tasks: completedTasks,
+            p_total_tasks: totalTasks,
+            p_status: status || null
+        });
+    } catch (err) {
+        console.error('Failed to update job progress:', err);
+    }
+}
+
 /**
  * Sync template to ALL projects
  */
@@ -247,77 +299,90 @@ export const enforcePermissions = inngest.createFunction(
     async ({ event, step }) => {
         const { jobId, projectIds, triggeredBy } = event.data;
 
-        // Update job to running
+        // Update job to running and log start
         await step.run('update-job-running', async () => {
-            await supabaseAdmin
-                .schema('rfp')
-                .from('sync_jobs')
-                .update({
-                    status: JOB_STATUS.RUNNING,
-                    started_at: new Date().toISOString()
-                })
-                .eq('id', jobId);
+            await supabaseAdmin.rpc('update_job_progress', {
+                p_job_id: jobId,
+                p_progress: 0,
+                p_completed_tasks: 0,
+                p_total_tasks: 0,
+                p_status: JOB_STATUS.RUNNING
+            });
+            await writeJobLog(jobId, null, null, null, 'job_started', 'info', { triggeredBy });
         });
 
         // Get protected principals
         const protectedPrincipals = await step.run('get-protected', async () => {
-            const { data } = await supabaseAdmin
-                .schema('rfp')
-                .from('app_settings')
-                .select('value')
-                .eq('key', 'protected_principals')
-                .single();
-            return data ? JSON.parse(data.value) : ['mo.abuomar@dtgsa.com'];
+            const { data } = await supabaseAdmin.rpc('get_setting', { p_key: 'protected_principals' });
+            try {
+                return data ? JSON.parse(data) : ['mo.abuomar@dtgsa.com'];
+            } catch {
+                return ['mo.abuomar@dtgsa.com'];
+            }
         });
 
         // Get projects to enforce
-        let projectsQuery = supabaseAdmin
-            .schema('rfp')
-            .from('projects')
-            .select('*');
-
-        if (projectIds && projectIds.length > 0) {
-            projectsQuery = projectsQuery.in('id', projectIds);
-        }
-
         const projects = await step.run('get-projects', async () => {
-            const { data } = await projectsQuery.order('pr_number');
+            const { data } = await supabaseAdmin.rpc('list_projects', { p_limit: 100 });
+            if (projectIds && projectIds.length > 0) {
+                return (data || []).filter((p: any) => projectIds.includes(p.id));
+            }
             return data || [];
         });
 
+        const totalProjects = projects.length;
+        await writeJobLog(jobId, null, null, null, 'projects_found', 'info', { count: totalProjects });
+        await updateJobProgress(jobId, 0, 0, totalProjects);
+
         let totalViolations = 0;
         let totalReverted = 0;
+        let totalAdded = 0;
+        let completedProjects = 0;
 
         // Process each project
         for (const project of projects) {
             await step.run(`enforce-${project.pr_number}`, async () => {
-                const result = await enforceProjectPermissions(project, protectedPrincipals);
+                // Log project start
+                await writeJobLog(jobId, project.id, project.name, null, 'start_project', 'info', {
+                    pr_number: project.pr_number,
+                    phase: project.phase
+                });
+
+                const result = await enforceProjectPermissionsWithLogging(
+                    project,
+                    protectedPrincipals,
+                    jobId
+                );
+
                 totalViolations += result.violations;
                 totalReverted += result.reverted;
+                totalAdded += result.added;
 
-                // Update last enforced
-                await supabaseAdmin
-                    .schema('rfp')
-                    .from('projects')
-                    .update({ last_enforced_at: new Date().toISOString() })
-                    .eq('id', project.id);
+                // Log project complete
+                await writeJobLog(jobId, project.id, project.name, null, 'complete_project', 'success', {
+                    violations: result.violations,
+                    reverted: result.reverted,
+                    added: result.added
+                });
+
+                completedProjects++;
+                const progress = Math.round((completedProjects / totalProjects) * 100);
+                await updateJobProgress(jobId, progress, completedProjects, totalProjects);
             });
         }
 
         // Mark job complete
         await step.run('complete-job', async () => {
-            await supabaseAdmin
-                .schema('rfp')
-                .from('sync_jobs')
-                .update({
-                    status: JOB_STATUS.COMPLETED,
-                    completed_at: new Date().toISOString(),
-                    metadata: { totalViolations, totalReverted }
-                })
-                .eq('id', jobId);
+            await writeJobLog(jobId, null, null, null, 'job_completed', 'success', {
+                totalProjects,
+                totalViolations,
+                totalReverted,
+                totalAdded
+            });
+            await updateJobProgress(jobId, 100, totalProjects, totalProjects, JOB_STATUS.COMPLETED);
         });
 
-        return { success: true, totalViolations, totalReverted };
+        return { success: true, totalViolations, totalReverted, totalAdded };
     }
 );
 
@@ -674,6 +739,179 @@ async function enforceProjectPermissions(
 
     console.log(`\n========== ENFORCEMENT COMPLETE ==========`);
     console.log(`Added: ${added}, Violations: ${violations}, Reverted: ${reverted}`);
+
+    return { violations, reverted, added };
+}
+
+/**
+ * Enforce permissions with detailed job logging
+ */
+async function enforceProjectPermissionsWithLogging(
+    project: any,
+    protectedPrincipals: string[],
+    jobId: string
+): Promise<{ violations: number; reverted: number; added: number }> {
+    let violations = 0;
+    let reverted = 0;
+    let added = 0;
+
+    console.log(`\n========== ENFORCING PERMISSIONS FOR ${project.pr_number} ==========`);
+
+    // Step 1: Get the active template
+    const { data: templateData } = await supabaseAdmin.rpc('get_active_template');
+    const template = Array.isArray(templateData) ? templateData[0] : templateData;
+
+    if (!template?.template_json) {
+        await writeJobLog(jobId, project.id, project.name, null, 'error', 'error', { message: 'No active template found' });
+        return { violations: 0, reverted: 0, added: 0 };
+    }
+
+    // Parse template and build path-to-permissions map
+    const templateNodes = Array.isArray(template.template_json)
+        ? template.template_json
+        : template.template_json.template || [];
+
+    const permissionsMap = buildPermissionsMap(templateNodes);
+
+    // Step 2: Get all indexed folders for this project
+    const { data: folders } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
+
+    if (!folders || folders.length === 0) {
+        await writeJobLog(jobId, project.id, project.name, null, 'warning', 'warning', { message: 'No folders indexed' });
+        return { violations: 0, reverted: 0, added: 0 };
+    }
+
+    await writeJobLog(jobId, project.id, project.name, null, 'folders_found', 'info', { count: folders.length });
+
+    // Step 3: Process each folder
+    for (const folder of folders) {
+        const templatePath = folder.template_path;
+        const expectedPerms = permissionsMap[templatePath];
+
+        if (!expectedPerms) {
+            continue;
+        }
+
+        // Get actual permissions from Drive
+        let actualPerms;
+        try {
+            actualPerms = await listPermissions(folder.drive_folder_id);
+        } catch (err: any) {
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'error', 'error', {
+                message: `Failed to get permissions: ${err.message}`
+            });
+            continue;
+        }
+
+        // Build set of expected emails
+        const expectedEmails = new Set<string>();
+        for (const g of expectedPerms.groups) {
+            if (g.email) expectedEmails.add(g.email.toLowerCase());
+        }
+        for (const u of expectedPerms.users) {
+            if (u.email) expectedEmails.add(u.email.toLowerCase());
+        }
+
+        // Build map of actual emails
+        const actualEmailsMap = new Map<string, any>();
+        for (const perm of actualPerms) {
+            if (perm.emailAddress) {
+                actualEmailsMap.set(perm.emailAddress.toLowerCase(), perm);
+            }
+        }
+
+        // Step 3a: ADD missing permissions
+        for (const group of expectedPerms.groups) {
+            if (!group.email) continue;
+            const emailLower = group.email.toLowerCase();
+            if (!actualEmailsMap.has(emailLower)) {
+                try {
+                    await addPermission(folder.drive_folder_id, 'group', group.role || 'reader', group.email);
+                    added++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
+                        email: group.email,
+                        type: 'group',
+                        role: group.role
+                    });
+                } catch (err: any) {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
+                        email: group.email,
+                        error: err.message
+                    });
+                }
+                await sleep(RATE_LIMIT_DELAY);
+            }
+        }
+
+        for (const user of expectedPerms.users) {
+            if (!user.email) continue;
+            const emailLower = user.email.toLowerCase();
+            if (!actualEmailsMap.has(emailLower)) {
+                try {
+                    await addPermission(folder.drive_folder_id, 'user', user.role || 'reader', user.email);
+                    added++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
+                        email: user.email,
+                        type: 'user',
+                        role: user.role
+                    });
+                } catch (err: any) {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
+                        email: user.email,
+                        error: err.message
+                    });
+                }
+                await sleep(RATE_LIMIT_DELAY);
+            }
+        }
+
+        // Step 3b: REMOVE unauthorized permissions
+        for (const actual of actualPerms) {
+            if (!actual.emailAddress) continue;
+            const emailLower = actual.emailAddress.toLowerCase();
+
+            // Skip protected principals
+            if (protectedPrincipals.some(p => p.toLowerCase() === emailLower)) {
+                continue;
+            }
+
+            // Skip domain permissions
+            if (actual.type === 'domain') continue;
+
+            // Check if this permission is expected
+            if (!expectedEmails.has(emailLower)) {
+                violations++;
+                try {
+                    await removePermission(folder.drive_folder_id, actual.id!);
+                    reverted++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission', 'warning', {
+                        email: actual.emailAddress,
+                        role: actual.role
+                    });
+                } catch (err: any) {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission_failed', 'error', {
+                        email: actual.emailAddress,
+                        error: err.message
+                    });
+                }
+                await sleep(RATE_LIMIT_DELAY);
+            }
+        }
+
+        // Step 3c: Enable Limited Access if needed
+        if (expectedPerms.limitedAccess) {
+            try {
+                await setLimitedAccess(folder.drive_folder_id, true);
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access', 'success', {});
+            } catch (err: any) {
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_failed', 'error', {
+                    error: err.message
+                });
+            }
+        }
+
+        await sleep(RATE_LIMIT_DELAY);
+    }
 
     return { violations, reverted, added };
 }

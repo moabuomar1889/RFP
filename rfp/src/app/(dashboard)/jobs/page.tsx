@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,13 @@ import {
     Play,
     RotateCcw,
     Loader2,
+    ChevronDown,
+    ChevronRight,
+    FolderIcon,
+    UserPlus,
+    UserMinus,
+    AlertCircle,
+    Info,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -37,6 +44,18 @@ interface Job {
     completed_at?: string;
     triggered_by?: string;
     error_message?: string;
+}
+
+interface JobLog {
+    id: string;
+    job_id: string;
+    project_id: string | null;
+    project_name: string | null;
+    folder_path: string | null;
+    action: string;
+    status: 'info' | 'success' | 'warning' | 'error';
+    details: Record<string, unknown>;
+    created_at: string;
 }
 
 function getStatusBadge(status: string) {
@@ -72,11 +91,135 @@ function getJobTypeName(type: string): string {
         'template_sync_all': 'Template Sync - All Projects',
         'template_sync_changes': 'Template Changes Sync',
         'sync_project': 'Sync Project',
-        'enforce_permissions': 'Permission Enforcement',
+        'permission_enforcement': 'Permission Enforcement',
+        'project_sync': 'Project Sync',
         'build_folder_index': 'Rebuild Folder Index',
         'reconcile_index': 'Reconcile Index',
     };
-    return names[type] || type;
+    return names[type] || type.replace(/_/g, ' ');
+}
+
+function getLogIcon(action: string, status: string) {
+    if (status === 'error') return <XCircle className="h-4 w-4 text-red-500" />;
+    if (status === 'warning') return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+
+    switch (action) {
+        case 'add_permission':
+            return <UserPlus className="h-4 w-4 text-green-500" />;
+        case 'remove_permission':
+            return <UserMinus className="h-4 w-4 text-orange-500" />;
+        case 'start_project':
+        case 'complete_project':
+            return <FolderIcon className="h-4 w-4 text-blue-500" />;
+        case 'limited_access':
+            return <CheckCircle2 className="h-4 w-4 text-purple-500" />;
+        default:
+            return <Info className="h-4 w-4 text-gray-500" />;
+    }
+}
+
+function getLogMessage(log: JobLog): string {
+    const details = log.details as Record<string, string>;
+    switch (log.action) {
+        case 'job_started':
+            return `Job started by ${details.triggeredBy || 'admin'}`;
+        case 'projects_found':
+            return `Found ${details.count} projects to process`;
+        case 'start_project':
+            return `Processing: ${log.project_name} (${details.pr_number})`;
+        case 'folders_found':
+            return `Found ${details.count} folders in ${log.project_name}`;
+        case 'add_permission':
+            return `Added ${details.type} permission for ${details.email} as ${details.role}`;
+        case 'add_permission_failed':
+            return `Failed to add ${details.email}: ${details.error}`;
+        case 'remove_permission':
+            return `Removed unauthorized permission: ${details.email}`;
+        case 'remove_permission_failed':
+            return `Failed to remove ${details.email}: ${details.error}`;
+        case 'limited_access':
+            return `Enabled Limited Access on folder`;
+        case 'complete_project':
+            return `Completed ${log.project_name}: ${details.added} added, ${details.reverted} removed`;
+        case 'job_completed':
+            return `Job completed: ${details.totalProjects} projects, ${details.totalAdded} added, ${details.totalReverted} removed`;
+        case 'error':
+            return `Error: ${details.message}`;
+        case 'warning':
+            return `Warning: ${details.message}`;
+        default:
+            return log.action.replace(/_/g, ' ');
+    }
+}
+
+function JobLogs({ jobId }: { jobId: string }) {
+    const [logs, setLogs] = useState<JobLog[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchLogs = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/jobs/${jobId}/logs`);
+            const data = await res.json();
+            if (data.success) {
+                setLogs(data.logs || []);
+            }
+        } catch (error) {
+            console.error('Error fetching logs:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [jobId]);
+
+    useEffect(() => {
+        fetchLogs();
+        // Auto-refresh logs every 2 seconds
+        const interval = setInterval(fetchLogs, 2000);
+        return () => clearInterval(interval);
+    }, [fetchLogs]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+        );
+    }
+
+    if (logs.length === 0) {
+        return (
+            <div className="py-4 text-center text-sm text-muted-foreground">
+                No detailed logs yet. Logs will appear as the job progresses.
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-h-[400px] overflow-y-auto space-y-1 py-2">
+            {logs.map((log) => (
+                <div
+                    key={log.id}
+                    className={`flex items-start gap-2 px-2 py-1.5 rounded text-sm ${log.status === 'error' ? 'bg-red-50 dark:bg-red-950' :
+                            log.status === 'warning' ? 'bg-yellow-50 dark:bg-yellow-950' :
+                                log.status === 'success' ? 'bg-green-50 dark:bg-green-950' :
+                                    'bg-gray-50 dark:bg-gray-900'
+                        }`}
+                >
+                    <div className="mt-0.5">{getLogIcon(log.action, log.status)}</div>
+                    <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{getLogMessage(log)}</div>
+                        {log.folder_path && (
+                            <div className="text-xs text-muted-foreground truncate">
+                                📁 {log.folder_path}
+                            </div>
+                        )}
+                    </div>
+                    <div className="text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(log.created_at).toLocaleTimeString()}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
 }
 
 export default function JobsPage() {
@@ -84,10 +227,10 @@ export default function JobsPage() {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [stats, setStats] = useState({ running: 0, completedToday: 0, failedThisWeek: 0 });
     const [tab, setTab] = useState("all");
+    const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
 
-    const fetchJobs = async () => {
+    const fetchJobs = useCallback(async () => {
         try {
-            setLoading(true);
             const res = await fetch(`/api/jobs?status=${tab}`);
             const data = await res.json();
 
@@ -97,23 +240,32 @@ export default function JobsPage() {
             }
         } catch (error) {
             console.error('Error fetching jobs:', error);
-            toast.error('Failed to load jobs');
         } finally {
             setLoading(false);
         }
-    };
+    }, [tab]);
 
     useEffect(() => {
         fetchJobs();
-    }, [tab]);
+    }, [fetchJobs]);
 
-    // Auto-refresh when there are running jobs
+    // Auto-refresh every 3 seconds
     useEffect(() => {
-        if (stats.running > 0) {
-            const interval = setInterval(fetchJobs, 5000);
-            return () => clearInterval(interval);
-        }
-    }, [stats.running]);
+        const interval = setInterval(fetchJobs, 3000);
+        return () => clearInterval(interval);
+    }, [fetchJobs]);
+
+    const toggleExpand = (jobId: string) => {
+        setExpandedJobs(prev => {
+            const next = new Set(prev);
+            if (next.has(jobId)) {
+                next.delete(jobId);
+            } else {
+                next.add(jobId);
+            }
+            return next;
+        });
+    };
 
     const filteredJobs = jobs.filter((job) => {
         if (tab === "all") return true;
@@ -180,11 +332,14 @@ export default function JobsPage() {
                 </Card>
             </div>
 
-            {/* Active Job Display */}
+            {/* Active Job Display with Live Logs */}
             {runningJobs.length > 0 && (
-                <Card>
+                <Card className="border-blue-500 border-2">
                     <CardHeader>
-                        <CardTitle className="text-lg">Active Job</CardTitle>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                            Active Job
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
                         {runningJobs.map((job) => (
@@ -196,18 +351,22 @@ export default function JobsPage() {
                                             Started by {job.triggered_by || 'system'}
                                         </p>
                                     </div>
-                                    <Button variant="outline" size="sm">
-                                        Cancel
-                                    </Button>
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <span>Progress</span>
                                         <span>
-                                            {job.completed_tasks || 0} / {job.total_tasks || 0} tasks
+                                            {job.completed_tasks || 0} / {job.total_tasks || 0} projects ({job.progress || 0}%)
                                         </span>
                                     </div>
-                                    <Progress value={job.progress || 0} />
+                                    <Progress value={job.progress || 0} className="h-3" />
+                                </div>
+                                {/* Live Logs */}
+                                <div className="border rounded-lg">
+                                    <div className="px-3 py-2 bg-muted font-medium text-sm border-b">
+                                        Live Logs
+                                    </div>
+                                    <JobLogs jobId={job.id} />
                                 </div>
                             </div>
                         ))}
@@ -236,58 +395,44 @@ export default function JobsPage() {
                             No jobs found. Jobs will appear here when you run sync or enforce operations.
                         </div>
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Job Type</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Progress</TableHead>
-                                    <TableHead>Started</TableHead>
-                                    <TableHead>Duration</TableHead>
-                                    <TableHead>Started By</TableHead>
-                                    <TableHead className="w-[100px]"></TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredJobs.map((job) => (
-                                    <TableRow key={job.id}>
-                                        <TableCell className="font-medium">
-                                            {getJobTypeName(job.job_type)}
-                                        </TableCell>
-                                        <TableCell>{getStatusBadge(job.status)}</TableCell>
-                                        <TableCell>
+                        <div className="space-y-2">
+                            {filteredJobs.map((job) => (
+                                <div key={job.id} className="border rounded-lg">
+                                    <div
+                                        className="flex items-center gap-4 p-4 cursor-pointer hover:bg-muted/50"
+                                        onClick={() => toggleExpand(job.id)}
+                                    >
+                                        <div className="flex-shrink-0">
+                                            {expandedJobs.has(job.id) ? (
+                                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                                            ) : (
+                                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-medium">{getJobTypeName(job.job_type)}</div>
+                                            <div className="text-sm text-muted-foreground">
+                                                {new Date(job.created_at).toLocaleString()} • {job.triggered_by || 'system'}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4">
                                             <div className="flex items-center gap-2">
                                                 <Progress value={job.progress || 0} className="w-[60px]" />
-                                                <span className="text-sm text-muted-foreground">
+                                                <span className="text-sm text-muted-foreground w-10">
                                                     {job.progress || 0}%
                                                 </span>
                                             </div>
-                                        </TableCell>
-                                        <TableCell className="text-sm text-muted-foreground">
-                                            {new Date(job.created_at).toLocaleString()}
-                                        </TableCell>
-                                        <TableCell className="text-sm text-muted-foreground">
-                                            {job.completed_at
-                                                ? `${Math.round(
-                                                    (new Date(job.completed_at).getTime() -
-                                                        new Date(job.created_at).getTime()) /
-                                                    1000
-                                                )}s`
-                                                : "Running..."}
-                                        </TableCell>
-                                        <TableCell className="text-sm">{job.triggered_by || 'system'}</TableCell>
-                                        <TableCell>
-                                            {job.status === "failed" && (
-                                                <Button variant="ghost" size="sm">
-                                                    <RotateCcw className="mr-1 h-3 w-3" />
-                                                    Retry
-                                                </Button>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                            {getStatusBadge(job.status)}
+                                        </div>
+                                    </div>
+                                    {expandedJobs.has(job.id) && (
+                                        <div className="border-t px-4 pb-4">
+                                            <JobLogs jobId={job.id} />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </CardContent>
             </Card>
