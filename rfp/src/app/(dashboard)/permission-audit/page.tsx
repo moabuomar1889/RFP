@@ -121,6 +121,57 @@ export default function PermissionAuditPage() {
         }
     }, [selectedProjectId]);
 
+    const enforceProject = useCallback(async () => {
+        if (!selectedProjectId) return;
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/jobs/enforce-permissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId: selectedProjectId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = '/jobs';
+            } else {
+                console.error('Enforce failed:', data.error);
+                alert('Failed to start enforcement job: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error starting enforcement:', error);
+            alert('Error starting enforcement job');
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedProjectId]);
+
+    const enforceAllProjects = useCallback(async () => {
+        const confirmed = confirm('Enforce permissions for ALL projects? This will create a job for each project.');
+        if (!confirmed) return;
+
+        setLoading(true);
+        try {
+            const res = await fetch('/api/jobs/enforce-permissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ all: true })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.location.href = '/jobs';
+            } else {
+                console.error('Enforce all failed:', data.error);
+                alert('Failed to start enforcement jobs: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error starting enforcement:', error);
+            alert('Error starting enforcement jobs');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     const filteredComparisons = auditResult?.comparisons.filter(c =>
         filter === 'all' || c.status !== 'match'
     ) || [];
@@ -204,6 +255,31 @@ export default function PermissionAuditPage() {
                                 <RefreshCw className="h-4 w-4 mr-2" />
                             )}
                             Run Audit
+                        </Button>
+                        <Button
+                            onClick={enforceProject}
+                            disabled={!selectedProjectId || loading}
+                            variant="default"
+                            className="bg-blue-600 hover:bg-blue-700"
+                        >
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <Shield className="h-4 w-4 mr-2" />
+                            )}
+                            Enforce This Project
+                        </Button>
+                        <Button
+                            onClick={enforceAllProjects}
+                            disabled={loading}
+                            variant="destructive"
+                        >
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                                <Shield className="h-4 w-4 mr-2" />
+                            )}
+                            Enforce All Projects
                         </Button>
                     </div>
                 </CardContent>
