@@ -149,7 +149,7 @@ function FolderNode({ node, level, onSelect, selectedId, selectionMode, selected
                     <input
                         type="checkbox"
                         checked={selectedNodes.includes(nodeId)}
-                        onChange={() => onToggleSelection?.(node)}
+                        onChange={() => onToggleSelection?.(nodeId)}
                         onClick={(e) => e.stopPropagation()}
                         className="h-4 w-4"
                     />
