@@ -293,7 +293,7 @@ export async function listPermissions(
     const response = await drive.permissions.list({
         fileId: folderId,
         supportsAllDrives: true,
-        fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,inherited,inheritedFrom,permissionDetails)',
+        fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,permissionDetails)',
     });
 
     const permissions = response.data.permissions || [];
