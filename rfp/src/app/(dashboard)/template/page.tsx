@@ -731,81 +731,6 @@ export default function TemplatePage() {
                     </div>
                 )}
 
-                {/* Guidelines Box - Bilingual */}
-                <Card className="border-2 border-amber-500/30 bg-gradient-to-br from-amber-50/50 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/20">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
-                            <Folder className="h-5 w-5" />
-                            📁 قواعد إنشاء المجلدات والصلاحيات | Folder & Permissions Rules
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            {/* Arabic Section (RTL) */}
-                            <div className="space-y-3" dir="rtl">
-                                <div className="space-y-2">
-                                    <h3 className="font-bold text-green-700 dark:text-green-400 flex items-center gap-2">
-                                        <span>✔️</span>
-                                        <span>اعمل</span>
-                                    </h3>
-                                    <ul className="text-sm space-y-1 text-muted-foreground">
-                                        <li>• اتبع الـ Template فقط.</li>
-                                        <li>• اجعل المجلد العام (limitedAccess=false) يرث الصلاحيات.</li>
-                                        <li>• فعّل Limited Access للمجلدات الحساسة (limitedAccess=true).</li>
-                                        <li>• طبّق inheritedPermissionsDisabled=true على المجلد المقفل.</li>
-                                        <li>• احذف أي صلاحية غير موجودة في الـ Template داخل المجلد المقفل.</li>
-                                        <li>• تحقق من الحالة الفعلية من Google Drive بعد الإنشاء.</li>
-                                    </ul>
-                                </div>
-                                <div className="space-y-2">
-                                    <h3 className="font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
-                                        <span>❌</span>
-                                        <span>لا تعمل</span>
-                                    </h3>
-                                    <ul className="text-sm space-y-1 text-muted-foreground">
-                                        <li>• لا تخترع صلاحيات من عندك.</li>
-                                        <li>• لا تحذف صلاحيات موروثة من مجلد عام.</li>
-                                        <li>• لا تسمح بصلاحيات موروثة داخل مجلد مقفل.</li>
-                                        <li>• لا تضف domain أو anyone داخل مجلد مقفل.</li>
-                                        <li>• لا تغيّر أسماء المجلدات عن الـ Template.</li>
-                                    </ul>
-                                </div>
-                            </div>
-
-                            {/* English Section (LTR) */}
-                            <div className="space-y-3">
-                                <div className="space-y-2">
-                                    <h3 className="font-bold text-green-700 dark:text-green-400 flex items-center gap-2">
-                                        <span>✔️</span>
-                                        <span>DO</span>
-                                    </h3>
-                                    <ul className="text-sm space-y-1 text-muted-foreground">
-                                        <li>• Follow the template exactly.</li>
-                                        <li>• Let open folders (limitedAccess=false) inherit permissions.</li>
-                                        <li>• Enable Limited Access on sensitive folders (limitedAccess=true).</li>
-                                        <li>• Enforce inheritedPermissionsDisabled=true on limited folders.</li>
-                                        <li>• Remove any permission not defined in the template on limited folders.</li>
-                                        <li>• Verify the actual state from Google Drive after creation.</li>
-                                    </ul>
-                                </div>
-                                <div className="space-y-2">
-                                    <h3 className="font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
-                                        <span>❌</span>
-                                        <span>DON'T</span>
-                                    </h3>
-                                    <ul className="text-sm space-y-1 text-muted-foreground">
-                                        <li>• Don't invent permissions.</li>
-                                        <li>• Don't delete inherited permissions on open folders.</li>
-                                        <li>• Don't allow inherited permissions on limited folders.</li>
-                                        <li>• Don't add domain or anyone permissions to limited folders.</li>
-                                        <li>• Don't change folder names from the template.</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
                 {/* Page Header */}
                 <div className="flex items-center justify-between">
                     <div>
@@ -1418,6 +1343,81 @@ export default function TemplatePage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Guidelines Box - Bilingual (Bottom) */}
+            <Card className="mt-8 border-2 border-blue-500/30 bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-950/20 dark:to-cyan-950/20">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-blue-900 dark:text-blue-100">
+                        <Folder className="h-5 w-5" />
+                        📁 قواعد إنشاء المجلدات والصلاحيات | Folder & Permissions Rules
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid md:grid-cols-2 gap-6">
+                        {/* Arabic Section (RTL) */}
+                        <div className="space-y-3" dir="rtl">
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-green-700 dark:text-green-400 flex items-center gap-2">
+                                    <span>✔️</span>
+                                    <span>اعمل</span>
+                                </h3>
+                                <ul className="text-sm space-y-1 text-muted-foreground">
+                                    <li>• اتبع الـ Template فقط.</li>
+                                    <li>• اجعل المجلد العام (limitedAccess=false) يرث الصلاحيات.</li>
+                                    <li>• فعّل Limited Access للمجلدات الحساسة (limitedAccess=true).</li>
+                                    <li>• طبّق inheritedPermissionsDisabled=true على المجلد المقفل.</li>
+                                    <li>• احذف أي صلاحية غير موجودة في الـ Template داخل المجلد المقفل.</li>
+                                    <li>• تحقق من الحالة الفعلية من Google Drive بعد الإنشاء.</li>
+                                </ul>
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
+                                    <span>❌</span>
+                                    <span>لا تعمل</span>
+                                </h3>
+                                <ul className="text-sm space-y-1 text-muted-foreground">
+                                    <li>• لا تخترع صلاحيات من عندك.</li>
+                                    <li>• لا تحذف صلاحيات موروثة من مجلد عام.</li>
+                                    <li>• لا تسمح بصلاحيات موروثة داخل مجلد مقفل.</li>
+                                    <li>• لا تضف domain أو anyone داخل مجلد مقفل.</li>
+                                    <li>• لا تغيّر أسماء المجلدات عن الـ Template.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        {/* English Section (LTR) */}
+                        <div className="space-y-3">
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-green-700 dark:text-green-400 flex items-center gap-2">
+                                    <span>✔️</span>
+                                    <span>DO</span>
+                                </h3>
+                                <ul className="text-sm space-y-1 text-muted-foreground">
+                                    <li>• Follow the template exactly.</li>
+                                    <li>• Let open folders (limitedAccess=false) inherit permissions.</li>
+                                    <li>• Enable Limited Access on sensitive folders (limitedAccess=true).</li>
+                                    <li>• Enforce inheritedPermissionsDisabled=true on limited folders.</li>
+                                    <li>• Remove any permission not defined in the template on limited folders.</li>
+                                    <li>• Verify the actual state from Google Drive after creation.</li>
+                                </ul>
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
+                                    <span>❌</span>
+                                    <span>DON'T</span>
+                                </h3>
+                                <ul className="text-sm space-y-1 text-muted-foreground">
+                                    <li>• Don't invent permissions.</li>
+                                    <li>• Don't delete inherited permissions on open folders.</li>
+                                    <li>• Don't allow inherited permissions on limited folders.</li>
+                                    <li>• Don't add domain or anyone permissions to limited folders.</li>
+                                    <li>• Don't change folder names from the template.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </>
     );
 }
