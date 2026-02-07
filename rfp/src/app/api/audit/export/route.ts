@@ -79,7 +79,7 @@ async function getEnhancedPermissions(folderId: string): Promise<{
     const folderRes = await drive.files.get({
         fileId: folderId,
         supportsAllDrives: true,
-        fields: 'capabilities(canReadPermissions),permissionRestrictionsInfo'
+        fields: 'capabilities'
     });
 
     const actualLimitedAccess = (folderRes.data as any).permissionRestrictionsInfo?.inheritedPermissionsDisabled ?? null;
