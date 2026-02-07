@@ -1,711 +1,931 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import {
-    Save,
-    History,
-    Play,
-    FolderPlus,
-    ChevronRight,
-    ChevronDown,
-    Shield,
-    Lock,
-    Folder,
-    Loader2,
-    RefreshCw,
-    Download,
-    X,
-    Trash2,
-    Users,
-    CheckSquare2,
-    Square,
-    Edit2,
-} from "lucide-react";
-import { toast } from "sonner";
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+    Folder,
+    FolderOpen,
+    ChevronRight,
+    ChevronDown,
+    Lock,
+    Shield,
+    Users,
+    User,
+    X,
+    Plus,
+    Info,
+    AlertTriangle,
+    Check,
+    Loader2,
+    Download,
+    History,
+    Play,
+} from "lucide-react";
+import { toast } from "sonner";
+import type {
+    FolderNode,
+    TemplateTreeState,
+    RawTemplateNode,
+    EffectivePrincipal,
+} from "@/lib/template-engine/types";
+import {
+    deserializeTemplate,
+    serializeTemplate,
+    toggleLimitedAccess,
+    clearLimitedAccess,
+    addPrincipal,
+    removePrincipal,
+} from "@/lib/template-engine";
 
-// Default template structure
-const defaultTemplate = [
-    {
-        id: "1",
-        name: "Bidding",
-        path: "/Bidding",
-        limitedAccess: false,
-        roles: ["ADMIN"],
-        children: [
-            {
-                id: "1-1",
-                name: "SOW",
-                path: "/Bidding/SOW",
-                limitedAccess: true,
-                roles: ["ADMIN", "PROJECT_MANAGER"],
-                children: [],
-            },
-            {
-                id: "1-2",
-                name: "Technical Proposal",
-                path: "/Bidding/Technical Proposal",
-                limitedAccess: true,
-                roles: ["ADMIN", "TECHNICAL_TEAM"],
-                children: [
-                    {
-                        id: "1-2-1",
-                        name: "TBE",
-                        path: "/Bidding/Technical Proposal/TBE",
-                        limitedAccess: true,
-                        roles: ["ADMIN", "TECHNICAL_TEAM"],
-                        children: [],
-                    },
-                ],
-            },
-            {
-                id: "1-3",
-                name: "Commercial",
-                path: "/Bidding/Commercial",
-                limitedAccess: true,
-                roles: ["ADMIN", "QUANTITY_SURVEYOR"],
-                children: [],
-            },
-        ],
-    },
-    {
-        id: "2",
-        name: "Project Delivery",
-        path: "/Project Delivery",
-        limitedAccess: false,
-        roles: ["ADMIN"],
-        children: [
-            {
-                id: "2-1",
-                name: "Project Management",
-                path: "/Project Delivery/Project Management",
-                limitedAccess: true,
-                roles: ["ADMIN", "PROJECT_MANAGER", "EXECUTION_TEAM"],
-                children: [],
-            },
-            {
-                id: "2-2",
-                name: "QC",
-                path: "/Project Delivery/QC",
-                limitedAccess: true,
-                roles: ["ADMIN", "TECHNICAL_TEAM"],
-                children: [],
-            },
-        ],
-    },
-];
+// ─── Auto-Save Constants ────────────────────────────────────
+const AUTO_SAVE_DEBOUNCE_MS = 1000;
 
-interface FolderNodeProps {
-    node: any;
-    level: number;
-    onSelect: (node: any) => void;
+// ─── Folder Tree Node Component ─────────────────────────────
+function TreeNode({
+    nodeId,
+    state,
+    selectedId,
+    expandedIds,
+    onSelect,
+    onToggleExpand,
+    level = 0,
+}: {
+    nodeId: string;
+    state: TemplateTreeState;
     selectedId: string | null;
-    // Multi-select props
-    selectionMode: 'single' | 'multi';
-    selectedNodes: string[];
-    onToggleSelection?: (node: any) => void;
-}
+    expandedIds: Set<string>;
+    onSelect: (id: string) => void;
+    onToggleExpand: (id: string) => void;
+    level?: number;
+}) {
+    const node = state.nodes[nodeId];
+    if (!node) return null;
 
-function FolderNode({ node, level, onSelect, selectedId, selectionMode, selectedNodes, onToggleSelection }: FolderNodeProps) {
-    const [expanded, setExpanded] = useState(node._expanded !== false);
-    // Support both formats: text/nodes (new) and name/children (old)
-    const nodeName = node.text || node.name || 'Untitled';
-    const children = node.nodes || node.children || [];
-    const hasChildren = children && children.length > 0;
-    const nodeId = node.id || nodeName;
-    const isSelected = selectionMode === 'multi' ? selectedNodes.includes(nodeId) : selectedId === nodeId;
-
-    const handleClick = () => {
-        if (selectionMode === 'multi' && onToggleSelection) {
-            onToggleSelection(nodeId);
-        } else {
-            onSelect({ ...node, id: nodeId, name: nodeName });
-        }
-    };
+    const isSelected = selectedId === nodeId;
+    const isExpanded = expandedIds.has(nodeId);
+    const hasChildren = node.childrenIds.length > 0;
+    const isLimited = node.effectivePolicy.limitedAccess;
 
     return (
         <div>
             <div
-                className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-accent ${isSelected ? "bg-accent border-2 border-primary" : ""
+                className={`flex items-center gap-1 py-1.5 px-2 rounded-md cursor-pointer text-sm transition-colors ${isSelected
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "hover:bg-muted/50"
                     }`}
-                style={{ paddingLeft: `${level * 20 + 12}px` }}
-                onClick={handleClick}
+                style={{ paddingLeft: `${level * 16 + 8}px` }}
+                onClick={() => onSelect(nodeId)}
             >
-                {selectionMode === 'multi' && (
-                    <input
-                        type="checkbox"
-                        checked={selectedNodes.includes(nodeId)}
-                        onChange={() => onToggleSelection?.(nodeId)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="h-4 w-4"
-                    />
-                )}
                 {hasChildren ? (
                     <button
+                        className="p-0.5 hover:bg-muted rounded"
                         onClick={(e) => {
                             e.stopPropagation();
-                            setExpanded(!expanded);
+                            onToggleExpand(nodeId);
                         }}
-                        className="p-0.5"
                     >
-                        {expanded ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        {isExpanded ? (
+                            <ChevronDown className="h-3.5 w-3.5" />
                         ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            <ChevronRight className="h-3.5 w-3.5" />
                         )}
                     </button>
                 ) : (
                     <span className="w-5" />
                 )}
-                <Folder className="h-4 w-4 text-primary" />
-                <span className="flex-1 text-sm">{nodeName}</span>
-                {node.limitedAccess && (
-                    <Lock className="h-3 w-3 text-amber-500" />
+                {isExpanded ? (
+                    <FolderOpen className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                ) : (
+                    <Folder className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                )}
+                <span className="truncate">{node.name}</span>
+                {isLimited && (
+                    <Lock className="h-3 w-3 text-amber-500 flex-shrink-0 ml-auto" />
                 )}
             </div>
-            {hasChildren && expanded && (
-                <div>
-                    {children.map((child: any, index: number) => (
-                        <FolderNode
-                            key={child.id || child.text || child.name || index}
-                            node={child}
-                            level={level + 1}
-                            onSelect={onSelect}
-                            selectedId={selectedId}
-                            selectionMode={selectionMode}
-                            selectedNodes={selectedNodes}
-                            onToggleSelection={onToggleSelection}
-                        />
+            {isExpanded &&
+                node.childrenIds.map((childId) => (
+                    <TreeNode
+                        key={childId}
+                        nodeId={childId}
+                        state={state}
+                        selectedId={selectedId}
+                        expandedIds={expandedIds}
+                        onSelect={onSelect}
+                        onToggleExpand={onToggleExpand}
+                        level={level + 1}
+                    />
+                ))}
+        </div>
+    );
+}
+
+// ─── Table A: Effective Policy (Read-Only) ──────────────────
+function EffectivePolicyTable({ node, state }: { node: FolderNode; state: TemplateTreeState }) {
+    const { derivedPolicy, effectivePolicy } = node;
+
+    const getSourceLabel = (source: string, fromId: string | null) => {
+        if (source === "explicit") return "Explicit";
+        if (source === "system-default") return "System Default";
+        if (source === "inherited" && fromId) {
+            const sourceNode = state.nodes[fromId];
+            return `Inherited from "${sourceNode?.name || fromId}"`;
+        }
+        return "Inherited";
+    };
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-blue-500" />
+                <h3 className="font-semibold text-sm">Effective Policy</h3>
+                <Badge variant="secondary" className="text-xs">Read-Only</Badge>
+            </div>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-[200px]">Property</TableHead>
+                        <TableHead className="w-[150px]">Value</TableHead>
+                        <TableHead>Source</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <TableRow>
+                        <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                                <Lock className="h-3.5 w-3.5 text-amber-500" />
+                                Limited Access
+                            </div>
+                        </TableCell>
+                        <TableCell>
+                            {effectivePolicy.limitedAccess ? (
+                                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                                    ✓ Enabled
+                                </Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-muted-foreground">
+                                    ✗ Disabled
+                                </Badge>
+                            )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                            {getSourceLabel(
+                                derivedPolicy.limitedAccessSource,
+                                derivedPolicy.limitedAccessInheritedFrom
+                            )}
+                        </TableCell>
+                    </TableRow>
+                    {effectivePolicy.principals.map((p, i) => (
+                        <TableRow key={`${p.email}-${i}`}>
+                            <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                    {p.type === "group" ? (
+                                        <Users className="h-3.5 w-3.5 text-blue-500" />
+                                    ) : (
+                                        <User className="h-3.5 w-3.5 text-green-500" />
+                                    )}
+                                    <span className="text-xs truncate max-w-[160px]">{p.email}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell>
+                                <Badge variant="outline">{p.role}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                                {p.scope === "explicit"
+                                    ? "Explicit"
+                                    : p.sourceNodeId
+                                        ? `Inherited from "${state.nodes[p.sourceNodeId]?.name || p.sourceNodeId}"`
+                                        : "Inherited"}
+                            </TableCell>
+                        </TableRow>
                     ))}
+                    {effectivePolicy.principals.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={3} className="text-center text-muted-foreground text-sm py-4">
+                                No principals defined
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </div>
+    );
+}
+
+// ─── Table B: Explicit Policy (Editable) ────────────────────
+function ExplicitPolicyTable({
+    node,
+    state,
+    onToggleLimited,
+    onClearLimited,
+    onAddPrincipal,
+    onRemovePrincipal,
+}: {
+    node: FolderNode;
+    state: TemplateTreeState;
+    onToggleLimited: (value: boolean) => void;
+    onClearLimited: () => void;
+    onAddPrincipal: (type: "groups" | "users") => void;
+    onRemovePrincipal: (type: "groups" | "users", email: string) => void;
+}) {
+    const { explicitPolicy, uiLockState, derivedPolicy } = node;
+    const isExplicitlySet = explicitPolicy.limitedAccess !== undefined;
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-green-500" />
+                <h3 className="font-semibold text-sm">Explicit Policy</h3>
+                <Badge variant="outline" className="text-xs">Editable</Badge>
+            </div>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-[200px]">Property</TableHead>
+                        <TableHead>Value</TableHead>
+                        <TableHead className="w-[80px]">Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {/* Limited Access Row */}
+                    <TableRow>
+                        <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                                <Lock className="h-3.5 w-3.5 text-amber-500" />
+                                Limited Access
+                            </div>
+                        </TableCell>
+                        <TableCell>
+                            {uiLockState.limitedToggleLocked ? (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div className="flex items-center gap-2">
+                                                <Switch disabled checked={true} />
+                                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                                    Locked
+                                                </span>
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" className="max-w-[300px]">
+                                            <p className="text-sm">{uiLockState.reason}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <Switch
+                                        checked={derivedPolicy.limitedAccess}
+                                        onCheckedChange={(checked) => onToggleLimited(checked)}
+                                    />
+                                    {!isExplicitlySet && (
+                                        <span className="text-xs text-muted-foreground italic">
+                                            (inheriting)
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                        </TableCell>
+                        <TableCell>
+                            {isExplicitlySet && !uiLockState.limitedToggleLocked && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={onClearLimited}
+                                    title="Revert to inherit"
+                                >
+                                    Reset
+                                </Button>
+                            )}
+                        </TableCell>
+                    </TableRow>
+
+                    {/* Groups Row */}
+                    <TableRow>
+                        <TableCell className="font-medium align-top pt-3">
+                            <div className="flex items-center gap-2">
+                                <Users className="h-3.5 w-3.5 text-blue-500" />
+                                Groups
+                            </div>
+                        </TableCell>
+                        <TableCell>
+                            {explicitPolicy.groups.length > 0 ? (
+                                <div className="space-y-1">
+                                    {explicitPolicy.groups.map((g) => (
+                                        <div
+                                            key={g.email}
+                                            className="flex items-center justify-between py-1 px-2 rounded border text-sm"
+                                        >
+                                            <span className="truncate max-w-[180px] text-xs">{g.email}</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <Badge variant="outline" className="text-xs">{g.role}</Badge>
+                                                <button
+                                                    onClick={() => onRemovePrincipal("groups", g.email)}
+                                                    className="text-muted-foreground hover:text-destructive transition-colors"
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <span className="text-xs text-muted-foreground italic">
+                                    None (inheriting only)
+                                </span>
+                            )}
+                        </TableCell>
+                        <TableCell className="align-top pt-3">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => onAddPrincipal("groups")}
+                            >
+                                <Plus className="h-3 w-3 mr-1" />
+                                Add
+                            </Button>
+                        </TableCell>
+                    </TableRow>
+
+                    {/* Users Row */}
+                    <TableRow>
+                        <TableCell className="font-medium align-top pt-3">
+                            <div className="flex items-center gap-2">
+                                <User className="h-3.5 w-3.5 text-green-500" />
+                                Users
+                            </div>
+                        </TableCell>
+                        <TableCell>
+                            {explicitPolicy.users.length > 0 ? (
+                                <div className="space-y-1">
+                                    {explicitPolicy.users.map((u) => (
+                                        <div
+                                            key={u.email}
+                                            className="flex items-center justify-between py-1 px-2 rounded border text-sm"
+                                        >
+                                            <span className="truncate max-w-[180px] text-xs">{u.email}</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <Badge variant="outline" className="text-xs">{u.role}</Badge>
+                                                <button
+                                                    onClick={() => onRemovePrincipal("users", u.email)}
+                                                    className="text-muted-foreground hover:text-destructive transition-colors"
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <span className="text-xs text-muted-foreground italic">
+                                    None (inheriting only)
+                                </span>
+                            )}
+                        </TableCell>
+                        <TableCell className="align-top pt-3">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => onAddPrincipal("users")}
+                            >
+                                <Plus className="h-3 w-3 mr-1" />
+                                Add
+                            </Button>
+                        </TableCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
+        </div>
+    );
+}
+
+// ─── Table C: Principals Breakdown ──────────────────────────
+function PrincipalsBreakdownTable({
+    node,
+    state,
+    onRemove,
+}: {
+    node: FolderNode;
+    state: TemplateTreeState;
+    onRemove: (type: "groups" | "users", email: string) => void;
+}) {
+    const principals = node.effectivePolicy.principals;
+
+    // Sort: explicit first, then inherited
+    const sorted = [...principals].sort((a, b) => {
+        if (a.scope === "explicit" && b.scope === "inherited") return -1;
+        if (a.scope === "inherited" && b.scope === "explicit") return 1;
+        return 0;
+    });
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-purple-500" />
+                <h3 className="font-semibold text-sm">Principals Breakdown</h3>
+                <Badge variant="outline" className="text-xs">
+                    {principals.length} total
+                </Badge>
+            </div>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-[60px]">Type</TableHead>
+                        <TableHead>Identifier</TableHead>
+                        <TableHead className="w-[90px]">Role</TableHead>
+                        <TableHead className="w-[90px]">Scope</TableHead>
+                        <TableHead className="w-[70px]">Action</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {sorted.map((p, i) => {
+                        const isInherited = p.scope === "inherited";
+                        return (
+                            <TableRow
+                                key={`${p.email}-${i}`}
+                                className={isInherited ? "opacity-60" : ""}
+                            >
+                                <TableCell>
+                                    {p.type === "group" ? (
+                                        <Badge variant="outline" className="text-xs">
+                                            <Users className="h-3 w-3 mr-1" />
+                                            Group
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="text-xs">
+                                            <User className="h-3 w-3 mr-1" />
+                                            User
+                                        </Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-xs font-mono truncate max-w-[200px]">
+                                    {p.email}
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant="outline" className="text-xs">{p.role}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                    {isInherited ? (
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="text-xs border-dashed"
+                                                    >
+                                                        Inherited
+                                                    </Badge>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    From: {state.nodes[p.sourceNodeId!]?.name || "unknown"}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    ) : (
+                                        <Badge className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
+                                            Explicit
+                                        </Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    {!isInherited ? (
+                                        <button
+                                            onClick={() =>
+                                                onRemove(
+                                                    p.type === "group" ? "groups" : "users",
+                                                    p.email
+                                                )
+                                            }
+                                            className="text-muted-foreground hover:text-destructive transition-colors"
+                                            title="Remove"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    ) : (
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <Lock className="h-3.5 w-3.5 text-muted-foreground/40" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    Cannot remove inherited principal
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })}
+                    {sorted.length === 0 && (
+                        <TableRow>
+                            <TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-6">
+                                No principals assigned to this folder
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </div>
+    );
+}
+
+// ─── Add Principal Dialog ───────────────────────────────────
+function AddPrincipalDialog({
+    open,
+    onClose,
+    type,
+    allGroups,
+    allUsers,
+    onAdd,
+}: {
+    open: boolean;
+    onClose: () => void;
+    type: "groups" | "users";
+    allGroups: { email: string; name?: string }[];
+    allUsers: { email: string; name?: string }[];
+    onAdd: (email: string, role: "reader" | "writer" | "organizer") => void;
+}) {
+    const [search, setSearch] = useState("");
+    const [selectedRole, setSelectedRole] = useState<"reader" | "writer" | "organizer">("writer");
+    const [customEmail, setCustomEmail] = useState("");
+
+    const items = type === "groups" ? allGroups : allUsers;
+    const filtered = items.filter(
+        (item) =>
+            item.email.toLowerCase().includes(search.toLowerCase()) ||
+            (item.name && item.name.toLowerCase().includes(search.toLowerCase()))
+    );
+
+    const handleAdd = (email: string) => {
+        onAdd(email, selectedRole);
+        toast.success(`Added ${email} as ${selectedRole}`);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+            <DialogContent className="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Add {type === "groups" ? "Group" : "User"}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                    <div className="flex gap-2">
+                        <Input
+                            placeholder={`Search ${type}...`}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="flex-1"
+                        />
+                        <Select
+                            value={selectedRole}
+                            onValueChange={(v) => setSelectedRole(v as "reader" | "writer" | "organizer")}
+                        >
+                            <SelectTrigger className="w-[120px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="reader">Reader</SelectItem>
+                                <SelectItem value="writer">Writer</SelectItem>
+                                <SelectItem value="organizer">Organizer</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <ScrollArea className="h-[250px]">
+                        <div className="space-y-1 p-1">
+                            {filtered.map((item) => (
+                                <div
+                                    key={item.email}
+                                    className="flex items-center justify-between p-2 rounded hover:bg-muted cursor-pointer text-sm"
+                                    onClick={() => handleAdd(item.email)}
+                                >
+                                    <div>
+                                        <div className="font-medium text-xs">{item.name || item.email}</div>
+                                        {item.name && (
+                                            <div className="text-xs text-muted-foreground">{item.email}</div>
+                                        )}
+                                    </div>
+                                    <Plus className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                            ))}
+                            {filtered.length === 0 && (
+                                <div className="py-4 text-center text-muted-foreground text-sm">
+                                    No matches found
+                                </div>
+                            )}
+                        </div>
+                    </ScrollArea>
+                    <div className="border-t pt-3">
+                        <p className="text-xs text-muted-foreground mb-2">Or enter manually:</p>
+                        <div className="flex gap-2">
+                            <Input
+                                placeholder="email@domain.com"
+                                value={customEmail}
+                                onChange={(e) => setCustomEmail(e.target.value)}
+                                className="flex-1 text-sm"
+                            />
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    if (customEmail.includes("@")) {
+                                        handleAdd(customEmail);
+                                        setCustomEmail("");
+                                    }
+                                }}
+                                disabled={!customEmail.includes("@")}
+                            >
+                                Add
+                            </Button>
+                        </div>
+                    </div>
                 </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+// ─── Save Status Indicator ──────────────────────────────────
+function SaveIndicator({
+    status,
+    lastSavedAt,
+}: {
+    status: "idle" | "dirty" | "saving" | "saved" | "error";
+    lastSavedAt: number | null;
+}) {
+    return (
+        <div className="flex items-center gap-1.5 text-xs">
+            {status === "saving" && (
+                <>
+                    <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
+                    <span className="text-blue-500">Saving...</span>
+                </>
+            )}
+            {status === "saved" && (
+                <>
+                    <Check className="h-3 w-3 text-green-500" />
+                    <span className="text-green-500">
+                        Saved {lastSavedAt ? new Date(lastSavedAt).toLocaleTimeString() : ""}
+                    </span>
+                </>
+            )}
+            {status === "dirty" && (
+                <>
+                    <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="text-amber-500">Unsaved changes</span>
+                </>
+            )}
+            {status === "error" && (
+                <>
+                    <AlertTriangle className="h-3 w-3 text-red-500" />
+                    <span className="text-red-500">Save failed</span>
+                </>
+            )}
+            {status === "idle" && lastSavedAt && (
+                <>
+                    <Check className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">
+                        Saved {new Date(lastSavedAt).toLocaleTimeString()}
+                    </span>
+                </>
             )}
         </div>
     );
 }
 
-
-// Helper to update a node in the template tree by id/name
-function updateNodeInTree(nodes: any[], nodeId: string, updates: Partial<any>): any[] {
-    return nodes.map(node => {
-        const currentId = node.id || node.text || node.name;
-        if (currentId === nodeId) {
-            return { ...node, ...updates };
-        }
-        const children = node.nodes || node.children;
-        if (children && children.length > 0) {
-            const updatedChildren = updateNodeInTree(children, nodeId, updates);
-            if (node.nodes) {
-                return { ...node, nodes: updatedChildren };
-            } else {
-                return { ...node, children: updatedChildren };
-            }
-        }
-        return node;
-    });
-}
-
-export default function TemplatePage() {
-    const [selectedNode, setSelectedNode] = useState<any>(null);
-    const [hasChanges, setHasChanges] = useState(false);
-    const [safeTestMode, setSafeTestMode] = useState(true);
+// ─── Main Template Editor Page ──────────────────────────────
+export default function TemplateEditorV2() {
+    // Core state
+    const [treeState, setTreeState] = useState<TemplateTreeState | null>(null);
+    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [applying, setApplying] = useState(false);
-    const [templateTree, setTemplateTree] = useState<any[]>([]);
+
+    // Save state
+    const [saveStatus, setSaveStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
+    const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
     const [templateVersion, setTemplateVersion] = useState<number | null>(null);
-    const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+    const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const saveVersionRef = useRef(0);
 
-    // Multi-select states
-    const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
-    const [selectionMode, setSelectionMode] = useState<'single' | 'multi'>('single');
+    // Dialog state
+    const [addPrincipalDialog, setAddPrincipalDialog] = useState<{
+        open: boolean;
+        type: "groups" | "users";
+    }>({ open: false, type: "groups" });
+    const [allGroups, setAllGroups] = useState<{ email: string; name?: string }[]>([]);
+    const [allUsers, setAllUsers] = useState<{ email: string; name?: string }[]>([]);
 
-    // Add User/Group modal states
-    const [showAddUserModal, setShowAddUserModal] = useState(false);
-    const [showAddGroupModal, setShowAddGroupModal] = useState(false);
-    const [allUsers, setAllUsers] = useState<any[]>([]);
-    const [allGroups, setAllGroups] = useState<any[]>([]);
-    const [userSearch, setUserSearch] = useState('');
-    const [groupSearch, setGroupSearch] = useState('');
-    const [selectedRole, setSelectedRole] = useState('writer');
-
-    // Bulk operations dialog states
-    const [showBulkDialog, setShowBulkDialog] = useState(false);
-    const [bulkOperationType, setBulkOperationType] = useState<'groups' | 'users' | 'settings'>('groups');
-    const [bulkSelectedGroups, setBulkSelectedGroups] = useState<string[]>([]);
-    const [bulkSelectedUsers, setBulkSelectedUsers] = useState<string[]>([]);
-    const [bulkRole, setBulkRole] = useState('writer');
-    const [bulkLimitedAccess, setBulkLimitedAccess] = useState<boolean | null>(null);
-
-    // Rename/Delete states
-    const [showRenameDialog, setShowRenameDialog] = useState(false);
-    const [newFolderName, setNewFolderName] = useState('');
-
-    // Fetch safe test mode setting
-    const fetchSettings = async () => {
-        try {
-            const res = await fetch('/api/settings');
-            const data = await res.json();
-            if (data.success && data.settings?.safe_test_mode) {
-                const enabled = data.settings.safe_test_mode.enabled;
-                setSafeTestMode(enabled !== false); // Default to true if undefined
-            }
-        } catch (error) {
-            console.error('Error fetching settings:', error);
-        }
-    };
-
-    // Update a node property in the tree
-    const updateNode = (nodeId: string, updates: Partial<any>) => {
-        setTemplateTree(prev => updateNodeInTree(prev, nodeId, updates));
-        setSelectedNode((prev: any) => prev ? { ...prev, ...updates } : null);
-        setHasChanges(true);
-    };
-
-    // Fetch users for Add User modal
-    const fetchUsers = async () => {
-        try {
-            const res = await fetch('/api/users');
-            const data = await res.json();
-            if (data.success) {
-                setAllUsers(data.users || []);
-            }
-        } catch (error) {
-            console.error('Error fetching users:', error);
-        }
-    };
-
-    // Fetch groups for Add Group modal
-    const fetchGroups = async () => {
-        try {
-            const res = await fetch('/api/groups');
-            const data = await res.json();
-            if (data.success) {
-                setAllGroups(data.groups || []);
-            }
-        } catch (error) {
-            console.error('Error fetching groups:', error);
-        }
-    };
-
-    // Add user to selected node
-    const handleAddUser = (email: string) => {
-        if (!selectedNode) return;
-        const currentUsers = selectedNode.users || [];
-        if (currentUsers.some((u: any) => u.email === email)) {
-            toast.error('User already assigned');
-            return;
-        }
-        const newUsers = [...currentUsers, { email, role: selectedRole }];
-        updateNode(selectedNode.id || selectedNode.name, { users: newUsers });
-        setShowAddUserModal(false);
-        setUserSearch('');
-        toast.success('User added');
-    };
-
-    // Add group to selected node
-    const handleAddGroup = (groupEmail: string) => {
-        if (!selectedNode) return;
-        const currentGroups = selectedNode.groups || [];
-        if (currentGroups.some((g: any) => g.email === groupEmail)) {
-            toast.error('Group already assigned');
-            return;
-        }
-        const newGroups = [...currentGroups, { email: groupEmail, role: selectedRole }];
-        updateNode(selectedNode.id || selectedNode.name, { groups: newGroups });
-        setShowAddGroupModal(false);
-        setGroupSearch('');
-        toast.success('Group added');
-    };
-
-    // Remove user from selected node
-    const handleRemoveUser = (email: string) => {
-        if (!selectedNode) return;
-        const currentUsers = selectedNode.users || [];
-        const newUsers = currentUsers.filter((u: any) => u.email !== email);
-        updateNode(selectedNode.id || selectedNode.name, { users: newUsers });
-        toast.success('User removed');
-    };
-
-    // Remove group from selected node
-    const handleRemoveGroup = (groupEmail: string) => {
-        if (!selectedNode) return;
-        const currentGroups = selectedNode.groups || [];
-        const newGroups = currentGroups.filter((g: any) => g.email !== groupEmail);
-        updateNode(selectedNode.id || selectedNode.name, { groups: newGroups });
-        toast.success('Group removed');
-    };
-
-    // ============ BULK OPERATIONS ============
-
-    // Helper: recursively find all nodes by their IDs
-    const findNodesByIds = (nodes: any[], ids: string[]): any[] => {
-        const found: any[] = [];
-        const search = (nodeList: any[]) => {
-            for (const node of nodeList) {
-                if (ids.includes(node.id || node.name)) {
-                    found.push(node);
-                }
-                if (node.children && node.children.length > 0) {
-                    search(node.children);
-                }
-            }
-        };
-        search(nodes);
-        return found;
-    };
-
-    // Toggle selection mode
-    const toggleSelectionMode = () => {
-        setSelectionMode(mode => mode === 'single' ? 'multi' : 'single');
-        setSelectedNodes([]);
-    };
-
-    // Clear all permissions from selected folders
-    const handleClearAllPermissions = () => {
-        if (selectedNodes.length === 0) {
-            toast.error('No folders selected');
-            return;
-        }
-
-        const confirmed = window.confirm(
-            `Remove ALL users and groups from ${selectedNodes.length} folder(s)?\n\nThis action cannot be undone easily.`
-        );
-
-        if (!confirmed) return;
-
-        let newTree = [...templateTree];
-        selectedNodes.forEach(nodeId => {
-            newTree = updateNodeInTree(newTree, nodeId, { users: [], groups: [] });
-        });
-
-        setTemplateTree(newTree);
-        setHasChanges(true);
-        toast.success(`Cleared permissions from ${selectedNodes.length} folder(s)`);
-        setSelectedNodes([]);
-    };
-
-    // Apply bulk updates
-    const applyBulkUpdates = (updates: Record<string, Partial<any>>) => {
-        let newTree = [...templateTree];
-
-        Object.entries(updates).forEach(([nodeId, nodeUpdates]) => {
-            newTree = updateNodeInTree(newTree, nodeId, nodeUpdates);
-        });
-
-        setTemplateTree(newTree);
-        setHasChanges(true);
-    };
-
-    // Bulk add groups
-    const handleBulkOperation = () => {
-        if (selectedNodes.length === 0) {
-            toast.error('No folders selected');
-            return;
-        }
-        // Fetch groups/users for the dialog
-        fetchGroups();
-        fetchUsers();
-        setShowBulkDialog(true);
-    };
-
-    // Apply bulk changes to all selected folders
-    const handleApplyBulkChanges = () => {
-        if (selectedNodes.length === 0) return;
-
-        const updates: Record<string, Partial<any>> = {};
-
-        selectedNodes.forEach(nodeId => {
-            const node = findNodesByIds(templateTree, [nodeId])[0];
-            if (!node) return;
-
-            const update: any = {};
-
-            // Apply groups if selected
-            if (bulkOperationType === 'groups' && bulkSelectedGroups.length > 0) {
-                const currentGroups = node.groups || [];
-                const newGroupsToAdd = bulkSelectedGroups.map(email => ({
-                    email,
-                    role: bulkRole
-                }));
-                // Merge and deduplicate
-                const mergedGroups = [...currentGroups];
-                newGroupsToAdd.forEach(newGroup => {
-                    if (!mergedGroups.some(g => g.email === newGroup.email)) {
-                        mergedGroups.push(newGroup);
-                    }
-                });
-                update.groups = mergedGroups;
-            }
-
-            // Apply users if selected
-            if (bulkOperationType === 'users' && bulkSelectedUsers.length > 0) {
-                const currentUsers = node.users || [];
-                const newUsersToAdd = bulkSelectedUsers.map(email => ({
-                    email,
-                    role: bulkRole
-                }));
-                // Merge and deduplicate
-                const mergedUsers = [...currentUsers];
-                newUsersToAdd.forEach(newUser => {
-                    if (!mergedUsers.some(u => u.email === newUser.email)) {
-                        mergedUsers.push(newUser);
-                    }
-                });
-                update.users = mergedUsers;
-            }
-
-            // Apply limited access setting
-            if (bulkOperationType === 'settings' && bulkLimitedAccess !== null) {
-                update.limitedAccess = bulkLimitedAccess;
-            }
-
-            updates[nodeId] = update;
-        });
-
-        applyBulkUpdates(updates);
-
-        const action = bulkOperationType === 'groups'
-            ? `Added ${bulkSelectedGroups.length} group(s)`
-            : bulkOperationType === 'users'
-                ? `Added ${bulkSelectedUsers.length} user(s)`
-                : 'Updated limited access';
-
-        toast.success(`${action} to ${selectedNodes.length} folder(s)`);
-
-        // Reset bulk dialog state
-        setShowBulkDialog(false);
-        setBulkSelectedGroups([]);
-        setBulkSelectedUsers([]);
-        setBulkLimitedAccess(null);
-        setSelectedNodes([]);
-    };
-
-    // Helper: recursively get all node IDs from tree
-    const getAllNodeIds = (nodes: any[]): string[] => {
-        const ids: string[] = [];
-        const collect = (nodeList: any[]) => {
-            for (const node of nodeList) {
-                ids.push(node.id || node.name);
-                const children = node.nodes || node.children || [];
-                if (children.length > 0) {
-                    collect(children);
-                }
-            }
-        };
-        collect(nodes);
-        return ids;
-    };
-
-    // Helper: recursively get all child IDs of a node
-    const getChildNodeIds = (node: any): string[] => {
-        const ids: string[] = [];
-        const children = node.nodes || node.children || [];
-
-        const collect = (nodeList: any[]) => {
-            for (const n of nodeList) {
-                ids.push(n.id || n.name);
-                const childNodes = n.nodes || n.children || [];
-                if (childNodes.length > 0) {
-                    collect(childNodes);
-                }
-            }
-        };
-
-        collect(children);
-        return ids;
-    };
-
-    // Handle toggling node selection in multi-select mode with cascade
-    const handleToggleSelection = (nodeId: string) => {
-        setSelectedNodes(prev => {
-            // Find the node to get its children
-            const nodes = findNodesByIds(templateTree, [nodeId]);
-            const node = nodes[0];
-
-            if (prev.includes(nodeId)) {
-                // Deselecting - remove node and all children
-                const childIds = node ? getChildNodeIds(node) : [];
-                const idsToRemove = [nodeId, ...childIds];
-                return prev.filter(id => !idsToRemove.includes(id));
-            } else {
-                // Selecting - add node and all children
-                const childIds = node ? getChildNodeIds(node) : [];
-                const idsToAdd = [nodeId, ...childIds];
-                // Use Set to deduplicate
-                return [...new Set([...prev, ...idsToAdd])];
-            }
-        });
-    };
-
-    // Handle Select All
-    const handleSelectAll = () => {
-        const allIds = getAllNodeIds(templateTree);
-        setSelectedNodes(allIds);
-    };
-
-    // Handle Deselect All
-    const handleDeselectAll = () => {
-        setSelectedNodes([]);
-    };
-
-    // Handle Rename Folder
-    const handleRenameFolder = () => {
-        if (!selectedNode) return;
-        setNewFolderName(selectedNode.text || selectedNode.name || '');
-        setShowRenameDialog(true);
-    };
-
-    const applyRename = () => {
-        if (!selectedNode || !newFolderName.trim()) {
-            toast.error('Folder name cannot be empty');
-            return;
-        }
-
-        const nodeId = selectedNode.id || selectedNode.name;
-        updateNode(nodeId, {
-            text: newFolderName.trim(),
-            name: newFolderName.trim()
-        });
-
-        setShowRenameDialog(false);
-        toast.success(`Folder renamed to "${newFolderName.trim()}"`);
-    };
-
-    // Handle Delete Folder
-    const handleDeleteFolder = () => {
-        if (!selectedNode) return;
-
-        const folderName = selectedNode.text || selectedNode.name || 'this folder';
-        const confirmed = confirm(`Delete "${folderName}" and all its subfolders?\n\nThis action cannot be undone.`);
-
-        if (!confirmed) return;
-
-        const nodeId = selectedNode.id || selectedNode.name;
-
-        // Remove node from tree
-        const removeNodeFromTree = (nodes: any[], idToRemove: string): any[] => {
-            return nodes.filter(n => {
-                const currentId = n.id || n.name;
-                if (currentId === idToRemove) return false;
-
-                // Recursively remove from children
-                if (n.nodes) {
-                    n.nodes = removeNodeFromTree(n.nodes, idToRemove);
-                } else if (n.children) {
-                    n.children = removeNodeFromTree(n.children, idToRemove);
-                }
-                return true;
-            });
-        };
-
-        setTemplateTree(prev => removeNodeFromTree(prev, nodeId));
-        setSelectedNode(null);
-        toast.success(`Folder "${folderName}" deleted`);
-    };
-
-    // ============ END BULK OPERATIONS ============
-
-    // Apply template to all projects
-    const applyToAllProjects = async () => {
-        if (safeTestMode) {
-            toast.error('Cannot apply in Safe Test Mode');
-            return;
-        }
-
-        setApplying(true);
-        try {
-            const res = await fetch('/api/enforce', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ triggeredBy: 'admin' }),
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                toast.success(`Permission enforcement started! Job ID: ${data.jobId}`);
-            } else {
-                toast.error(data.error || 'Failed to start enforcement');
-            }
-        } catch (error: any) {
-            console.error('Error applying template:', error);
-            toast.error('Failed to apply template to projects');
-        } finally {
-            setApplying(false);
-        }
-    };
-
-    // Fetch template from database
-    const fetchTemplate = async () => {
+    // ─── Load Template ──────────────────────────────────────
+    const loadTemplate = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/template');
+            const res = await fetch("/api/template");
             const data = await res.json();
 
             if (data.success && data.template && Array.isArray(data.template.template_json)) {
-                setTemplateTree(data.template.template_json);
+                const state = deserializeTemplate(data.template.template_json);
+                setTreeState(state);
                 setTemplateVersion(data.template.version_number);
-                setLastUpdated(data.template.created_at);
-            } else {
-                // Use default template if none exists or data is invalid
-                setTemplateTree(defaultTemplate);
-                setTemplateVersion(null);
-                setLastUpdated(null);
+
+                // Auto-expand roots
+                setExpandedIds(new Set(state.rootIds));
+
+                // Select first root
+                if (state.rootIds.length > 0) {
+                    setSelectedNodeId(state.rootIds[0]);
+                }
             }
         } catch (error) {
-            console.error('Error fetching template:', error);
-            setTemplateTree(defaultTemplate);
-            toast.error('Failed to load template');
+            console.error("Error loading template:", error);
+            toast.error("Failed to load template");
         } finally {
             setLoading(false);
         }
-    };
-
-    // Save template to database
-    const saveTemplate = async () => {
-        try {
-            setSaving(true);
-            const res = await fetch('/api/template', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ template_json: templateTree }),
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                setTemplateVersion(data.version);
-                setHasChanges(false);
-                toast.success(`Template saved as Version ${data.version}`);
-            } else {
-                throw new Error(data.error);
-            }
-        } catch (error) {
-            console.error('Error saving template:', error);
-            toast.error('Failed to save template');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchTemplate();
-        fetchSettings();
     }, []);
 
-    if (loading) {
+    // Fetch groups and users for add dialog
+    const fetchPrincipals = useCallback(async () => {
+        try {
+            const [groupsRes, usersRes] = await Promise.all([
+                fetch("/api/groups"),
+                fetch("/api/users"),
+            ]);
+            const [groupsData, usersData] = await Promise.all([
+                groupsRes.json(),
+                usersRes.json(),
+            ]);
+            if (groupsData.groups) {
+                setAllGroups(
+                    groupsData.groups.map((g: any) => ({
+                        email: g.email,
+                        name: g.name || g.email,
+                    }))
+                );
+            }
+            if (usersData.users) {
+                setAllUsers(
+                    usersData.users.map((u: any) => ({
+                        email: u.email,
+                        name: u.display_name || u.email,
+                    }))
+                );
+            }
+        } catch (error) {
+            console.error("Error fetching principals:", error);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadTemplate();
+        fetchPrincipals();
+    }, [loadTemplate, fetchPrincipals]);
+
+    // ─── Auto-Save Logic ────────────────────────────────────
+    const triggerAutoSave = useCallback(
+        (newState: TemplateTreeState) => {
+            // Clear existing timer
+            if (saveTimerRef.current) {
+                clearTimeout(saveTimerRef.current);
+            }
+
+            // Increment version for race condition prevention
+            saveVersionRef.current++;
+            const currentVersion = saveVersionRef.current;
+
+            setSaveStatus("dirty");
+
+            saveTimerRef.current = setTimeout(async () => {
+                // Check if this save is still current
+                if (saveVersionRef.current !== currentVersion) return;
+
+                try {
+                    setSaveStatus("saving");
+                    const payload = serializeTemplate(newState);
+                    const res = await fetch("/api/template", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ template_json: payload }),
+                    });
+                    const data = await res.json();
+
+                    // Check again after async
+                    if (saveVersionRef.current !== currentVersion) return;
+
+                    if (data.success) {
+                        setSaveStatus("saved");
+                        setLastSavedAt(Date.now());
+                        setTemplateVersion(data.version);
+                    } else {
+                        setSaveStatus("error");
+                        toast.error("Failed to save: " + (data.error || "Unknown error"));
+                    }
+                } catch {
+                    if (saveVersionRef.current === currentVersion) {
+                        setSaveStatus("error");
+                        toast.error("Failed to save template");
+                    }
+                }
+            }, AUTO_SAVE_DEBOUNCE_MS);
+        },
+        []
+    );
+
+    // ─── State Mutation Wrappers ────────────────────────────
+    const updateState = useCallback(
+        (newState: TemplateTreeState) => {
+            setTreeState(newState);
+            triggerAutoSave(newState);
+        },
+        [triggerAutoSave]
+    );
+
+    const handleToggleLimited = useCallback(
+        (value: boolean) => {
+            if (!treeState || !selectedNodeId) return;
+            const newState = toggleLimitedAccess(treeState, selectedNodeId, value);
+            updateState(newState);
+        },
+        [treeState, selectedNodeId, updateState]
+    );
+
+    const handleClearLimited = useCallback(() => {
+        if (!treeState || !selectedNodeId) return;
+        const newState = clearLimitedAccess(treeState, selectedNodeId);
+        updateState(newState);
+    }, [treeState, selectedNodeId, updateState]);
+
+    const handleAddPrincipal = useCallback(
+        (email: string, role: "reader" | "writer" | "organizer") => {
+            if (!treeState || !selectedNodeId) return;
+            const newState = addPrincipal(
+                treeState,
+                selectedNodeId,
+                addPrincipalDialog.type,
+                { email, role }
+            );
+            updateState(newState);
+        },
+        [treeState, selectedNodeId, addPrincipalDialog.type, updateState]
+    );
+
+    const handleRemovePrincipal = useCallback(
+        (type: "groups" | "users", email: string) => {
+            if (!treeState || !selectedNodeId) return;
+            const newState = removePrincipal(treeState, selectedNodeId, type, email);
+            updateState(newState);
+        },
+        [treeState, selectedNodeId, updateState]
+    );
+
+    const handleToggleExpand = useCallback((nodeId: string) => {
+        setExpandedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(nodeId)) {
+                next.delete(nodeId);
+            } else {
+                next.add(nodeId);
+            }
+            return next;
+        });
+    }, []);
+
+    // ─── Render ─────────────────────────────────────────────
+    if (loading || !treeState) {
         return (
             <div className="flex items-center justify-center h-96">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -713,711 +933,153 @@ export default function TemplatePage() {
         );
     }
 
-    return (
-        <>
-            <div className="space-y-6">
-                {/* Safe Test Mode Warning */}
-                {safeTestMode && (
-                    <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20">
-                            <Lock className="h-4 w-4 text-blue-500" />
-                        </div>
-                        <div>
-                            <p className="font-medium text-blue-600 dark:text-blue-400">Safe Test Mode Active</p>
-                            <p className="text-sm text-muted-foreground">
-                                Bulk operations disabled. Go to Settings → Safe Test to enable after approval.
-                            </p>
-                        </div>
-                    </div>
-                )}
+    const selectedNode = selectedNodeId ? treeState.nodes[selectedNodeId] : null;
 
-                {/* Page Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Template</h1>
-                        <p className="text-muted-foreground">
-                            Define folder structure and permission rules
-                        </p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" onClick={fetchTemplate}>
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Refresh
-                        </Button>
-                        <Button variant="outline" onClick={() => {
-                            const blob = new Blob([JSON.stringify(templateTree, null, 2)], { type: 'application/json' });
+    return (
+        <div className="space-y-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Template Editor</h1>
+                    <p className="text-muted-foreground text-sm">
+                        Live policy editor — changes auto-save
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <SaveIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
+                    <Badge variant="outline" className="text-sm">
+                        {templateVersion ? `v${templateVersion}` : "Draft"}
+                    </Badge>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            const blob = new Blob(
+                                [JSON.stringify(serializeTemplate(treeState), null, 2)],
+                                { type: "application/json" }
+                            );
                             const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
+                            const a = document.createElement("a");
                             a.href = url;
-                            a.download = `template_v${templateVersion || 1}_${new Date().toISOString().split('T')[0]}.json`;
+                            a.download = `template_v${templateVersion || "draft"}.json`;
                             a.click();
                             URL.revokeObjectURL(url);
-                            toast.success('Template downloaded');
-                        }}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Download
-                        </Button>
-                        <Button variant="outline">
-                            <History className="mr-2 h-4 w-4" />
-                            Version History
-                        </Button>
-                        <Button onClick={saveTemplate} disabled={!hasChanges || saving}>
-                            {saving ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <Save className="mr-2 h-4 w-4" />
-                            )}
-                            Save Template
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Current Version Info */}
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <Badge variant="outline" className="text-lg px-3 py-1">
-                                    {templateVersion ? `Version ${templateVersion}` : 'No Version Saved'}
-                                </Badge>
-                                <span className="text-sm text-muted-foreground">
-                                    {lastUpdated
-                                        ? `Last updated: ${new Date(lastUpdated).toLocaleString()}`
-                                        : 'Not saved yet'}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {safeTestMode ? (
-                                    <Button disabled className="cursor-not-allowed">
-                                        <Lock className="mr-2 h-4 w-4" />
-                                        Apply to All Projects (Disabled in Safe Test Mode)
-                                    </Button>
-                                ) : (
-                                    <Button onClick={applyToAllProjects} disabled={applying}>
-                                        {applying ? (
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Play className="mr-2 h-4 w-4" />
-                                        )}
-                                        {applying ? 'Applying...' : 'Apply to All Projects'}
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Template Editor */}
-                <div className="grid gap-6 lg:grid-cols-[7fr_3fr]">
-                    {/* Folder Tree */}
-                    <Card className="h-[600px] flex flex-col">
-                        <CardHeader className="flex-shrink-0">
-                            <div className="flex items-center justify-between">
-                                <CardTitle>Folder Structure</CardTitle>
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant={selectionMode === 'multi' ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={toggleSelectionMode}
-                                    >
-                                        {selectionMode === 'multi' ? (
-                                            <>
-                                                <CheckSquare2 className="mr-2 h-4 w-4" />
-                                                Multi-Select
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Square className="mr-2 h-4 w-4" />
-                                                Single Select
-                                            </>
-                                        )}
-                                    </Button>
-                                    <Button variant="outline" size="sm">
-                                        <FolderPlus className="mr-2 h-4 w-4" />
-                                        Add Folder
-                                    </Button>
-                                </div>
-                            </div>
-                            <CardDescription>
-                                {selectionMode === 'single'
-                                    ? 'Click a folder to edit its permissions'
-                                    : `${selectedNodes.length} folder(s) selected - Use checkboxes to select folders`}
-                            </CardDescription>
-
-                            {/* Bulk Operations Toolbar */}
-                            {selectionMode === 'multi' && selectedNodes.length > 0 && (
-                                <div className="mt-4 p-3 bg-muted rounded-lg border flex items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium">
-                                            {selectedNodes.length} folder(s) selected
-                                        </span>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => {
-                                                if (selectedNodes.length === getAllNodeIds(templateTree).length) {
-                                                    handleDeselectAll();
-                                                } else {
-                                                    handleSelectAll();
-                                                }
-                                            }}
-                                        >
-                                            {selectedNodes.length === getAllNodeIds(templateTree).length
-                                                ? "Deselect All"
-                                                : "Select All"}
-                                        </Button>
-                                    </div>
-                                    <div className="flex gap-2 flex-wrap">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => {
-                                                setBulkOperationType('groups');
-                                                handleBulkOperation();
-                                            }}
-                                        >
-                                            <Users className="mr-2 h-4 w-4" />
-                                            Add Groups
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => {
-                                                setBulkOperationType('users');
-                                                handleBulkOperation();
-                                            }}
-                                        >
-                                            <Shield className="mr-2 h-4 w-4" />
-                                            Add Users
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => {
-                                                setBulkOperationType('settings');
-                                                handleBulkOperation();
-                                            }}
-                                        >
-                                            <Lock className="mr-2 h-4 w-4" />
-                                            Limited Access
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="destructive"
-                                            onClick={handleClearAllPermissions}
-                                        >
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            Clear All
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => setSelectedNodes([])}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-                        </CardHeader>
-                        <CardContent className="flex-1 overflow-hidden">
-                            <ScrollArea className="h-full">
-                                {templateTree.map((node) => (
-                                    <FolderNode
-                                        key={node.id}
-                                        node={node}
-                                        level={0}
-                                        onSelect={setSelectedNode}
-                                        selectedId={selectedNode?.id}
-                                        selectionMode={selectionMode}
-                                        selectedNodes={selectedNodes}
-                                        onToggleSelection={handleToggleSelection}
-                                    />
-                                ))}
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
-
-                    {/* Folder Details */}
-                    <Card className="h-[600px] flex flex-col">
-                        <CardHeader className="flex-shrink-0">
-                            <CardTitle>
-                                {selectedNode ? selectedNode.name : "Folder Details"}
-                            </CardTitle>
-                            <CardDescription>
-                                {selectedNode
-                                    ? selectedNode.path
-                                    : "Select a folder to view and edit details"}
-                            </CardDescription>
-                            {selectedNode && (
-                                <div className="mt-4 flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleRenameFolder}
-                                    >
-                                        <Edit2 className="mr-2 h-4 w-4" />
-                                        Rename
-                                    </Button>
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={handleDeleteFolder}
-                                    >
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Delete
-                                    </Button>
-                                </div>
-                            )}
-                        </CardHeader>
-                        <CardContent className="flex-1">
-                            {selectedNode ? (
-                                <div className="space-y-6">
-                                    {/* Limited Access Toggle */}
-                                    <div className="flex items-center justify-between p-4 rounded-lg border">
-                                        <div className="flex items-center gap-3">
-                                            <Lock className="h-5 w-5 text-amber-500" />
-                                            <div>
-                                                <p className="font-medium">Limited Access</p>
-                                                <p className="text-sm text-muted-foreground">
-                                                    Restrict folder permissions
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <Switch
-                                            checked={selectedNode.limitedAccess ?? false}
-                                            onCheckedChange={(checked) => {
-                                                updateNode(selectedNode.id, { limitedAccess: checked });
-                                            }}
-                                        />
-                                    </div>
-
-                                    {/* Assigned Groups */}
-                                    <div>
-                                        <h4 className="font-medium mb-3 flex items-center gap-2">
-                                            <Shield className="h-4 w-4" />
-                                            Assigned Groups
-                                        </h4>
-                                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                                            {(selectedNode.groups || []).length > 0 ? (
-                                                (selectedNode.groups || []).map((group: any, index: number) => (
-                                                    <div
-                                                        key={group.name || group.email || index}
-                                                        className="flex items-center justify-between p-3 rounded-lg border"
-                                                    >
-                                                        <span className="text-sm font-medium">{group.name || group.email || 'Unknown Group'}</span>
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge variant="outline">
-                                                                {group.role || 'writer'}
-                                                            </Badge>
-                                                            <button
-                                                                onClick={() => handleRemoveGroup(group.email)}
-                                                                className="text-muted-foreground hover:text-destructive transition-colors"
-                                                                title="Remove group"
-                                                            >
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <p className="text-sm text-muted-foreground">No groups assigned</p>
-                                            )}
-                                        </div>
-                                        <Button variant="outline" className="w-full mt-3" onClick={() => {
-                                            fetchGroups();
-                                            setShowAddGroupModal(true);
-                                        }}>
-                                            Add Group
-                                        </Button>
-                                    </div>
-
-                                    {/* Assigned Users */}
-                                    <div>
-                                        <h4 className="font-medium mb-3 flex items-center gap-2">
-                                            <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                                                <circle cx="12" cy="7" r="4" />
-                                            </svg>
-                                            Assigned Users
-                                        </h4>
-                                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                                            {(selectedNode.users || []).length > 0 ? (
-                                                (selectedNode.users || []).map((user: any, index: number) => (
-                                                    <div
-                                                        key={user.email || index}
-                                                        className="flex items-center justify-between p-3 rounded-lg border"
-                                                    >
-                                                        <span className="text-sm font-medium">{user.email || 'Unknown User'}</span>
-                                                        <div className="flex items-center gap-2">
-                                                            <Badge variant="outline">
-                                                                {user.role || 'writer'}
-                                                            </Badge>
-                                                            <button
-                                                                onClick={() => handleRemoveUser(user.email)}
-                                                                className="text-muted-foreground hover:text-destructive transition-colors"
-                                                                title="Remove user"
-                                                            >
-                                                                <X className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <p className="text-sm text-muted-foreground">No users assigned</p>
-                                            )}
-                                        </div>
-                                        <Button variant="outline" className="w-full mt-3" onClick={() => {
-                                            fetchUsers();
-                                            setShowAddUserModal(true);
-                                        }}>
-                                            Add User
-                                        </Button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="h-full flex items-center justify-center text-muted-foreground">
-                                    Select a folder from the tree to edit
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                            toast.success("Template downloaded");
+                        }}
+                    >
+                        <Download className="h-4 w-4 mr-1" />
+                        Export
+                    </Button>
                 </div>
             </div>
 
-            {/* Add Group Modal */}
-            <Dialog open={showAddGroupModal} onOpenChange={setShowAddGroupModal}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Add Group to {selectedNode?.name}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-4">
-                        <Input
-                            placeholder="Search groups..."
-                            value={groupSearch}
-                            onChange={(e) => setGroupSearch(e.target.value)}
-                        />
-                        <div className="max-h-[250px] overflow-y-auto space-y-1 border rounded-md p-2">
-                            {allGroups
-                                .filter(g => g.name?.toLowerCase().includes(groupSearch.toLowerCase()) || g.email?.toLowerCase().includes(groupSearch.toLowerCase()))
-                                .slice(0, 20)
-                                .map(group => (
-                                    <div
-                                        key={group.id}
-                                        className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer"
-                                        onClick={() => handleAddGroup(group.email)}
-                                    >
-                                        <div>
-                                            <p className="font-medium text-sm">{group.name}</p>
-                                            <p className="text-xs text-muted-foreground">{group.email}</p>
-                                        </div>
-                                        <Badge variant="outline" className="text-xs">{selectedRole}</Badge>
+            {/* Main Layout: Left Tree + Right Policy Panel */}
+            <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+                {/* LEFT PANEL: Folder Tree (Navigation Only) */}
+                <Card className="h-[calc(100vh-200px)] flex flex-col">
+                    <CardHeader className="py-3 px-4 flex-shrink-0">
+                        <CardTitle className="text-sm">Folder Tree</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-hidden px-2 pb-2">
+                        <ScrollArea className="h-full">
+                            {treeState.rootIds.map((rootId) => (
+                                <TreeNode
+                                    key={rootId}
+                                    nodeId={rootId}
+                                    state={treeState}
+                                    selectedId={selectedNodeId}
+                                    expandedIds={expandedIds}
+                                    onSelect={setSelectedNodeId}
+                                    onToggleExpand={handleToggleExpand}
+                                />
+                            ))}
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+
+                {/* RIGHT PANEL: Policy Tables */}
+                <div className="h-[calc(100vh-200px)] overflow-hidden">
+                    {selectedNode ? (
+                        <Card className="h-full flex flex-col">
+                            <CardHeader className="py-3 px-4 flex-shrink-0 border-b">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-lg flex items-center gap-2">
+                                            <Folder className="h-5 w-5 text-amber-500" />
+                                            {selectedNode.name}
+                                        </CardTitle>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                            ID: {selectedNode.id} •
+                                            {selectedNode.parentId
+                                                ? ` Parent: ${treeState.nodes[selectedNode.parentId]?.name}`
+                                                : " Root folder"}
+                                        </p>
                                     </div>
-                                ))}
-                            {allGroups.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No groups available</p>}
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm">Role:</span>
-                            <select
-                                value={selectedRole}
-                                onChange={(e) => setSelectedRole(e.target.value)}
-                                className="flex-1 border rounded px-2 py-1 text-sm"
-                            >
-                                <option value="organizer">Organizer</option>
-                                <option value="writer">Writer</option>
-                                <option value="reader">Reader</option>
-                            </select>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                                    {selectedNode.effectivePolicy.limitedAccess && (
+                                        <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                                            <Lock className="h-3 w-3 mr-1" />
+                                            Limited Access
+                                        </Badge>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex-1 overflow-auto px-4 py-3">
+                                <ScrollArea className="h-full">
+                                    <div className="space-y-6 pr-2">
+                                        {/* Table A: Effective Policy */}
+                                        <EffectivePolicyTable node={selectedNode} state={treeState} />
 
-            {/* Add User Modal */}
-            <Dialog open={showAddUserModal} onOpenChange={setShowAddUserModal}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Add User to {selectedNode?.name}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-4">
-                        <Input
-                            placeholder="Search users..."
-                            value={userSearch}
-                            onChange={(e) => setUserSearch(e.target.value)}
-                        />
-                        <div className="max-h-[250px] overflow-y-auto space-y-1 border rounded-md p-2">
-                            {allUsers
-                                .filter(u => u.name?.toLowerCase().includes(userSearch.toLowerCase()) || u.email?.toLowerCase().includes(userSearch.toLowerCase()))
-                                .slice(0, 20)
-                                .map(user => (
-                                    <div
-                                        key={user.id}
-                                        className="flex items-center justify-between p-2 hover:bg-muted rounded cursor-pointer"
-                                        onClick={() => handleAddUser(user.email)}
-                                    >
-                                        <div>
-                                            <p className="font-medium text-sm">{user.name}</p>
-                                            <p className="text-xs text-muted-foreground">{user.email}</p>
-                                        </div>
-                                        <Badge variant="outline" className="text-xs">{selectedRole}</Badge>
+                                        {/* Divider */}
+                                        <div className="border-t" />
+
+                                        {/* Table B: Explicit Policy */}
+                                        <ExplicitPolicyTable
+                                            node={selectedNode}
+                                            state={treeState}
+                                            onToggleLimited={handleToggleLimited}
+                                            onClearLimited={handleClearLimited}
+                                            onAddPrincipal={(type) =>
+                                                setAddPrincipalDialog({ open: true, type })
+                                            }
+                                            onRemovePrincipal={handleRemovePrincipal}
+                                        />
+
+                                        {/* Divider */}
+                                        <div className="border-t" />
+
+                                        {/* Table C: Principals Breakdown */}
+                                        <PrincipalsBreakdownTable
+                                            node={selectedNode}
+                                            state={treeState}
+                                            onRemove={handleRemovePrincipal}
+                                        />
                                     </div>
-                                ))}
-                            {allUsers.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No users available</p>}
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm">Role:</span>
-                            <select
-                                value={selectedRole}
-                                onChange={(e) => setSelectedRole(e.target.value)}
-                                className="flex-1 border rounded px-2 py-1 text-sm"
-                            >
-                                <option value="organizer">Organizer</option>
-                                <option value="writer">Writer</option>
-                                <option value="reader">Reader</option>
-                            </select>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                                </ScrollArea>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card className="h-full flex items-center justify-center">
+                            <div className="text-center text-muted-foreground">
+                                <Folder className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                                <p className="font-medium">Select a folder</p>
+                                <p className="text-sm">
+                                    Click a folder in the tree to view and edit its policy
+                                </p>
+                            </div>
+                        </Card>
+                    )}
+                </div>
+            </div>
 
-            {/* Bulk Assignment Dialog */}
-            <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Bulk Assignment - {selectedNodes.length} folder(s)</DialogTitle>
-                    </DialogHeader>
-                    <Tabs value={bulkOperationType} onValueChange={(value) => setBulkOperationType(value as 'groups' | 'users' | 'settings')}>
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="groups">Groups</TabsTrigger>
-                            <TabsTrigger value="users">Users</TabsTrigger>
-                            <TabsTrigger value="settings">Settings</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="groups" className="space-y-4 pt-4">
-                            <div>
-                                <Label>Select Groups to Add</Label>
-                                <div className="mt-2 max-h-[300px] overflow-y-auto border rounded-md p-2 space-y-1">
-                                    {allGroups.map((group) => (
-                                        <div
-                                            key={group.id}
-                                            className="flex items-center gap-2 p-2 hover:bg-muted rounded cursor-pointer"
-                                            onClick={() => {
-                                                setBulkSelectedGroups(prev => {
-                                                    if (prev.includes(group.email)) {
-                                                        return prev.filter(e => e !== group.email);
-                                                    } else {
-                                                        return [...prev, group.email];
-                                                    }
-                                                });
-                                            }}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={bulkSelectedGroups.includes(group.email)}
-                                                onChange={() => { }}
-                                                className="h-4 w-4"
-                                            />
-                                            <div className="flex-1">
-                                                <p className="font-medium text-sm">{group.name}</p>
-                                                <p className="text-xs text-muted-foreground">{group.email}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {allGroups.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No groups available</p>}
-                                </div>
-                            </div>
-                            <div>
-                                <Label>Role for Selected Groups</Label>
-                                <select
-                                    value={bulkRole}
-                                    onChange={(e) => setBulkRole(e.target.value)}
-                                    className="w-full mt-2 border rounded px-3 py-2 text-sm"
-                                >
-                                    <option value="reader">Reader</option>
-                                    <option value="writer">Writer</option>
-                                    <option value="fileOrganizer">File Organizer</option>
-                                    <option value="organizer">Organizer</option>
-                                </select>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                                Selected: {bulkSelectedGroups.length} group(s)
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="users" className="space-y-4 pt-4">
-                            <div>
-                                <Label>Select Users to Add</Label>
-                                <div className="mt-2 max-h-[300px] overflow-y-auto border rounded-md p-2 space-y-1">
-                                    {allUsers.map((user) => (
-                                        <div
-                                            key={user.id}
-                                            className="flex items-center gap-2 p-2 hover:bg-muted rounded cursor-pointer"
-                                            onClick={() => {
-                                                setBulkSelectedUsers(prev => {
-                                                    if (prev.includes(user.email)) {
-                                                        return prev.filter(e => e !== user.email);
-                                                    } else {
-                                                        return [...prev, user.email];
-                                                    }
-                                                });
-                                            }}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={bulkSelectedUsers.includes(user.email)}
-                                                onChange={() => { }}
-                                                className="h-4 w-4"
-                                            />
-                                            <div className="flex-1">
-                                                <p className="font-medium text-sm">{user.name}</p>
-                                                <p className="text-xs text-muted-foreground">{user.email}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {allUsers.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No users available</p>}
-                                </div>
-                            </div>
-                            <div>
-                                <Label>Role for Selected Users</Label>
-                                <select
-                                    value={bulkRole}
-                                    onChange={(e) => setBulkRole(e.target.value)}
-                                    className="w-full mt-2 border rounded px-3 py-2 text-sm"
-                                >
-                                    <option value="reader">Reader</option>
-                                    <option value="writer">Writer</option>
-                                    <option value="fileOrganizer">File Organizer</option>
-                                    <option value="organizer">Organizer</option>
-                                </select>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                                Selected: {bulkSelectedUsers.length} user(s)
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="settings" className="space-y-4 pt-4">
-                            <div className="space-y-4">
-                                <div>
-                                    <Label className="text-base">Limited Access Setting</Label>
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        Apply limited access to all {selectedNodes.length} selected folder(s)
-                                    </p>
-                                </div>
-                                <div className="flex items-center justify-between p-4 rounded-lg border">
-                                    <div className="flex items-center gap-3">
-                                        <Lock className="h-5 w-5 text-amber-500" />
-                                        <div>
-                                            <p className="font-medium">Limited Access</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Restrict folder permissions
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant={bulkLimitedAccess === true ? "default" : "outline"}
-                                            size="sm"
-                                            onClick={() => setBulkLimitedAccess(true)}
-                                        >
-                                            Enable
-                                        </Button>
-                                        <Button
-                                            variant={bulkLimitedAccess === false ? "default" : "outline"}
-                                            size="sm"
-                                            onClick={() => setBulkLimitedAccess(false)}
-                                        >
-                                            Disable
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        </TabsContent>
-                    </Tabs>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowBulkDialog(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleApplyBulkChanges}>
-                            Apply to {selectedNodes.length} folder(s)
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Guidelines Box - Bilingual (Bottom) */}
-            <Card className="mt-8 border-2 border-blue-500/30 bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-950/20 dark:to-cyan-950/20">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-blue-900 dark:text-blue-100">
-                        <Folder className="h-5 w-5" />
-                        📁 قواعد إنشاء المجلدات والصلاحيات | Folder & Permissions Rules
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid md:grid-cols-2 gap-6">
-                        {/* Arabic Section (RTL) */}
-                        <div className="space-y-3" dir="rtl">
-                            <div className="space-y-2">
-                                <h3 className="font-bold text-green-700 dark:text-green-400 flex items-center gap-2">
-                                    <span>✔️</span>
-                                    <span>اعمل</span>
-                                </h3>
-                                <ul className="text-sm space-y-1 text-muted-foreground">
-                                    <li>• اتبع الـ Template فقط.</li>
-                                    <li>• اجعل المجلد العام (limitedAccess=false) يرث الصلاحيات.</li>
-                                    <li>• فعّل Limited Access للمجلدات الحساسة (limitedAccess=true).</li>
-                                    <li>• طبّق inheritedPermissionsDisabled=true على المجلد المقفل.</li>
-                                    <li>• احذف أي صلاحية غير موجودة في الـ Template داخل المجلد المقفل.</li>
-                                    <li>• تحقق من الحالة الفعلية من Google Drive بعد الإنشاء.</li>
-                                </ul>
-                            </div>
-                            <div className="space-y-2">
-                                <h3 className="font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
-                                    <span>❌</span>
-                                    <span>لا تعمل</span>
-                                </h3>
-                                <ul className="text-sm space-y-1 text-muted-foreground">
-                                    <li>• لا تخترع صلاحيات من عندك.</li>
-                                    <li>• لا تحذف صلاحيات موروثة من مجلد عام.</li>
-                                    <li>• لا تسمح بصلاحيات موروثة داخل مجلد مقفل.</li>
-                                    <li>• لا تضف domain أو anyone داخل مجلد مقفل.</li>
-                                    <li>• لا تغيّر أسماء المجلدات عن الـ Template.</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        {/* English Section (LTR) */}
-                        <div className="space-y-3">
-                            <div className="space-y-2">
-                                <h3 className="font-bold text-green-700 dark:text-green-400 flex items-center gap-2">
-                                    <span>✔️</span>
-                                    <span>DO</span>
-                                </h3>
-                                <ul className="text-sm space-y-1 text-muted-foreground">
-                                    <li>• Follow the template exactly.</li>
-                                    <li>• Let open folders (limitedAccess=false) inherit permissions.</li>
-                                    <li>• Enable Limited Access on sensitive folders (limitedAccess=true).</li>
-                                    <li>• Enforce inheritedPermissionsDisabled=true on limited folders.</li>
-                                    <li>• Remove any permission not defined in the template on limited folders.</li>
-                                    <li>• Verify the actual state from Google Drive after creation.</li>
-                                </ul>
-                            </div>
-                            <div className="space-y-2">
-                                <h3 className="font-bold text-red-700 dark:text-red-400 flex items-center gap-2">
-                                    <span>❌</span>
-                                    <span>DON'T</span>
-                                </h3>
-                                <ul className="text-sm space-y-1 text-muted-foreground">
-                                    <li>• Don't invent permissions.</li>
-                                    <li>• Don't delete inherited permissions on open folders.</li>
-                                    <li>• Don't allow inherited permissions on limited folders.</li>
-                                    <li>• Don't add domain or anyone permissions to limited folders.</li>
-                                    <li>• Don't change folder names from the template.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </>
+            {/* Add Principal Dialog */}
+            <AddPrincipalDialog
+                open={addPrincipalDialog.open}
+                onClose={() => setAddPrincipalDialog({ open: false, type: "groups" })}
+                type={addPrincipalDialog.type}
+                allGroups={allGroups}
+                allUsers={allUsers}
+                onAdd={handleAddPrincipal}
+            />
+        </div>
     );
 }
