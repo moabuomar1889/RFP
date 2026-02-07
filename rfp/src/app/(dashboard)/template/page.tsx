@@ -20,6 +20,10 @@ import {
     RefreshCw,
     Download,
     X,
+    Trash2,
+    Users,
+    CheckSquare2,
+    Square,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -27,8 +31,11 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Default template structure
 const defaultTemplate = [
@@ -106,24 +113,46 @@ interface FolderNodeProps {
     level: number;
     onSelect: (node: any) => void;
     selectedId: string | null;
+    // Multi-select props
+    selectionMode: 'single' | 'multi';
+    selectedNodes: string[];
+    onToggleSelection?: (nodeId: string) => void;
 }
 
-function FolderNode({ node, level, onSelect, selectedId }: FolderNodeProps) {
+function FolderNode({ node, level, onSelect, selectedId, selectionMode, selectedNodes, onToggleSelection }: FolderNodeProps) {
     const [expanded, setExpanded] = useState(node._expanded !== false);
     // Support both formats: text/nodes (new) and name/children (old)
     const nodeName = node.text || node.name || 'Untitled';
     const children = node.nodes || node.children || [];
     const hasChildren = children && children.length > 0;
     const nodeId = node.id || nodeName;
+    const isSelected = selectionMode === 'multi' ? selectedNodes.includes(nodeId) : selectedId === nodeId;
+
+    const handleClick = () => {
+        if (selectionMode === 'multi' && onToggleSelection) {
+            onToggleSelection(nodeId);
+        } else {
+            onSelect({ ...node, id: nodeId, name: nodeName });
+        }
+    };
 
     return (
         <div>
             <div
-                className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-accent ${selectedId === nodeId ? "bg-accent" : ""
+                className={`flex items-center gap-2 py-2 px-3 rounded-lg cursor-pointer hover:bg-accent ${isSelected ? "bg-accent border-2 border-primary" : ""
                     }`}
                 style={{ paddingLeft: `${level * 20 + 12}px` }}
-                onClick={() => onSelect({ ...node, id: nodeId, name: nodeName })}
+                onClick={handleClick}
             >
+                {selectionMode === 'multi' && (
+                    <input
+                        type="checkbox"
+                        checked={selectedNodes.includes(nodeId)}
+                        onChange={() => onToggleSelection?.(nodeId)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-4 w-4"
+                    />
+                )}
                 {hasChildren ? (
                     <button
                         onClick={(e) => {
@@ -156,6 +185,9 @@ function FolderNode({ node, level, onSelect, selectedId }: FolderNodeProps) {
                             level={level + 1}
                             onSelect={onSelect}
                             selectedId={selectedId}
+                            selectionMode={selectionMode}
+                            selectedNodes={selectedNodes}
+                            onToggleSelection={onToggleSelection}
                         />
                     ))}
                 </div>
@@ -196,6 +228,10 @@ export default function TemplatePage() {
     const [templateVersion, setTemplateVersion] = useState<number | null>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
+    // Multi-select states
+    const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+    const [selectionMode, setSelectionMode] = useState<'single' | 'multi'>('single');
+
     // Add User/Group modal states
     const [showAddUserModal, setShowAddUserModal] = useState(false);
     const [showAddGroupModal, setShowAddGroupModal] = useState(false);
@@ -204,6 +240,14 @@ export default function TemplatePage() {
     const [userSearch, setUserSearch] = useState('');
     const [groupSearch, setGroupSearch] = useState('');
     const [selectedRole, setSelectedRole] = useState('writer');
+
+    // Bulk operations dialog states
+    const [showBulkDialog, setShowBulkDialog] = useState(false);
+    const [bulkOperationType, setBulkOperationType] = useState<'groups' | 'users' | 'settings'>('groups');
+    const [bulkSelectedGroups, setBulkSelectedGroups] = useState<string[]>([]);
+    const [bulkSelectedUsers, setBulkSelectedUsers] = useState<string[]>([]);
+    const [bulkRole, setBulkRole] = useState('writer');
+    const [bulkLimitedAccess, setBulkLimitedAccess] = useState<boolean | null>(null);
 
     // Fetch safe test mode setting
     const fetchSettings = async () => {
@@ -299,6 +343,164 @@ export default function TemplatePage() {
         updateNode(selectedNode.id || selectedNode.name, { groups: newGroups });
         toast.success('Group removed');
     };
+
+    // ============ BULK OPERATIONS ============
+
+    // Helper: recursively find all nodes by their IDs
+    const findNodesByIds = (nodes: any[], ids: string[]): any[] => {
+        const found: any[] = [];
+        const search = (nodeList: any[]) => {
+            for (const node of nodeList) {
+                if (ids.includes(node.id || node.name)) {
+                    found.push(node);
+                }
+                if (node.children && node.children.length > 0) {
+                    search(node.children);
+                }
+            }
+        };
+        search(nodes);
+        return found;
+    };
+
+    // Toggle selection mode
+    const toggleSelectionMode = () => {
+        setSelectionMode(mode => mode === 'single' ? 'multi' : 'single');
+        setSelectedNodes([]);
+    };
+
+    // Clear all permissions from selected folders
+    const handleClearAllPermissions = () => {
+        if (selectedNodes.length === 0) {
+            toast.error('No folders selected');
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Remove ALL users and groups from ${selectedNodes.length} folder(s)?\n\nThis action cannot be undone easily.`
+        );
+
+        if (!confirmed) return;
+
+        let newTree = [...templateTree];
+        selectedNodes.forEach(nodeId => {
+            newTree = updateNodeInTree(newTree, nodeId, { users: [], groups: [] });
+        });
+
+        setTemplateTree(newTree);
+        setHasChanges(true);
+        toast.success(`Cleared permissions from ${selectedNodes.length} folder(s)`);
+        setSelectedNodes([]);
+    };
+
+    // Apply bulk updates
+    const applyBulkUpdates = (updates: Record<string, Partial<any>>) => {
+        let newTree = [...templateTree];
+
+        Object.entries(updates).forEach(([nodeId, nodeUpdates]) => {
+            newTree = updateNodeInTree(newTree, nodeId, nodeUpdates);
+        });
+
+        setTemplateTree(newTree);
+        setHasChanges(true);
+    };
+
+    // Bulk add groups
+    const handleBulkOperation = () => {
+        if (selectedNodes.length === 0) {
+            toast.error('No folders selected');
+            return;
+        }
+        // Fetch groups/users for the dialog
+        fetchGroups();
+        fetchUsers();
+        setShowBulkDialog(true);
+    };
+
+    // Apply bulk changes to all selected folders
+    const handleApplyBulkChanges = () => {
+        if (selectedNodes.length === 0) return;
+
+        const updates: Record<string, Partial<any>> = {};
+
+        selectedNodes.forEach(nodeId => {
+            const node = findNodesByIds(templateTree, [nodeId])[0];
+            if (!node) return;
+
+            const update: any = {};
+
+            // Apply groups if selected
+            if (bulkOperationType === 'groups' && bulkSelectedGroups.length > 0) {
+                const currentGroups = node.groups || [];
+                const newGroupsToAdd = bulkSelectedGroups.map(email => ({
+                    email,
+                    role: bulkRole
+                }));
+                // Merge and deduplicate
+                const mergedGroups = [...currentGroups];
+                newGroupsToAdd.forEach(newGroup => {
+                    if (!mergedGroups.some(g => g.email === newGroup.email)) {
+                        mergedGroups.push(newGroup);
+                    }
+                });
+                update.groups = mergedGroups;
+            }
+
+            // Apply users if selected
+            if (bulkOperationType === 'users' && bulkSelectedUsers.length > 0) {
+                const currentUsers = node.users || [];
+                const newUsersToAdd = bulkSelectedUsers.map(email => ({
+                    email,
+                    role: bulkRole
+                }));
+                // Merge and deduplicate
+                const mergedUsers = [...currentUsers];
+                newUsersToAdd.forEach(newUser => {
+                    if (!mergedUsers.some(u => u.email === newUser.email)) {
+                        mergedUsers.push(newUser);
+                    }
+                });
+                update.users = mergedUsers;
+            }
+
+            // Apply limited access setting
+            if (bulkOperationType === 'settings' && bulkLimitedAccess !== null) {
+                update.limitedAccess = bulkLimitedAccess;
+            }
+
+            updates[nodeId] = update;
+        });
+
+        applyBulkUpdates(updates);
+
+        const action = bulkOperationType === 'groups'
+            ? `Added ${bulkSelectedGroups.length} group(s)`
+            : bulkOperationType === 'users'
+                ? `Added ${bulkSelectedUsers.length} user(s)`
+                : 'Updated limited access';
+
+        toast.success(`${action} to ${selectedNodes.length} folder(s)`);
+
+        // Reset bulk dialog state
+        setShowBulkDialog(false);
+        setBulkSelectedGroups([]);
+        setBulkSelectedUsers([]);
+        setBulkLimitedAccess(null);
+        setSelectedNodes([]);
+    };
+
+    // Handle toggling node selection in multi-select mode
+    const handleToggleSelection = (nodeId: string) => {
+        setSelectedNodes(prev => {
+            if (prev.includes(nodeId)) {
+                return prev.filter(id => id !== nodeId);
+            } else {
+                return [...prev, nodeId];
+            }
+        });
+    };
+
+    // ============ END BULK OPERATIONS ============
 
     // Apply template to all projects
     const applyToAllProjects = async () => {
@@ -495,14 +697,94 @@ export default function TemplatePage() {
                         <CardHeader className="flex-shrink-0">
                             <div className="flex items-center justify-between">
                                 <CardTitle>Folder Structure</CardTitle>
-                                <Button variant="outline" size="sm">
-                                    <FolderPlus className="mr-2 h-4 w-4" />
-                                    Add Folder
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant={selectionMode === 'multi' ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={toggleSelectionMode}
+                                    >
+                                        {selectionMode === 'multi' ? (
+                                            <>
+                                                <CheckSquare2 className="mr-2 h-4 w-4" />
+                                                Multi-Select
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Square className="mr-2 h-4 w-4" />
+                                                Single Select
+                                            </>
+                                        )}
+                                    </Button>
+                                    <Button variant="outline" size="sm">
+                                        <FolderPlus className="mr-2 h-4 w-4" />
+                                        Add Folder
+                                    </Button>
+                                </div>
                             </div>
                             <CardDescription>
-                                Click a folder to edit its permissions
+                                {selectionMode === 'single'
+                                    ? 'Click a folder to edit its permissions'
+                                    : `${selectedNodes.length} folder(s) selected - Use checkboxes to select folders`}
                             </CardDescription>
+
+                            {/* Bulk Operations Toolbar */}
+                            {selectionMode === 'multi' && selectedNodes.length > 0 && (
+                                <div className="mt-4 p-3 bg-muted rounded-lg border flex items-center justify-between gap-3">
+                                    <span className="text-sm font-medium">
+                                        {selectedNodes.length} folder(s) selected
+                                    </span>
+                                    <div className="flex gap-2 flex-wrap">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setBulkOperationType('groups');
+                                                handleBulkOperation();
+                                            }}
+                                        >
+                                            <Users className="mr-2 h-4 w-4" />
+                                            Add Groups
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setBulkOperationType('users');
+                                                handleBulkOperation();
+                                            }}
+                                        >
+                                            <Shield className="mr-2 h-4 w-4" />
+                                            Add Users
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                setBulkOperationType('settings');
+                                                handleBulkOperation();
+                                            }}
+                                        >
+                                            <Lock className="mr-2 h-4 w-4" />
+                                            Limited Access
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={handleClearAllPermissions}
+                                        >
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Clear All
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => setSelectedNodes([])}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
                         </CardHeader>
                         <CardContent className="flex-1 overflow-hidden">
                             <ScrollArea className="h-full">
@@ -513,6 +795,9 @@ export default function TemplatePage() {
                                         level={0}
                                         onSelect={setSelectedNode}
                                         selectedId={selectedNode?.id}
+                                        selectionMode={selectionMode}
+                                        selectedNodes={selectedNodes}
+                                        onToggleSelection={handleToggleSelection}
                                     />
                                 ))}
                             </ScrollArea>
@@ -737,6 +1022,171 @@ export default function TemplatePage() {
                             </select>
                         </div>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bulk Assignment Dialog */}
+            <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Bulk Assignment - {selectedNodes.length} folder(s)</DialogTitle>
+                    </DialogHeader>
+                    <Tabs value={bulkOperationType} onValueChange={(value) => setBulkOperationType(value as 'groups' | 'users' | 'settings')}>
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="groups">Groups</TabsTrigger>
+                            <TabsTrigger value="users">Users</TabsTrigger>
+                            <TabsTrigger value="settings">Settings</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="groups" className="space-y-4 pt-4">
+                            <div>
+                                <Label>Select Groups to Add</Label>
+                                <div className="mt-2 max-h-[300px] overflow-y-auto border rounded-md p-2 space-y-1">
+                                    {allGroups.map((group) => (
+                                        <div
+                                            key={group.id}
+                                            className="flex items-center gap-2 p-2 hover:bg-muted rounded cursor-pointer"
+                                            onClick={() => {
+                                                setBulkSelectedGroups(prev => {
+                                                    if (prev.includes(group.email)) {
+                                                        return prev.filter(e => e !== group.email);
+                                                    } else {
+                                                        return [...prev, group.email];
+                                                    }
+                                                });
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkSelectedGroups.includes(group.email)}
+                                                onChange={() => { }}
+                                                className="h-4 w-4"
+                                            />
+                                            <div className="flex-1">
+                                                <p className="font-medium text-sm">{group.name}</p>
+                                                <p className="text-xs text-muted-foreground">{group.email}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {allGroups.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No groups available</p>}
+                                </div>
+                            </div>
+                            <div>
+                                <Label>Role for Selected Groups</Label>
+                                <select
+                                    value={bulkRole}
+                                    onChange={(e) => setBulkRole(e.target.value)}
+                                    className="w-full mt-2 border rounded px-3 py-2 text-sm"
+                                >
+                                    <option value="reader">Reader</option>
+                                    <option value="writer">Writer</option>
+                                    <option value="fileOrganizer">File Organizer</option>
+                                    <option value="organizer">Organizer</option>
+                                </select>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                                Selected: {bulkSelectedGroups.length} group(s)
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="users" className="space-y-4 pt-4">
+                            <div>
+                                <Label>Select Users to Add</Label>
+                                <div className="mt-2 max-h-[300px] overflow-y-auto border rounded-md p-2 space-y-1">
+                                    {allUsers.map((user) => (
+                                        <div
+                                            key={user.id}
+                                            className="flex items-center gap-2 p-2 hover:bg-muted rounded cursor-pointer"
+                                            onClick={() => {
+                                                setBulkSelectedUsers(prev => {
+                                                    if (prev.includes(user.email)) {
+                                                        return prev.filter(e => e !== user.email);
+                                                    } else {
+                                                        return [...prev, user.email];
+                                                    }
+                                                });
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkSelectedUsers.includes(user.email)}
+                                                onChange={() => { }}
+                                                className="h-4 w-4"
+                                            />
+                                            <div className="flex-1">
+                                                <p className="font-medium text-sm">{user.name}</p>
+                                                <p className="text-xs text-muted-foreground">{user.email}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {allUsers.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No users available</p>}
+                                </div>
+                            </div>
+                            <div>
+                                <Label>Role for Selected Users</Label>
+                                <select
+                                    value={bulkRole}
+                                    onChange={(e) => setBulkRole(e.target.value)}
+                                    className="w-full mt-2 border rounded px-3 py-2 text-sm"
+                                >
+                                    <option value="reader">Reader</option>
+                                    <option value="writer">Writer</option>
+                                    <option value="fileOrganizer">File Organizer</option>
+                                    <option value="organizer">Organizer</option>
+                                </select>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                                Selected: {bulkSelectedUsers.length} user(s)
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="settings" className="space-y-4 pt-4">
+                            <div className="space-y-4">
+                                <div>
+                                    <Label className="text-base">Limited Access Setting</Label>
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        Apply limited access to all {selectedNodes.length} selected folder(s)
+                                    </p>
+                                </div>
+                                <div className="flex items-center justify-between p-4 rounded-lg border">
+                                    <div className="flex items-center gap-3">
+                                        <Lock className="h-5 w-5 text-amber-500" />
+                                        <div>
+                                            <p className="font-medium">Limited Access</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Restrict folder permissions
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button
+                                            variant={bulkLimitedAccess === true ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setBulkLimitedAccess(true)}
+                                        >
+                                            Enable
+                                        </Button>
+                                        <Button
+                                            variant={bulkLimitedAccess === false ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => setBulkLimitedAccess(false)}
+                                        >
+                                            Disable
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowBulkDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleApplyBulkChanges}>
+                            Apply to {selectedNodes.length} folder(s)
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </>
