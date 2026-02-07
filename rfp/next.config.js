@@ -1,23 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    experimental: {
-        // Disable static generation for API routes using Prisma
-        serverComponentsExternalPackages: ['@prisma/client', '@prisma/engines'],
-    },
-    // Ensure API routes are always dynamic
-    async headers() {
-        return [
-            {
-                source: '/api/:path*',
-                headers: [
-                    {
-                        key: 'Cache-Control',
-                        value: 'no-store, must-revalidate',
-                    },
-                ],
-            },
-        ];
-    },
+    // Prisma + Vercel: mark as external so they're not bundled
+    serverExternalPackages: ['@prisma/client', '@prisma/engines'],
 };
 
 module.exports = nextConfig;
