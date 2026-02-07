@@ -802,8 +802,20 @@ async function enforceProjectPermissions(
                 continue;
             }
 
-            // Skip domain permissions (like dtgsa.com)
-            if (actual.type === 'domain') continue;
+            // Robust inherited detection: check both top-level and permissionDetails
+            const isInherited = (actual.inherited === true) || (actual.permissionDetails?.some(d => d.inherited) ?? false);
+
+            // RULE 1: Skip inherited permissions when limitedAccess is false (inheritance allowed)
+            if (!expectedPerms.limitedAccess && isInherited) {
+                console.log(`[SKIP] Inherited permission (inheritance allowed): ${actual.emailAddress}`);
+                continue;
+            }
+
+            // RULE 2: Skip domain/anyone permissions when limitedAccess is false (no hard reset)
+            if (!expectedPerms.limitedAccess && (actual.type === 'domain' || actual.type === 'anyone')) {
+                console.log(`[SKIP] Domain/anyone permission (no hard reset on non-limited folder): ${actual.type}`);
+                continue;
+            }
 
             // Check if this permission is expected
             if (!expectedEmails.has(emailLower)) {
@@ -1032,32 +1044,57 @@ async function enforceProjectPermissionsWithLogging(
                 continue;
             }
 
-            // Skip domain permissions
-            if (actual.type === 'domain') continue;
-
             // Check if this permission is expected
             if (!expectedEmails.has(emailLower)) {
                 violations++;
 
-                // RULE: Block delete for inherited permissions
-                const isInherited = actual.permissionDetails?.[0]?.inherited || false;
-                const inheritedFrom = actual.permissionDetails?.[0]?.inheritedFrom;
+                // Robust inherited detection: check both top-level and permissionDetails
+                const isInherited = (actual.inherited === true) || (actual.permissionDetails?.[0]?.inherited ?? false);
+                const inheritedFrom = actual.inheritedFrom ?? actual.permissionDetails?.[0]?.inheritedFrom;
 
+                // RULE 1: Skip inherited permissions when limitedAccess=false (inheritance allowed)
+                if (!expectedPerms.limitedAccess && isInherited) {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_permission_allowed', 'info', {
+                        action: 'SKIPPED',
+                        reason: 'INHERITANCE_ALLOWED',
+                        email: actual.emailAddress,
+                        role: actual.role,
+                        type: actual.type,
+                        sourceFolderId: inheritedFrom,
+                        message: 'Permission is inherited and inheritance is allowed for this folder (limitedAccess=false).'
+                    });
+                    await sleep(RATE_LIMIT_DELAY);
+                    continue;
+                }
+
+                // RULE 2: Skip domain/anyone when limitedAccess=false (no hard reset)
+                if (!expectedPerms.limitedAccess && (actual.type === 'domain' || actual.type === 'anyone')) {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'domain_permission_allowed', 'info', {
+                        action: 'SKIPPED',
+                        reason: 'NO_HARD_RESET_ON_NON_LIMITED',
+                        type: actual.type,
+                        domain: actual.domain,
+                        message: 'Domain/anyone permission allowed on non-limited folder (no hard reset).'
+                    });
+                    await sleep(RATE_LIMIT_DELAY);
+                    continue;
+                }
+
+                // If limitedAccess=true and isInherited: log as violation (shouldn't happen if Ltd Access works)
                 if (isInherited) {
-                    // LOG: DRIVE_INHERITED_PERMISSION - Cannot delete, show source
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_permission_skipped', 'warning', {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_permission_violation', 'warning', {
                         action: 'BLOCKED',
-                        reason: 'DRIVE_INHERITED_PERMISSION',
+                        reason: 'INHERITED_ON_LIMITED_FOLDER',
                         email: actual.emailAddress,
                         role: actual.role,
                         type: actual.type,
                         permissionId: actual.id,
                         sourceFolderId: inheritedFrom,
                         sourceLink: inheritedFrom ? `https://drive.google.com/drive/folders/${inheritedFrom}` : null,
-                        message: 'Permission is inherited. Must be removed from source folder.'
+                        message: 'Permission is inherited on a Limited Access folder. This should not happen. Check inheritedPermissionsDisabled flag.'
                     });
                     await sleep(RATE_LIMIT_DELAY);
-                    continue; // Skip to next permission
+                    continue;
                 }
 
                 try {

@@ -88,21 +88,30 @@ function comparePermissions(
 
     // Check for extra permissions
     for (const p of actual) {
-        if (!p.emailAddress || p.type === 'domain') continue;
+        if (!p.emailAddress && p.type !== 'domain' && p.type !== 'anyone') continue;
 
-        const email = p.emailAddress.toLowerCase();
-        if (expectedEmails.has(email)) continue;
-        if (protectedEmails.includes(email)) continue;
+        const email = p.emailAddress?.toLowerCase();
+        if (email && expectedEmails.has(email)) continue;
+        if (email && protectedEmails.includes(email)) continue;
 
-        // NEW RULE: If Limited Access is enabled, ignore inherited permissions
-        // They exist in the API but cannot actually access the content
-        const isInherited = p.permissionDetails?.[0]?.inherited || false;
-        if (expected.limitedAccess && isInherited) {
-            // Skip - inherited permission on Limited Access folder = OK
+        // Robust inherited detection: check both top-level and permissionDetails
+        const isInherited = (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false);
+
+        // RULE 1: Inherited permissions are OK when limitedAccess=false (inheritance allowed)
+        //         but are violations when limitedAccess=true (inheritance blocked)
+        if (!expected.limitedAccess && isInherited) {
+            // Skip - inherited permission on non-limited folder = OK (inheritance allowed)
             continue;
         }
 
-        discrepancies.push(`Extra: ${email}`);
+        // RULE 2: Domain/anyone permissions - only enforce hard reset when limitedAccess=true
+        if (!expected.limitedAccess && (p.type === 'domain' || p.type === 'anyone')) {
+            // Skip - no hard reset on non-limited folders
+            continue;
+        }
+
+        // If limitedAccess=true: inherited perms AND domain/anyone (if not in template) are violations
+        discrepancies.push(`Extra: ${email || p.type}`);
     }
 
     if (discrepancies.length === 0) {

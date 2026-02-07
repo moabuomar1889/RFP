@@ -293,7 +293,7 @@ export async function listPermissions(
     const response = await drive.permissions.list({
         fileId: folderId,
         supportsAllDrives: true,
-        fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,permissionDetails)',
+        fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,inherited,inheritedFrom,permissionDetails)',
     });
 
     const permissions = response.data.permissions || [];
@@ -307,8 +307,9 @@ export async function listPermissions(
         domain: p.domain ?? undefined,
         deleted: p.deleted ?? false,
         permissionDetails: p.permissionDetails ?? undefined,
-        inherited: p.permissionDetails?.some(d => d.inherited) ?? false,
-        inheritedFrom: p.permissionDetails?.find(d => d.inherited)?.inheritedFrom
+        // Robust inherited detection: check top-level field first, then permissionDetails
+        inherited: (p.inherited === true) || (p.permissionDetails?.some(d => d.inherited) ?? false),
+        inheritedFrom: p.inheritedFrom ?? p.permissionDetails?.find(d => d.inherited)?.inheritedFrom
     }));
 }
 
