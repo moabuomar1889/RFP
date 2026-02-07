@@ -321,28 +321,6 @@ export default function JobsPage() {
         }
     };
 
-    const stopJob = async (jobId: string) => {
-        const confirmed = confirm('Stop this job? This will mark it as failed and terminate execution.');
-        if (!confirmed) return;
-
-        try {
-            const response = await fetch(`/api/jobs/${jobId}/stop`, {
-                method: 'POST',
-            });
-            const data = await response.json();
-
-            if (data.success) {
-                toast.success('Job stopped');
-                fetchJobs();
-            } else {
-                toast.error(data.error || 'Failed to stop job');
-            }
-        } catch (error) {
-            console.error('Error stopping job:', error);
-            toast.error('Failed to stop job');
-        }
-    };
-
     const filteredJobs = jobs.filter((job) => {
         if (tab === "all") return true;
         return job.status === tab;
@@ -455,17 +433,6 @@ export default function JobsPage() {
                                             Started by {job.triggered_by || 'system'}
                                         </p>
                                     </div>
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            stopJob(job.id);
-                                        }}
-                                    >
-                                        <XCircle className="mr-2 h-4 w-4" />
-                                        Stop Job
-                                    </Button>
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
