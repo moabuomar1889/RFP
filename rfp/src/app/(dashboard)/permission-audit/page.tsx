@@ -203,27 +203,31 @@ export default function PermissionAuditPage() {
         });
     };
 
-    const exportCSV = () => {
-        if (!auditResult) return;
+    const exportV2 = async (format: 'csv' | 'json') => {
+        if (!selectedProjectId) return;
 
-        const rows = [['Folder Path', 'Status', 'Expected', 'Actual', 'Discrepancies']];
-        for (const c of auditResult.comparisons) {
-            rows.push([
-                c.normalizedPath,
-                c.status,
-                [...c.expectedGroups.map(g => `${g.email} (${g.role})`), ...c.expectedUsers.map(u => `${u.email} (${u.role})`)].join('; '),
-                c.actualPermissions.map(p => `${p.email} (${p.role})`).join('; '),
-                c.discrepancies.join('; ')
-            ]);
+        try {
+            const res = await fetch(`/api/audit/export?projectId=${selectedProjectId}&format=${format}`);
+
+            if (format === 'json') {
+                const data = await res.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `audit_export_v2_${auditResult?.projectCode}_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+            } else {
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `audit_export_v2_${auditResult?.projectCode}_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+            }
+        } catch (error) {
+            console.error('Export failed:', error);
         }
-
-        const csv = rows.map(r => r.map(cell => `"${cell}"`).join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `permission-audit-${auditResult.projectCode}-${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
     };
 
     return (
@@ -239,10 +243,16 @@ export default function PermissionAuditPage() {
                     </p>
                 </div>
                 {auditResult && (
-                    <Button variant="outline" onClick={exportCSV}>
-                        <Download className="h-4 w-4 mr-2" />
-                        Export CSV
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => exportV2('csv')}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Export CSV v2
+                        </Button>
+                        <Button variant="outline" onClick={() => exportV2('json')}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Export JSON v2
+                        </Button>
+                    </div>
                 )}
             </div>
 
