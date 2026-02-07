@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
-import { inngest } from '@/lib/inngest';
+import { getRawSupabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +19,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const supabase = getSupabaseAdmin();
+        const supabase = getRawSupabaseAdmin();
 
-        // Update job status to cancelled
+        // Update job status to cancelled in rfp schema
         const { error: updateError } = await supabase
+            .schema('rfp')
             .from('sync_jobs')
             .update({
                 status: 'cancelled',
@@ -35,15 +35,10 @@ export async function POST(request: NextRequest) {
         if (updateError) {
             console.error('Error updating job status:', updateError);
             return NextResponse.json(
-                { success: false, error: 'Failed to update job status' },
+                { success: false, error: `Failed to update job status: ${updateError.message}` },
                 { status: 500 }
             );
         }
-
-        // TODO: Actually cancel the Inngest job
-        // Inngest doesn't have a direct "cancel" API in the SDK yet
-        // The job will see the database status change and should stop gracefully
-        // For now, we just update the database status
 
         return NextResponse.json({
             success: true,
