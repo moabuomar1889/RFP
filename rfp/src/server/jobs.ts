@@ -300,7 +300,10 @@ export const enforcePermissions = inngest.createFunction(
     },
     { event: 'permissions/enforce' },
     async ({ event, step }) => {
-        const { jobId, projectIds, triggeredBy } = event.data;
+        const { jobId, projectId, projectIds, all, triggeredBy } = event.data;
+
+        // Convert single projectId to array for uniform handling
+        const targetProjectIds = projectId ? [projectId] : (projectIds || []);
 
         // Update job to running and log start
         await step.run('update-job-running', async () => {
@@ -337,9 +340,11 @@ export const enforcePermissions = inngest.createFunction(
                 throw new Error(`Failed to fetch projects: ${error.message}`);
             }
 
-            if (projectIds && projectIds.length > 0) {
-                return (data || []).filter((p: any) => projectIds.includes(p.id));
+            // Filter by targetProjectIds if provided (single project enforcement)
+            if (targetProjectIds.length > 0) {
+                return (data || []).filter((p: any) => targetProjectIds.includes(p.id));
             }
+            // Otherwise return all (enforce all projects)
             return data || [];
         });
 
