@@ -237,6 +237,7 @@ export default function JobsPage() {
     const [tab, setTab] = useState("all");
     const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
     const [clearingJobs, setClearingJobs] = useState(false);
+    const [stoppingJobs, setStoppingJobs] = useState<Set<string>>(new Set());
 
     const fetchJobs = useCallback(async () => {
         try {
@@ -295,6 +296,33 @@ export default function JobsPage() {
             setClearingJobs(false);
         }
     };
+
+    const stopJob = async (jobId: string) => {
+        setStoppingJobs(prev => new Set(prev).add(jobId));
+        try {
+            const response = await fetch("/api/jobs/stop", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ jobId }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                toast.success("Job stopped successfully");
+                fetchJobs();
+            } else {
+                toast.error(data.error || "Failed to stop job");
+            }
+        } catch (error) {
+            toast.error("Failed to stop job");
+        } finally {
+            setStoppingJobs(prev => {
+                const next = new Set(prev);
+                next.delete(jobId);
+                return next;
+            });
+        }
+    };
+
 
     const triggerJob = async (jobType: 'rebuild_index' | 'enforce_permissions') => {
         try {
@@ -433,6 +461,24 @@ export default function JobsPage() {
                                             Started by {job.triggered_by || 'system'}
                                         </p>
                                     </div>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => stopJob(job.id)}
+                                        disabled={stoppingJobs.has(job.id)}
+                                    >
+                                        {stoppingJobs.has(job.id) ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Stopping...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <XCircle className="mr-2 h-4 w-4" />
+                                                Stop Job
+                                            </>
+                                        )}
+                                    </Button>
                                 </div>
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
