@@ -1509,14 +1509,14 @@ async function createSubfoldersFromTemplate(
 // ============= PERMISSION RESET SYSTEM =============
 
 /**
- * Write a permission audit log entry
+ * Write permission audit log using Prisma Client (CODE-FIRST)
  */
 async function writePermissionAudit(
     jobId: string,
-    folderId: string | null,
-    action: string,
+    folderId: string,
+    action: 'add' | 'remove' | 'enable_limited_access' | 'disable_limited_access' | 'skip_inherited' | 'hard_reset',
     details: {
-        principalType?: string;
+        principalType?: 'user' | 'group' | 'domain' | 'anyone';
         principalEmail?: string;
         principalRole?: string;
         permissionId?: string;
@@ -1529,20 +1529,28 @@ async function writePermissionAudit(
     }
 ): Promise<void> {
     try {
-        await supabaseAdmin.from('permission_audit').insert({
-            job_id: jobId,
-            folder_id: folderId,
-            action,
-            principal_type: details.principalType,
-            principal_email: details.principalEmail,
-            principal_role: details.principalRole,
-            permission_id: details.permissionId,
-            is_inherited: details.isInherited ?? false,
-            inherited_from: details.inheritedFrom,
-            before_state: details.beforeState,
-            after_state: details.afterState,
-            result: details.result,
-            error_message: details.errorMessage
+        const { prisma, PermissionAction, PermissionResult, PrincipalType } = await import('@/lib/prisma');
+
+        // Map action string to enum
+        const actionEnum = action === 'hard_reset' ? PermissionAction.remove :
+            PermissionAction[action as keyof typeof PermissionAction];
+
+        await prisma.permissionAudit.create({
+            data: {
+                job_id: jobId,
+                folder_id: folderId,
+                action: actionEnum,
+                principal_type: details.principalType ? PrincipalType[details.principalType] : null,
+                principal_email: details.principalEmail ?? null,
+                principal_role: details.principalRole ?? null,
+                permission_id: details.permissionId ?? null,
+                is_inherited: details.isInherited ?? false,
+                inherited_from: details.inheritedFrom ?? null,
+                before_state: details.beforeState ?? null,
+                after_state: details.afterState ?? null,
+                result: PermissionResult[details.result],
+                error_message: details.errorMessage ?? null
+            }
         });
     } catch (err) {
         console.error('Failed to write permission audit:', err);
@@ -1551,6 +1559,7 @@ async function writePermissionAudit(
 
 /**
  * Reset a single folder's permissions to match template (AC-2, AC-3)
+ * CODE-FIRST: Uses Prisma Client
  */
 async function resetSingleFolder(
     folder: any,
@@ -1563,6 +1572,8 @@ async function resetSingleFolder(
     }
 
     console.log(`\n--- Resetting folder: ${folder.template_path} (${folder.drive_folder_id}) ---`);
+
+    const { prisma } = await import('@/lib/prisma');
 
     // Step 1: Limited Access (AC-1 + AC-3)
     let actualLimitedAccess = folder.actual_limited_access;
@@ -1579,8 +1590,8 @@ async function resetSingleFolder(
             await writePermissionAudit(jobId, folder.id,
                 expected.limitedAccess ? 'enable_limited_access' : 'disable_limited_access',
                 {
-                    beforeState: { limitedAccess: folder.actual_limited_access },
-                    afterState: { limitedAccess: actualLimitedAccess },
+                    beforeState: { limited_access: folder.actual_limited_access },
+                    afterState: { limited_access: actualLimitedAccess },
                     result: 'success'
                 }
             );
@@ -1610,14 +1621,15 @@ async function resetSingleFolder(
         afterState: stats
     });
 
-    // Step 3: Update folder_index (AC-3)
-    await supabaseAdmin
-        .from('folder_index')
-        .update({
+    // Step 3: Update folder_index using Prisma (AC-3)
+    await prisma.folderIndex.update({
+        where: { id: folder.id },
+        data: {
             actual_limited_access: actualLimitedAccess,
-            last_verified_at: new Date().toISOString()
-        })
-        .eq('id', folder.id);
+            last_verified_at: new Date(),
+            is_compliant: actualLimitedAccess === expected.limitedAccess
+        }
+    });
 
     console.log(`✓ Folder reset complete`);
 }
@@ -1625,6 +1637,7 @@ async function resetSingleFolder(
 /**
  * Reset permissions for all folders in a project (AC-5: batched)
  * MANUAL ONLY - triggered via POST /api/permissions/reset
+ * CODE-FIRST: Uses Prisma Client
  */
 export async function resetPermissionsForProject(
     projectId: string,
@@ -1635,74 +1648,70 @@ export async function resetPermissionsForProject(
     console.log(`Job ID: ${jobId}`);
 
     try {
+        const { prisma, ResetJobStatus } = await import('@/lib/prisma');
+
         // Update job status to running
-        await supabaseAdmin
-            .from('reset_jobs')
-            .update({
-                status: 'running',
-                started_at: new Date().toISOString()
-            })
-            .eq('id', jobId);
+        await prisma.resetJob.update({
+            where: { id: jobId },
+            data: {
+                status: ResetJobStatus.running,
+                started_at: new Date()
+            }
+        });
 
         // Step 1: Load active template
-        const { data: templateData, error: templateError } = await supabaseAdmin
-            .rpc('get_active_template')
-            .single();
+        const templateData = await prisma.folderTemplate.findFirst({
+            where: { is_active: true },
+            orderBy: { version_number: 'desc' }
+        });
 
-        if (templateError || !templateData) {
-            throw new Error(`Failed to load template: ${templateError?.message}`);
+        if (!templateData) {
+            throw new Error('No active template found');
         }
 
-        const template = (templateData as any).template_json;
-        const permissionsMap = buildPermissionsMap(template);
-        console.log(`Template loaded: ${Object.keys(permissionsMap).length} folder definitions`);
+        const template = templateData.template_json;
+        const permissionsMap = buildPermissionsMap(template as any);
 
-        // Step 2: Load folders for project
-        const { data: folders, error: foldersError } = await supabaseAdmin
-            .from('folder_index')
-            .select('*')
-            .eq('project_id', projectId);
-
-        if (foldersError || !folders) {
-            throw new Error(`Failed to load folders: ${foldersError?.message}`);
-        }
+        // Step 2: Load folders for this project
+        const folders = await prisma.folderIndex.findMany({
+            where: { project_id: projectId }
+        });
 
         const totalFolders = folders.length;
-        console.log(`Folders to reset: ${totalFolders}`);
-
         let processed = 0;
         let successful = 0;
         let failed = 0;
 
-        // Step 3: Process in batches (AC-5)
+        console.log(`Found ${totalFolders} folders to reset`);
+
+        // Step 3: Process in batches
         const BATCH_SIZE = 10;
         for (let i = 0; i < totalFolders; i += BATCH_SIZE) {
             const batch = folders.slice(i, i + BATCH_SIZE);
-            console.log(`\n--- Batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(totalFolders / BATCH_SIZE)} ---`);
 
-            const results = await Promise.allSettled(
-                batch.map(folder => resetSingleFolder(folder, permissionsMap, jobId))
+            await Promise.allSettled(
+                batch.map(async (folder) => {
+                    try {
+                        await resetSingleFolder(folder, permissionsMap, jobId);
+                        successful++;
+                    } catch (error) {
+                        failed++;
+                        console.error(`Reset failed for ${folder.template_path}:`, error);
+                    } finally {
+                        processed++;
+                    }
+                })
             );
 
-            for (const result of results) {
-                if (result.status === 'fulfilled') {
-                    successful++;
-                } else {
-                    failed++;
-                    console.error(`Reset failed:`, result.reason);
-                }
-                processed++;
-            }
-
-            // Update progress
-            await supabaseAdmin
-                .from('reset_jobs')
-                .update({
+            // Update progress using Prisma
+            await prisma.resetJob.update({
+                where: { id: jobId },
+                data: {
                     processed_folders: processed,
                     successful_folders: successful,
                     failed_folders: failed
-                })
-                .eq('id', jobId);
+                }
+            });
 
             console.log(`Progress: ${processed}/${totalFolders} (${successful} success, ${failed} failed)`);
 
@@ -1713,14 +1722,14 @@ export async function resetPermissionsForProject(
         }
 
         // Final status
-        const finalStatus = failed > 0 ? 'completed' : 'completed'; // Still 'completed' even with some failures
-        await supabaseAdmin
-            .from('reset_jobs')
-            .update({
+        const finalStatus = failed > 0 ? ResetJobStatus.completed : ResetJobStatus.completed;
+        await prisma.resetJob.update({
+            where: { id: jobId },
+            data: {
                 status: finalStatus,
-                completed_at: new Date().toISOString()
-            })
-            .eq('id', jobId);
+                completed_at: new Date()
+            }
+        });
 
         console.log(`\n========== RESET COMPLETE ==========`);
         console.log(`Total: ${totalFolders}, Success: ${successful}, Failed: ${failed}`);
@@ -1728,14 +1737,16 @@ export async function resetPermissionsForProject(
     } catch (error: any) {
         console.error(`Reset job ${jobId} failed with fatal error:`, error);
 
+        const { prisma, ResetJobStatus } = await import('@/lib/prisma');
+
         // Mark job as failed
-        await supabaseAdmin
-            .from('reset_jobs')
-            .update({
-                status: 'failed',
-                completed_at: new Date().toISOString()
-            })
-            .eq('id', jobId);
+        await prisma.resetJob.update({
+            where: { id: jobId },
+            data: {
+                status: ResetJobStatus.failed,
+                completed_at: new Date()
+            }
+        });
 
         throw error;
     }

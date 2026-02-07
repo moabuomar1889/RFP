@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { prisma, ResetJobStatus } from '@/lib/prisma';
 import { resetPermissionsForProject } from '@/server/jobs';
 
 /**
  * POST /api/permissions/reset
  * Manual reset tool for permission system (AC-5: batched execution)
+ * CODE-FIRST: Uses Prisma Client for type-safe database access
  * 
  * Body:
  * - projectId: UUID (optional - if provided, reset all folders in project)
@@ -15,8 +16,6 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const { projectId, folderIds, resetAll } = body;
-
-        const supabase = getSupabaseAdmin();
 
         // Validation
         if (!projectId && !folderIds && !resetAll) {
@@ -33,64 +32,51 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Create reset job record
-        const jobData: any = {
-            created_by: 'admin',
-            status: 'pending'
-        };
+        let totalFolders = 0;
 
+        // Count folders using Prisma
         if (projectId) {
-            // Count folders in project
-            const { count } = await supabase
-                .from('folder_index')
-                .select('*', { count: 'exact', head: true })
-                .eq('project_id', projectId);
-
-            jobData.project_id = projectId;
-            jobData.total_folders = count || 0;
+            totalFolders = await prisma.folderIndex.count({
+                where: { project_id: projectId }
+            });
         } else if (folderIds && folderIds.length > 0) {
-            jobData.folder_ids = folderIds;
-            jobData.total_folders = folderIds.length;
+            totalFolders = folderIds.length;
         }
 
-        const { data: job, error: jobError } = await supabase
-            .from('reset_jobs')
-            .insert(jobData)
-            .select()
-            .single();
+        // Create reset job using Prisma
+        const job = await prisma.resetJob.create({
+            data: {
+                project_id: projectId || null,
+                total_folders: totalFolders,
+                status: ResetJobStatus.pending,
+                created_by: 'admin'
+            }
+        });
 
-        if (jobError) {
-            console.error('Failed to create reset job:', jobError);
-            return NextResponse.json(
-                { error: 'Failed to create reset job', details: jobError.message },
-                { status: 500 }
-            );
+        // If folder IDs provided, create join table entries
+        if (folderIds && folderIds.length > 0) {
+            await prisma.resetJobFolder.createMany({
+                data: folderIds.map((folderId: string) => ({
+                    job_id: job.id,
+                    folder_id: folderId
+                }))
+            });
         }
 
         // Start reset asynchronously (don't await - return immediately)
-        if (projectId) {
-            // Fire and forget
-            resetPermissionsForProject(projectId, job.id).catch(error => {
-                console.error(`Reset job ${job.id} failed:`, error);
-                supabase
-                    .from('reset_jobs')
-                    .update({ status: 'failed' })
-                    .eq('id', job.id)
-                    .then(() => console.log(`Marked job ${job.id} as failed`));
-            });
-        } else if (folderIds && folderIds.length > 0) {
-            // TODO: Implement folder-specific reset
-            return NextResponse.json(
-                { error: 'folderIds reset not implemented yet - use projectId' },
-                { status: 400 }
-            );
-        }
+        resetPermissionsForProject(projectId, job.id).catch(error => {
+            console.error(`Reset job ${job.id} failed:`, error);
+            prisma.resetJob.update({
+                where: { id: job.id },
+                data: { status: ResetJobStatus.failed }
+            }).then(() => console.log(`Marked job ${job.id} as failed`));
+        });
 
         return NextResponse.json({
             success: true,
             jobId: job.id,
-            totalFolders: jobData.total_folders,
-            message: `Reset job ${job.id} started for ${jobData.total_folders} folders`
+            totalFolders: totalFolders,
+            message: `Reset job ${job.id} started for ${totalFolders} folders`
         });
 
     } catch (error: any) {
@@ -105,6 +91,7 @@ export async function POST(request: NextRequest) {
 /**
  * GET /api/permissions/reset?jobId=xxx
  * Get reset job progress
+ * CODE-FIRST: Uses Prisma Client
  */
 export async function GET(request: NextRequest) {
     try {
@@ -118,28 +105,46 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const supabase = getSupabaseAdmin();
+        // Get job with progress using Prisma
+        const job = await prisma.resetJob.findUnique({
+            where: { id: jobId },
+            include: {
+                project: {
+                    select: {
+                        name: true,
+                        pr_number: true
+                    }
+                }
+            }
+        });
 
-        const { data, error } = await supabase
-            .rpc('get_reset_job_progress', { p_job_id: jobId })
-            .single();
-
-        if (error) {
-            console.error('Failed to get job progress:', error);
-            return NextResponse.json(
-                { error: 'Failed to get job progress', details: error.message },
-                { status: 500 }
-            );
-        }
-
-        if (!data) {
+        if (!job) {
             return NextResponse.json(
                 { error: 'Job not found' },
                 { status: 404 }
             );
         }
 
-        return NextResponse.json(data);
+        // Calculate progress percentage
+        const progressPercent = job.total_folders > 0
+            ? Math.round((job.processed_folders / job.total_folders) * 100)
+            : 0;
+
+        return NextResponse.json({
+            id: job.id,
+            project_id: job.project_id,
+            project_name: job.project?.name,
+            pr_number: job.project?.pr_number,
+            total_folders: job.total_folders,
+            processed_folders: job.processed_folders,
+            successful_folders: job.successful_folders,
+            failed_folders: job.failed_folders,
+            status: job.status,
+            progress_percent: progressPercent,
+            started_at: job.started_at,
+            completed_at: job.completed_at,
+            created_at: job.created_at
+        });
 
     } catch (error: any) {
         console.error('Reset status API error:', error);

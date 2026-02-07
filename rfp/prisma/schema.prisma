@@ -1,0 +1,185 @@
+// Prisma Schema - CODE-FIRST Source of Truth
+// For RFP Permission System Refactor
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["rfp"]
+}
+
+// ============================================================================
+// ENUMS (Type Safety)
+// ============================================================================
+
+enum ResetJobStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+
+  @@schema("rfp")
+}
+
+enum PermissionAction {
+  add
+  remove
+  enable_limited_access
+  disable_limited_access
+  skip_inherited
+
+  @@schema("rfp")
+}
+
+enum PermissionResult {
+  success
+  failed
+  skipped
+
+  @@schema("rfp")
+}
+
+enum PrincipalType {
+  user
+  group
+  domain
+  anyone
+
+  @@schema("rfp")
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+model FolderTemplate {
+  id             String   @id @default(uuid()) @db.Uuid
+  version_number Int      @unique
+  template_json  Json
+  is_active      Boolean  @default(true)
+  created_by     String
+  created_at     DateTime @default(now()) @db.Timestamptz
+  notes          String?
+
+  @@map("folder_templates")
+  @@schema("rfp")
+}
+
+model Project {
+  id              String        @id @default(uuid()) @db.Uuid
+  name            String
+  pr_number       String        @unique
+  drive_folder_id String?
+  created_at      DateTime      @default(now()) @db.Timestamptz
+  folders         FolderIndex[]
+  resetJobs       ResetJob[]
+
+  @@map("projects")
+  @@schema("rfp")
+}
+
+model FolderIndex {
+  id                      String              @id @default(uuid()) @db.Uuid
+  project_id              String              @db.Uuid
+  drive_folder_id         String              @unique
+  template_path           String
+  // Expected state (from template - source of truth)
+  expected_limited_access Boolean             @default(false)
+  expected_groups         Json                @default("[]")
+  expected_users          Json                @default("[]")
+  // Actual state (from Drive API)
+  actual_limited_access   Boolean?
+  last_verified_at        DateTime?           @db.Timestamptz
+  // Compliance (computed in application layer)
+  is_compliant            Boolean             @default(false)
+  created_at              DateTime            @default(now()) @db.Timestamptz
+  updated_at              DateTime            @updatedAt @db.Timestamptz
+  // Relations
+  project                 Project             @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  audits                  PermissionAudit[]
+
+  @@index([project_id])
+  @@index([template_path])
+  @@index([is_compliant])
+  @@index([last_verified_at])
+  @@map("folder_index")
+  @@schema("rfp")
+}
+
+model PermissionAudit {
+  id              String           @id @default(uuid()) @db.Uuid
+  folder_id       String?          @db.Uuid
+  job_id          String?          @db.Uuid
+  // Action details
+  action          PermissionAction
+  principal_type  PrincipalType?
+  principal_email String?
+  principal_role  String?
+  permission_id   String?
+  // Inheritance tracking
+  is_inherited    Boolean          @default(false)
+  inherited_from  String?
+  // State tracking
+  before_state    Json?
+  after_state     Json?
+  // Result
+  result          PermissionResult
+  error_message   String?
+  created_at      DateTime         @default(now()) @db.Timestamptz
+  // Relations
+  folder          FolderIndex?     @relation(fields: [folder_id], references: [id], onDelete: Cascade)
+  job             ResetJob?        @relation(fields: [job_id], references: [id])
+
+  @@index([folder_id])
+  @@index([job_id])
+  @@index([action])
+  @@index([result])
+  @@index([created_at])
+  @@map("permission_audit")
+  @@schema("rfp")
+}
+
+model ResetJob {
+  id                 String          @id @default(uuid()) @db.Uuid
+  project_id         String?         @db.Uuid
+  // Progress tracking
+  total_folders      Int
+  processed_folders  Int             @default(0)
+  successful_folders Int             @default(0)
+  failed_folders     Int             @default(0)
+  // Execution state
+  status             ResetJobStatus  @default(pending)
+  // Timing
+  started_at         DateTime?       @db.Timestamptz
+  completed_at       DateTime?       @db.Timestamptz
+  created_at         DateTime        @default(now()) @db.Timestamptz
+  created_by         String?
+  // Relations
+  project            Project?        @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  audits             PermissionAudit[]
+  folders            ResetJobFolder[]
+
+  @@index([project_id])
+  @@index([status])
+  @@index([created_at])
+  @@map("reset_jobs")
+  @@schema("rfp")
+}
+
+// Join table for reset job targeting specific folders
+model ResetJobFolder {
+  id         String   @id @default(uuid()) @db.Uuid
+  job_id     String   @db.Uuid
+  folder_id  String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz
+  job        ResetJob @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@unique([job_id, folder_id])
+  @@index([job_id])
+  @@index([folder_id])
+  @@map("reset_job_folders")
+  @@schema("rfp")
+}
