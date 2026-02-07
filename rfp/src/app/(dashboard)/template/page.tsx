@@ -24,6 +24,7 @@ import {
     Users,
     CheckSquare2,
     Square,
+    Edit2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -116,7 +117,7 @@ interface FolderNodeProps {
     // Multi-select props
     selectionMode: 'single' | 'multi';
     selectedNodes: string[];
-    onToggleSelection?: (nodeId: string) => void;
+    onToggleSelection?: (node: any) => void;
 }
 
 function FolderNode({ node, level, onSelect, selectedId, selectionMode, selectedNodes, onToggleSelection }: FolderNodeProps) {
@@ -148,7 +149,7 @@ function FolderNode({ node, level, onSelect, selectedId, selectionMode, selected
                     <input
                         type="checkbox"
                         checked={selectedNodes.includes(nodeId)}
-                        onChange={() => onToggleSelection?.(nodeId)}
+                        onChange={() => onToggleSelection?.(node)}
                         onClick={(e) => e.stopPropagation()}
                         className="h-4 w-4"
                     />
@@ -748,7 +749,7 @@ export default function TemplatePage() {
                 </Card>
 
                 {/* Template Editor */}
-                <div className="grid gap-6 lg:grid-cols-2">
+                <div className="grid gap-6 lg:grid-cols-[7fr_3fr]">
                     {/* Folder Tree */}
                     <Card className="h-[600px] flex flex-col">
                         <CardHeader className="flex-shrink-0">
