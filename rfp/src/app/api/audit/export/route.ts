@@ -75,14 +75,23 @@ async function getEnhancedPermissions(folderId: string): Promise<{
 }> {
     const drive = await getDriveClient();
 
-    // Get folder metadata to check inheritedPermissionsDisabled
-    const folderRes = await drive.files.get({
-        fileId: folderId,
-        supportsAllDrives: true,
-        fields: 'capabilities'
-    });
+    // Get folder metadata to check inheritedPermissionsDisabled (Limited Access status)
+    let actualLimitedAccess: boolean | null = null;
+    try {
+        const folderRes = await drive.files.get({
+            fileId: folderId,
+            supportsAllDrives: true,
+            fields: 'id,name,inheritedPermissionsDisabled,parents,driveId'
+        });
 
-    const actualLimitedAccess = (folderRes.data as any).permissionRestrictionsInfo?.inheritedPermissionsDisabled ?? null;
+        // inheritedPermissionsDisabled is a direct field on the file resource
+        // When true, it means Limited Access is enabled (inheritance blocked)
+        actualLimitedAccess = folderRes.data.inheritedPermissionsDisabled ?? false;
+    } catch (err) {
+        console.error(`Failed to get folder metadata for ${folderId}:`, err);
+        // If we can't fetch it, default to false (assume no Limited Access)
+        actualLimitedAccess = false;
+    }
 
     // Get permissions with all fields
     const response = await drive.permissions.list({
