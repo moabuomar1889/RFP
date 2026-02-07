@@ -307,9 +307,10 @@ export async function listPermissions(
         domain: p.domain ?? undefined,
         deleted: p.deleted ?? false,
         permissionDetails: p.permissionDetails ?? undefined,
-        // Robust inherited detection: check top-level field first, then permissionDetails
-        inherited: (p.inherited === true) || (p.permissionDetails?.some(d => d.inherited) ?? false),
-        inheritedFrom: p.inheritedFrom ?? p.permissionDetails?.find(d => d.inherited)?.inheritedFrom
+        // Robust inherited detection: check top-level field first (via type assertion), then permissionDetails
+        // Note: TypeScript definitions don't include inherited at top level, but it exists in the API response
+        inherited: ((p as any).inherited === true) || (p.permissionDetails?.some(d => d.inherited) ?? false),
+        inheritedFrom: (p as any).inheritedFrom ?? p.permissionDetails?.find(d => d.inherited)?.inheritedFrom
     }));
 }
 
