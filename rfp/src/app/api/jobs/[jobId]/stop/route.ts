@@ -9,11 +9,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(
     request: NextRequest,
-    { params }: { params: { jobId: string } }
+    { params }: { params: Promise<{ jobId: string }> }
 ) {
     try {
         const supabase = getSupabaseAdmin();
-        const { jobId } = params;
+        const { jobId } = await params;
 
         // Update job status to failed
         const { error } = await supabase
