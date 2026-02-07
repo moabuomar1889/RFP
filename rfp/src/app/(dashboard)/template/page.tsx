@@ -489,15 +489,72 @@ export default function TemplatePage() {
         setSelectedNodes([]);
     };
 
-    // Handle toggling node selection in multi-select mode
+    // Helper: recursively get all node IDs from tree
+    const getAllNodeIds = (nodes: any[]): string[] => {
+        const ids: string[] = [];
+        const collect = (nodeList: any[]) => {
+            for (const node of nodeList) {
+                ids.push(node.id || node.name);
+                const children = node.nodes || node.children || [];
+                if (children.length > 0) {
+                    collect(children);
+                }
+            }
+        };
+        collect(nodes);
+        return ids;
+    };
+
+    // Helper: recursively get all child IDs of a node
+    const getChildNodeIds = (node: any): string[] => {
+        const ids: string[] = [];
+        const children = node.nodes || node.children || [];
+
+        const collect = (nodeList: any[]) => {
+            for (const n of nodeList) {
+                ids.push(n.id || n.name);
+                const childNodes = n.nodes || n.children || [];
+                if (childNodes.length > 0) {
+                    collect(childNodes);
+                }
+            }
+        };
+
+        collect(children);
+        return ids;
+    };
+
+    // Handle toggling node selection in multi-select mode with cascade
     const handleToggleSelection = (nodeId: string) => {
         setSelectedNodes(prev => {
+            // Find the node to get its children
+            const nodes = findNodesByIds(templateTree, [nodeId]);
+            const node = nodes[0];
+
             if (prev.includes(nodeId)) {
-                return prev.filter(id => id !== nodeId);
+                // Deselecting - remove node and all children
+                const childIds = node ? getChildNodeIds(node) : [];
+                const idsToRemove = [nodeId, ...childIds];
+                return prev.filter(id => !idsToRemove.includes(id));
             } else {
-                return [...prev, nodeId];
+                // Selecting - add node and all children
+                const childIds = node ? getChildNodeIds(node) : [];
+                const idsToAdd = [nodeId, ...childIds];
+                // Use Set to deduplicate
+                return [...new Set([...prev, ...idsToAdd])];
             }
         });
+    };
+
+    // Handle Select All
+    const handleSelectAll = () => {
+        const allIds = getAllNodeIds(templateTree);
+        setSelectedNodes(allIds);
+    };
+
+    // Handle Deselect All
+    const handleDeselectAll = () => {
+        setSelectedNodes([]);
     };
 
     // ============ END BULK OPERATIONS ============
@@ -730,9 +787,26 @@ export default function TemplatePage() {
                             {/* Bulk Operations Toolbar */}
                             {selectionMode === 'multi' && selectedNodes.length > 0 && (
                                 <div className="mt-4 p-3 bg-muted rounded-lg border flex items-center justify-between gap-3">
-                                    <span className="text-sm font-medium">
-                                        {selectedNodes.length} folder(s) selected
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium">
+                                            {selectedNodes.length} folder(s) selected
+                                        </span>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => {
+                                                if (selectedNodes.length === getAllNodeIds(templateTree).length) {
+                                                    handleDeselectAll();
+                                                } else {
+                                                    handleSelectAll();
+                                                }
+                                            }}
+                                        >
+                                            {selectedNodes.length === getAllNodeIds(templateTree).length
+                                                ? "Deselect All"
+                                                : "Select All"}
+                                        </Button>
+                                    </div>
                                     <div className="flex gap-2 flex-wrap">
                                         <Button
                                             size="sm"
