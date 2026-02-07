@@ -250,6 +250,10 @@ export default function TemplatePage() {
     const [bulkRole, setBulkRole] = useState('writer');
     const [bulkLimitedAccess, setBulkLimitedAccess] = useState<boolean | null>(null);
 
+    // Rename/Delete states
+    const [showRenameDialog, setShowRenameDialog] = useState(false);
+    const [newFolderName, setNewFolderName] = useState('');
+
     // Fetch safe test mode setting
     const fetchSettings = async () => {
         try {
@@ -556,6 +560,61 @@ export default function TemplatePage() {
     // Handle Deselect All
     const handleDeselectAll = () => {
         setSelectedNodes([]);
+    };
+
+    // Handle Rename Folder
+    const handleRenameFolder = () => {
+        if (!selectedNode) return;
+        setNewFolderName(selectedNode.text || selectedNode.name || '');
+        setShowRenameDialog(true);
+    };
+
+    const applyRename = () => {
+        if (!selectedNode || !newFolderName.trim()) {
+            toast.error('Folder name cannot be empty');
+            return;
+        }
+
+        const nodeId = selectedNode.id || selectedNode.name;
+        updateNode(nodeId, {
+            text: newFolderName.trim(),
+            name: newFolderName.trim()
+        });
+
+        setShowRenameDialog(false);
+        toast.success(`Folder renamed to "${newFolderName.trim()}"`);
+    };
+
+    // Handle Delete Folder
+    const handleDeleteFolder = () => {
+        if (!selectedNode) return;
+
+        const folderName = selectedNode.text || selectedNode.name || 'this folder';
+        const confirmed = confirm(`Delete "${folderName}" and all its subfolders?\n\nThis action cannot be undone.`);
+
+        if (!confirmed) return;
+
+        const nodeId = selectedNode.id || selectedNode.name;
+
+        // Remove node from tree
+        const removeNodeFromTree = (nodes: any[], idToRemove: string): any[] => {
+            return nodes.filter(n => {
+                const currentId = n.id || n.name;
+                if (currentId === idToRemove) return false;
+
+                // Recursively remove from children
+                if (n.nodes) {
+                    n.nodes = removeNodeFromTree(n.nodes, idToRemove);
+                } else if (n.children) {
+                    n.children = removeNodeFromTree(n.children, idToRemove);
+                }
+                return true;
+            });
+        };
+
+        setTemplateTree(prev => removeNodeFromTree(prev, nodeId));
+        setSelectedNode(null);
+        toast.success(`Folder "${folderName}" deleted`);
     };
 
     // ============ END BULK OPERATIONS ============
@@ -890,6 +949,26 @@ export default function TemplatePage() {
                                     ? selectedNode.path
                                     : "Select a folder to view and edit details"}
                             </CardDescription>
+                            {selectedNode && (
+                                <div className="mt-4 flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleRenameFolder}
+                                    >
+                                        <Edit2 className="mr-2 h-4 w-4" />
+                                        Rename
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={handleDeleteFolder}
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete
+                                    </Button>
+                                </div>
+                            )}
                         </CardHeader>
                         <CardContent className="flex-1">
                             {selectedNode ? (
