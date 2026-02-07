@@ -202,6 +202,12 @@ export async function GET(request: NextRequest) {
             const templatePath = folder.normalized_template_path || folder.template_path;
             const expectedPerms = permissionsMap[templatePath];
 
+            console.log('[AUDIT DEBUG]', {
+                templatePath,
+                hasMatch: !!expectedPerms,
+                availableKeys: Object.keys(permissionsMap).slice(0, 5)
+            });
+
             if (!expectedPerms) continue;
 
             // Get actual permissions from Drive
