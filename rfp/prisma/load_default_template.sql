@@ -1,4 +1,14 @@
-[
+﻿-- Load default template into folder_templates (the active table)
+-- Run this in Supabase SQL Editor
+
+-- Clear existing
+DELETE FROM rfp.folder_templates;
+
+-- Insert the correct default template
+INSERT INTO rfp.folder_templates (version_number, template_json, created_by, is_active)
+VALUES (
+    1,
+    '[
   {
     "name": "Project Delivery",
     "groups": [
@@ -116,8 +126,8 @@
             "email": "projects-managers@dtgsa.com"
           },
           {
-            "role": "writer",
-            "email": "projects-control@dtgsa.com"
+            "email": "projects-control@dtgsa.com",
+            "role": "writer"
           }
         ],
         "children": [
@@ -201,12 +211,6 @@
           },
           {
             "name": "Planning",
-            "users": [
-              {
-                "role": "writer",
-                "email": "a.albaz@dtgsa.com"
-              }
-            ],
             "groups": [
               {
                 "role": "fileOrganizer",
@@ -247,19 +251,19 @@
                 "limitedAccess": true
               }
             ],
-            "limitedAccess": true
+            "limitedAccess": true,
+            "users": [
+              {
+                "email": "a.albaz@dtgsa.com",
+                "role": "writer"
+              }
+            ]
           }
         ],
         "limitedAccess": true
       },
       {
         "name": "Quality Control",
-        "users": [
-          {
-            "role": "writer",
-            "email": "a.albaz@dtgsa.com"
-          }
-        ],
         "groups": [
           {
             "role": "fileOrganizer",
@@ -274,11 +278,17 @@
             "email": "projects-managers@dtgsa.com"
           },
           {
-            "role": "writer",
-            "email": "quality-control@dtgsa.com"
+            "email": "quality-control@dtgsa.com",
+            "role": "writer"
           }
         ],
-        "limitedAccess": true
+        "limitedAccess": true,
+        "users": [
+          {
+            "email": "a.albaz@dtgsa.com",
+            "role": "writer"
+          }
+        ]
       },
       {
         "name": "Document Control",
@@ -315,12 +325,6 @@
         "children": [
           {
             "name": "MDR",
-            "users": [
-              {
-                "role": "writer",
-                "email": "a.albaz@dtgsa.com"
-              }
-            ],
             "groups": [
               {
                 "role": "reader",
@@ -335,15 +339,21 @@
                 "email": "projects-managers@dtgsa.com"
               },
               {
-                "role": "writer",
-                "email": "quality-control@dtgsa.com"
+                "email": "quality-control@dtgsa.com",
+                "role": "writer"
               },
               {
-                "role": "writer",
-                "email": "projects-control@dtgsa.com"
+                "email": "projects-control@dtgsa.com",
+                "role": "writer"
               }
             ],
-            "limitedAccess": true
+            "limitedAccess": true,
+            "users": [
+              {
+                "email": "a.albaz@dtgsa.com",
+                "role": "writer"
+              }
+            ]
           },
           {
             "name": "Forms",
@@ -469,8 +479,8 @@
                         "email": "projects-managers@dtgsa.com"
                       },
                       {
-                        "role": "writer",
-                        "email": "projects-control@dtgsa.com"
+                        "email": "projects-control@dtgsa.com",
+                        "role": "writer"
                       }
                     ],
                     "limitedAccess": true
@@ -495,12 +505,6 @@
                   },
                   {
                     "name": "Quality Control",
-                    "users": [
-                      {
-                        "role": "writer",
-                        "email": "a.albaz@dtgsa.com"
-                      }
-                    ],
                     "groups": [
                       {
                         "role": "fileOrganizer",
@@ -515,11 +519,17 @@
                         "email": "projects-managers@dtgsa.com"
                       },
                       {
-                        "role": "writer",
-                        "email": "quality-control@dtgsa.com"
+                        "email": "quality-control@dtgsa.com",
+                        "role": "writer"
                       }
                     ],
-                    "limitedAccess": true
+                    "limitedAccess": true,
+                    "users": [
+                      {
+                        "email": "a.albaz@dtgsa.com",
+                        "role": "writer"
+                      }
+                    ]
                   },
                   {
                     "name": "Project Control",
@@ -537,8 +547,8 @@
                         "email": "projects-managers@dtgsa.com"
                       },
                       {
-                        "role": "writer",
-                        "email": "projects-control@dtgsa.com"
+                        "email": "projects-control@dtgsa.com",
+                        "role": "writer"
                       }
                     ],
                     "limitedAccess": true
@@ -595,8 +605,8 @@
                         "email": "projects-managers@dtgsa.com"
                       },
                       {
-                        "role": "writer",
-                        "email": "hse-team@dtgsa.com"
+                        "email": "hse-team@dtgsa.com",
+                        "role": "writer"
                       }
                     ],
                     "limitedAccess": true
@@ -617,8 +627,8 @@
                         "email": "projects-managers@dtgsa.com"
                       },
                       {
-                        "role": "writer",
-                        "email": "operation-team@dtgsa.com"
+                        "email": "operation-team@dtgsa.com",
+                        "role": "writer"
                       }
                     ],
                     "limitedAccess": true
@@ -659,8 +669,8 @@
                         "email": "projects-managers@dtgsa.com"
                       },
                       {
-                        "role": "writer",
-                        "email": "projects-control@dtgsa.com"
+                        "email": "projects-control@dtgsa.com",
+                        "role": "writer"
                       }
                     ],
                     "limitedAccess": true
@@ -685,12 +695,6 @@
                   },
                   {
                     "name": "Quality Control",
-                    "users": [
-                      {
-                        "role": "writer",
-                        "email": "a.albaz@dtgsa.com"
-                      }
-                    ],
                     "groups": [
                       {
                         "role": "fileOrganizer",
@@ -705,11 +709,17 @@
                         "email": "projects-managers@dtgsa.com"
                       },
                       {
-                        "role": "writer",
-                        "email": "quality-control@dtgsa.com"
+                        "email": "quality-control@dtgsa.com",
+                        "role": "writer"
                       }
                     ],
-                    "limitedAccess": true
+                    "limitedAccess": true,
+                    "users": [
+                      {
+                        "email": "a.albaz@dtgsa.com",
+                        "role": "writer"
+                      }
+                    ]
                   },
                   {
                     "name": "Project Control",
@@ -727,8 +737,8 @@
                         "email": "projects-managers@dtgsa.com"
                       },
                       {
-                        "role": "writer",
-                        "email": "projects-control@dtgsa.com"
+                        "email": "projects-control@dtgsa.com",
+                        "role": "writer"
                       }
                     ],
                     "limitedAccess": true
@@ -785,8 +795,8 @@
                         "email": "projects-managers@dtgsa.com"
                       },
                       {
-                        "role": "writer",
-                        "email": "hse-team@dtgsa.com"
+                        "email": "hse-team@dtgsa.com",
+                        "role": "writer"
                       }
                     ],
                     "limitedAccess": true
@@ -807,8 +817,8 @@
                         "email": "projects-managers@dtgsa.com"
                       },
                       {
-                        "role": "writer",
-                        "email": "operation-team@dtgsa.com"
+                        "email": "operation-team@dtgsa.com",
+                        "role": "writer"
                       }
                     ],
                     "limitedAccess": true
@@ -948,8 +958,8 @@
             "email": "projects-managers@dtgsa.com"
           },
           {
-            "role": "writer",
-            "email": "hse-team@dtgsa.com"
+            "email": "hse-team@dtgsa.com",
+            "role": "writer"
           }
         ],
         "limitedAccess": false
@@ -1005,19 +1015,19 @@
         "children": [
           {
             "name": "Admin Only",
-            "users": [
-              {
-                "role": "writer",
-                "email": "mo.abuomar@dtgsa.com"
-              }
-            ],
             "groups": [
               {
                 "role": "organizer",
                 "email": "admin@dtgsa.com"
               }
             ],
-            "limitedAccess": true
+            "limitedAccess": true,
+            "users": [
+              {
+                "email": "mo.abuomar@dtgsa.com",
+                "role": "writer"
+              }
+            ]
           }
         ],
         "limitedAccess": false
@@ -1045,12 +1055,6 @@
         "children": [
           {
             "name": "Civil and Finishes",
-            "users": [
-              {
-                "role": "writer",
-                "email": "a.albaz@dtgsa.com"
-              }
-            ],
             "groups": [
               {
                 "role": "organizer",
@@ -1065,12 +1069,6 @@
           },
           {
             "name": "IT",
-            "users": [
-              {
-                "role": "writer",
-                "email": "a.albaz@dtgsa.com"
-              }
-            ],
             "groups": [
               {
                 "role": "organizer",
@@ -1085,12 +1083,6 @@
           },
           {
             "name": "E&I",
-            "users": [
-              {
-                "role": "writer",
-                "email": "a.albaz@dtgsa.com"
-              }
-            ],
             "groups": [
               {
                 "role": "organizer",
@@ -1105,12 +1097,6 @@
           },
           {
             "name": "Mechanical",
-            "users": [
-              {
-                "role": "writer",
-                "email": "a.albaz@dtgsa.com"
-              }
-            ],
             "groups": [
               {
                 "role": "organizer",
@@ -1128,24 +1114,6 @@
       },
       {
         "name": "Technical Proposal",
-        "users": [
-          {
-            "role": "writer",
-            "email": "a.albaz@dtgsa.com"
-          },
-          {
-            "role": "writer",
-            "email": "abed.ahmad@dtgsa.com"
-          },
-          {
-            "role": "writer",
-            "email": "DC@dtgsa.com"
-          },
-          {
-            "role": "writer",
-            "email": "Waseem@dtgsa.com"
-          }
-        ],
         "groups": [
           {
             "role": "organizer",
@@ -1156,19 +1124,13 @@
             "email": "projects-managers@dtgsa.com"
           },
           {
-            "role": "writer",
-            "email": "technical-team@dtgsa.com"
+            "email": "projects-control@dtgsa.com",
+            "role": "writer"
           }
         ],
         "children": [
           {
             "name": "TBE",
-            "users": [
-              {
-                "role": "writer",
-                "email": "Marwan@dtgsa.com"
-              }
-            ],
             "groups": [
               {
                 "role": "organizer",
@@ -1179,7 +1141,13 @@
                 "email": "projects-managers@dtgsa.com"
               }
             ],
-            "limitedAccess": true
+            "limitedAccess": true,
+            "users": [
+              {
+                "email": "Marwan@dtgsa.com",
+                "role": "writer"
+              }
+            ]
           },
           {
             "name": "Technical Proposal",
@@ -1196,20 +1164,24 @@
             "limitedAccess": true
           }
         ],
-        "limitedAccess": false
+        "limitedAccess": false,
+        "users": [
+          {
+            "email": "a.albaz@dtgsa.com",
+            "role": "writer"
+          },
+          {
+            "email": "abed.ahmad@dtgsa.com",
+            "role": "writer"
+          },
+          {
+            "email": "Waseem@dtgsa.com",
+            "role": "writer"
+          }
+        ]
       },
       {
         "name": "SOW",
-        "users": [
-          {
-            "role": "writer",
-            "email": "abed.ahmad@dtgsa.com"
-          },
-          {
-            "role": "writer",
-            "email": "Waseem@dtgsa.com"
-          }
-        ],
         "groups": [
           {
             "role": "writer",
@@ -1228,9 +1200,27 @@
             "email": "projects-managers@dtgsa.com"
           }
         ],
-        "limitedAccess": true
+        "limitedAccess": true,
+        "users": [
+          {
+            "email": "abed.ahmad@dtgsa.com",
+            "role": "writer"
+          },
+          {
+            "email": "Waseem@dtgsa.com",
+            "role": "writer"
+          }
+        ]
       }
     ],
     "limitedAccess": false
   }
-]
+]'::jsonb,
+    'system',
+    true
+);
+
+-- Verify
+SELECT version_number, created_by, is_active, created_at,
+       jsonb_array_length(template_json) as phase_count
+FROM rfp.folder_templates;

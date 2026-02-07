@@ -12,16 +12,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
     try {
         const supabase = getSupabaseAdmin();
-        const body = await request.json();
-        const { projectId, all } = body;
-
         const jobId = uuidv4();
-
-        // Determine action and details based on request
-        const action = all ? 'enforce_all' : 'enforce_single';
-        const jobDetails = all
-            ? { action: 'enforce_all' }
-            : { action: 'enforce_single', projectId };
 
         // Create job record using RPC
         const { error: jobError } = await supabase.rpc('create_sync_job', {
@@ -29,7 +20,7 @@ export async function POST(request: NextRequest) {
             p_job_type: 'enforce_permissions',
             p_status: 'pending',
             p_triggered_by: 'admin',
-            p_job_details: jobDetails,
+            p_job_details: { action: 'enforce_all' },
         });
 
         if (jobError) {
@@ -40,13 +31,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Trigger Inngest job with appropriate data
+        // Trigger Inngest job
         await inngest.send({
             name: 'permissions/enforce',
             data: {
                 jobId,
-                projectId: all ? undefined : projectId,
-                all: !!all,
                 triggeredBy: 'admin',
             },
         });
@@ -54,7 +43,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             success: true,
             jobId,
-            message: all ? 'Enforce all projects job started' : 'Enforce project job started'
+            message: 'Enforce permissions job started'
         });
     } catch (error) {
         console.error('Error starting enforce permissions job:', error);

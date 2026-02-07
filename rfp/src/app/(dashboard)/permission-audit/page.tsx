@@ -13,9 +13,16 @@ interface PermissionComparison {
     driveFolderId: string;
     expectedGroups: { email: string; role: string }[];
     expectedUsers: { email: string; role: string }[];
-    actualPermissions: { email: string; role: string; type: string }[];
-    status: 'match' | 'extra' | 'missing' | 'mismatch';
+    actualPermissions: { email: string; role: string; type: string; inherited?: boolean }[];
+    // Enhanced status
+    status: 'exact_match' | 'compliant' | 'non_compliant';
+    statusLabel: 'Exact Match' | 'Compliant (Inheritance Allowed)' | 'Non-Compliant';
     discrepancies: string[];
+    // Detailed counters
+    expectedCount: number;
+    directActualCount: number;
+    inheritedActualCount: number;
+    totalActualCount: number;
     limitedAccessExpected: boolean;
 }
 
@@ -51,14 +58,15 @@ const getRoleLabel = (role: string) => {
 
 const getStatusIcon = (status: string) => {
     switch (status) {
+        case 'exact_match':
+            return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+        case 'compliant':
+            return <Shield className="h-5 w-5 text-blue-500" />;
+        case 'non_compliant':
+            return <XCircle className="h-5 w-5 text-red-500" />;
+        // Backward compatibility
         case 'match':
             return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-        case 'extra':
-            return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-        case 'missing':
-            return <XCircle className="h-5 w-5 text-red-500" />;
-        case 'mismatch':
-            return <AlertCircle className="h-5 w-5 text-orange-500" />;
         default:
             return null;
     }
@@ -66,6 +74,13 @@ const getStatusIcon = (status: string) => {
 
 const getStatusBadge = (status: string) => {
     switch (status) {
+        case 'exact_match':
+            return <Badge className="bg-green-500 hover:bg-green-600">Exact Match</Badge>;
+        case 'compliant':
+            return <Badge className="bg-blue-500 hover:bg-blue-600">Compliant (Inheritance Allowed)</Badge>;
+        case 'non_compliant':
+            return <Badge className="bg-red-500 hover:bg-red-600">Non-Compliant</Badge>;
+        // Backward compatibility
         case 'match':
             return <Badge className="bg-green-500">Match</Badge>;
         case 'extra':
@@ -173,7 +188,7 @@ export default function PermissionAuditPage() {
     }, []);
 
     const filteredComparisons = auditResult?.comparisons.filter(c =>
-        filter === 'all' || c.status !== 'match'
+        filter === 'all' || c.status !== 'exact_match'
     ) || [];
 
     const toggleFolder = (path: string) => {
@@ -375,7 +390,7 @@ export default function PermissionAuditPage() {
                             {filteredComparisons.map((c, idx) => (
                                 <div key={idx} className="border rounded-lg">
                                     <div
-                                        className={`flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 ${c.status !== 'match' ? 'bg-muted/30' : ''
+                                        className={`flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 ${c.status !== 'exact_match' ? 'bg-muted/30' : ''
                                             }`}
                                         onClick={() => toggleFolder(c.folderPath)}
                                     >
@@ -390,8 +405,10 @@ export default function PermissionAuditPage() {
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <span className="text-sm text-muted-foreground">
-                                                Expected: {c.expectedGroups.length + c.expectedUsers.length} |
-                                                Actual: {c.actualPermissions.length}
+                                                Expected: {c.expectedCount} |
+                                                Direct: {c.directActualCount} |
+                                                Inherited: {c.inheritedActualCount} |
+                                                Total: {c.totalActualCount}
                                             </span>
                                             {getStatusBadge(c.status)}
                                         </div>

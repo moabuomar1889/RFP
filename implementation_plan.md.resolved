@@ -1,0 +1,531 @@
+# Permission System End-to-End Refactor - Implementation Plan
+
+## Executive Summary
+
+Complete system refactor to establish **Template as Single Source of Truth** with **Limited Access sovereignty** and **reset-based enforcement**.
+
+**Scope:** 1,010 folders × 20 projects = ~30,000+ permission records
+
+---
+
+## System Architecture
+
+```
+┌──────────────────────────────────────────────────────────┐
+│              TEMPLATE (Source of Truth)                   │
+│  - folder structure                                       │
+│  - limitedAccess flag per folder                         │
+│  - groups[] + users[] per folder                         │
+└────────────────┬─────────────────────────────────────────┘
+                 │
+                 ▼
+┌──────────────────────────────────────────────────────────┐
+│           DATABASE (rfp schema)                           │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │ folder_templates (versioned template storage)   │    │
+│  │ folder_index (drive ↔ template mapping)         │    │
+│  │ permission_audit (change trail)                 │    │
+│  │ reset_jobs (batched execution state)            │    │
+│  └─────────────────────────────────────────────────┘    │
+└────────────────┬─────────────────────────────────────────┘
+                 │
+                 ▼
+┌──────────────────────────────────────────────────────────┐
+│         GOOGLE DRIVE (Corrected to Match)                │
+│  - inheritedPermissionsDisabled (Limited Access)         │
+│  - permissions (groups + users only)                     │
+│  - NO domain/link/anyone shares                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Phase 1: Database Rebuild
+
+### 1.1 Schema Design
+
+```sql
+-- rfp.folder_templates (unchanged, already created)
+-- Stores versioned templates
+
+-- rfp.folder_index (REBUILD)
+CREATE TABLE rfp.folder_index (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID NOT NULL REFERENCES rfp.projects(id) ON DELETE CASCADE,
+    drive_folder_id TEXT NOT NULL UNIQUE,
+    template_path TEXT NOT NULL,
+    
+    -- Expected state (from template)
+    expected_limited_access BOOLEAN NOT NULL DEFAULT false,
+    expected_groups JSONB DEFAULT '[]'::jsonb,
+    expected_users JSONB DEFAULT '[]'::jsonb,
+    
+    -- Actual state (from Drive API)
+    actual_limited_access BOOLEAN,
+    last_verified_at TIMESTAMPTZ,
+    
+    -- Compliance
+    is_compliant BOOLEAN GENERATED ALWAYS AS (
+        actual_limited_access IS NOT NULL AND 
+        actual_limited_access = expected_limited_access
+    ) STORED,
+    
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_folder_index_project ON rfp.folder_index(project_id);
+CREATE INDEX idx_folder_index_template_path ON rfp.folder_index(template_path);
+CREATE INDEX idx_folder_index_noncompliant ON rfp.folder_index(is_compliant) WHERE is_compliant = false;
+
+-- rfp.permission_audit (NEW)
+CREATE TABLE rfp.permission_audit (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    folder_id UUID REFERENCES rfp.folder_index(id) ON DELETE CASCADE,
+    job_id UUID,
+    
+    action TEXT NOT NULL, -- 'add' | 'remove' | 'enable_limited_access' | 'disable_limited_access'
+    
+    principal_type TEXT, -- 'user' | 'group' | 'domain' | 'anyone'
+    principal_email TEXT,
+    principal_role TEXT, -- 'reader' | 'writer' | 'fileOrganizer' | 'organizer'
+    permission_id TEXT,
+    
+    is_inherited BOOLEAN DEFAULT false,
+    inherited_from TEXT,
+    
+    before_state JSONB,
+    after_state JSONB,
+    
+    result TEXT NOT NULL, -- 'success' | 'failed' | 'skipped'
+    error_message TEXT,
+    
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_permission_audit_folder ON rfp.permission_audit(folder_id);
+CREATE INDEX idx_permission_audit_job ON rfp.permission_audit(job_id);
+CREATE INDEX idx_permission_audit_action ON rfp.permission_audit(action);
+
+-- rfp.reset_jobs (NEW) - for batched reset execution
+CREATE TABLE rfp.reset_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    
+    project_id UUID REFERENCES rfp.projects(id),
+    folder_ids UUID[] DEFAULT ARRAY[]::UUID[],
+    
+    total_folders INTEGER NOT NULL,
+    processed_folders INTEGER DEFAULT 0,
+    successful_folders INTEGER DEFAULT 0,
+    failed_folders INTEGER DEFAULT 0,
+    
+    status TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'running' | 'completed' | 'failed'
+    
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    created_by TEXT
+);
+```
+
+### 1.2 Migration Files
+
+```
+033_rebuild_folder_index.sql       - DROP + CREATE folder_index
+034_create_permission_audit.sql    - CREATE permission_audit
+035_create_reset_jobs.sql          - CREATE reset_jobs
+036_backfill_folder_index.sql      - RPC to rebuild from Drive
+```
+
+---
+
+## Phase 2: Drive API Layer
+
+### 2.1 Core Functions (google-drive.ts)
+
+```typescript
+// Enhanced setLimitedAccess with verification
+export async function setLimitedAccess(
+    folderId: string,
+    enabled: boolean
+): Promise<boolean> {
+    const drive = await getDriveClient();
+    
+    // Step 1: Apply
+    await drive.files.update({
+        fileId: folderId,
+        requestBody: {
+            inheritedPermissionsDisabled: enabled
+        },
+        supportsAllDrives: true
+    });
+    
+    // Step 2: Verify (read-after-write)
+    const verification = await drive.files.get({
+        fileId: folderId,
+        fields: 'inheritedPermissionsDisabled',
+        supportsAllDrives: true
+    });
+    
+    const actual = verification.data.inheritedPermissionsDisabled ?? false;
+    
+    if (actual !== enabled) {
+        throw new Error(`Limited Access verification failed: expected=${enabled}, actual=${actual}`);
+    }
+    
+    return actual;
+}
+
+// Enhanced listPermissions with full details
+export async function listPermissions(folderId: string): Promise<PermissionDetails[]> {
+    const drive = await getDriveClient();
+    
+    const response = await drive.permissions.list({
+        fileId: folderId,
+        fields: 'permissions(id,type,role,emailAddress,domain,allowFileDiscovery,deleted,pendingOwner,permissionDetails)',
+        supportsAllDrives: true
+    });
+    
+    return response.data.permissions?.map(p => ({
+        id: p.id!,
+        type: p.type!,
+        role: p.role!,
+        emailAddress: p.emailAddress,
+        domain: p.domain,
+        deleted: p.deleted ?? false,
+        permissionDetails: p.permissionDetails,
+        inherited: p.permissionDetails?.some(d => d.inherited) ?? false,
+        inheritedFrom: p.permissionDetails?.find(d => d.inherited)?.inheritedFrom
+    })) || [];
+}
+
+// Hard reset permissions
+export async function hardResetPermissions(
+    folderId: string,
+    expectedGroups: Array<{email: string, role: string}>,
+    expectedUsers: Array<{email: string, role: string}>,
+    protectedPrincipals: string[] = [
+        'mo.abuomar@dtgsa.com',
+        'rfp-admin-sdk@projects-folders-rfp.iam.gserviceaccount.com'
+    ]
+): Promise<void> {
+    // Step 1: List current permissions
+    const current = await listPermissions(folderId);
+    
+    // Step 2: Build expected set
+    const expectedEmails = new Set([
+        ...expectedGroups.map(g => g.email.toLowerCase()),
+        ...expectedUsers.map(u => u.email.toLowerCase()),
+        ...protectedPrincipals.map(p => p.toLowerCase())
+    ]);
+    
+    // Step 3: Remove ALL unexpected (including domain, anyone, link)
+    for (const perm of current) {
+        // Skip protected
+        if (protectedPrincipals.some(p => p.toLowerCase() === perm.emailAddress?.toLowerCase())) {
+            continue;
+        }
+        
+        // Skip domain permission (keep it if exists, or remove based on policy)
+        if (perm.type === 'domain') {
+            // HARD RESET: remove domain share
+            await removePermission(folderId, perm.id);
+            continue;
+        }
+        
+        // Remove anyone/link
+        if (perm.type === 'anyone') {
+            await removePermission(folderId, perm.id);
+            continue;
+        }
+        
+        // Remove if not expected
+        const email = perm.emailAddress?.toLowerCase();
+        if (!email || !expectedEmails.has(email)) {
+            // Skip inherited (cannot delete)
+            if (perm.inherited) {
+                console.warn(`Cannot remove inherited permission: ${email} from ${perm.inheritedFrom}`);
+                continue;
+            }
+            
+            await removePermission(folderId, perm.id);
+        }
+    }
+    
+    // Step 4: Add missing expected
+    const currentEmails = new Set(
+        current
+            .filter(p => !p.inherited && p.emailAddress)
+            .map(p => p.emailAddress!.toLowerCase())
+    );
+    
+    for (const group of expectedGroups) {
+        if (!currentEmails.has(group.email.toLowerCase())) {
+            await addPermission(folderId, 'group', group.role, group.email);
+        }
+    }
+    
+    for (const user of expectedUsers) {
+        if (!currentEmails.has(user.email.toLowerCase())) {
+            await addPermission(folderId, 'user', user.role, user.email);
+        }
+    }
+}
+```
+
+---
+
+## Phase 3: Reset Tool
+
+### 3.1 API Endpoint
+
+```
+POST /api/permissions/reset
+Body: {
+  projectId?: string,
+  folderIds?: string[],
+  resetAll?: boolean
+}
+```
+
+### 3.2 Reset Logic (jobs.ts)
+
+```typescript
+export async function resetPermissionsForProject(
+    projectId: string,
+    jobId: string
+): Promise<void> {
+    const supabase = getSupabaseAdmin();
+    
+    // Step 1: Load template
+    const templateData = await supabase.rpc('get_active_template').single();
+    const template = templateData.data.template_json;
+    const permissionsMap = buildPermissionsMap(template);
+    
+    // Step 2: Load folders
+    const { data: folders } = await supabase
+        .from('folder_index')
+        .select('*')
+        .eq('project_id', projectId);
+    
+    const totalFolders = folders?.length || 0;
+    let processed = 0;
+    let successful = 0;
+    let failed = 0;
+    
+    // Step 3: Process each folder (batched)
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < totalFolders; i += BATCH_SIZE) {
+        const batch = folders!.slice(i, i + BATCH_SIZE);
+        
+        await Promise.allSettled(
+            batch.map(async (folder) => {
+                try {
+                    await resetSingleFolder(folder, permissionsMap, jobId);
+                    successful++;
+                } catch (error) {
+                    failed++;
+                    console.error(`Reset failed for ${folder.template_path}:`, error);
+                } finally {
+                    processed++;
+                }
+            })
+        );
+        
+        // Update job progress
+        await supabase
+            .from('reset_jobs')
+            .update({
+                processed_folders: processed,
+                successful_folders: successful,
+                failed_folders: failed
+            })
+            .eq('id', jobId);
+    }
+}
+
+async function resetSingleFolder(
+    folder: FolderIndexRecord,
+    permissionsMap: PermissionsMap,
+    jobId: string
+): Promise<void> {
+    const expected = permissionsMap[folder.template_path];
+    if (!expected) {
+        throw new Error(`No template found for ${folder.template_path}`);
+    }
+    
+    const drive = await getDriveClient();
+    const supabase = getSupabaseAdmin();
+    
+    // Step 1: Limited Access
+    let actualLimitedAccess = folder.actual_limited_access;
+    
+    if (expected.limitedAccess !== actualLimitedAccess) {
+        await writeAudit(jobId, folder.id, 'enable_limited_access', {
+            before: actualLimitedAccess,
+            after: expected.limitedAccess
+        });
+        
+        actualLimitedAccess = await setLimitedAccess(
+            folder.drive_folder_id,
+            expected.limitedAccess
+        );
+    }
+    
+    // Step 2: Hard reset permissions
+    await hardResetPermissions(
+        folder.drive_folder_id,
+        expected.groups,
+        expected.users
+    );
+    
+    // Step 3: Update DB
+    await supabase
+        .from('folder_index')
+        .update({
+            actual_limited_access: actualLimitedAccess,
+            last_verified_at: new Date().toISOString()
+        })
+        .eq('id', folder.id);
+}
+```
+
+---
+
+## Phase 4: Folder Creation Fix
+
+### 4.1 syncProjectFolders Enhancement
+
+```typescript
+// In google-drive.ts → createFoldersRecursively
+async function createFolderWithTemplate(
+    node: TemplateNode,
+    parentId: string,
+    projectId: string
+): Promise<void> {
+    // Step 1: Create folder
+    const folder = await drive.files.create({
+        requestBody: {
+            name: node.name,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [parentId]
+        },
+        supportsAllDrives: true,
+        fields: 'id,name'
+    });
+    
+    const folderId = folder.data.id!;
+    
+    // Step 2: Apply Limited Access BEFORE permissions
+    let actualLimitedAccess = false;
+    if (node.limitedAccess) {
+        actualLimitedAccess = await setLimitedAccess(folderId, true);
+    }
+    
+    // Step 3: Add permissions
+    for (const group of node.groups || []) {
+        await addPermission(folderId, 'group', group.role, group.email);
+    }
+    
+    for (const user of node.users || []) {
+        await addPermission(folderId, 'user', user.role, user.email);
+    }
+    
+    // Step 4: Save to folder_index
+    await supabase.from('folder_index').insert({
+        project_id: projectId,
+        drive_folder_id: folderId,
+        template_path: node.path,
+        expected_limited_access: node.limitedAccess || false,
+        expected_groups: node.groups || [],
+        expected_users: node.users || [],
+        actual_limited_access: actualLimitedAccess,
+        last_verified_at: new Date().toISOString()
+    });
+}
+```
+
+---
+
+## Phase 5: Acceptance Testing
+
+### Verification Script
+
+```typescript
+// /api/admin/verify-folder
+export async function verifyFolder(folderId: string): Promise<VerificationReport> {
+    const supabase = getSupabaseAdmin();
+    
+    // Load from DB
+    const { data: dbRecord } = await supabase
+        .from('folder_index')
+        .select('*')
+        .eq('drive_folder_id', folderId)
+        .single();
+    
+    // Load from Drive
+    const drive = await getDriveClient();
+    const driveData = await drive.files.get({
+        fileId: folderId,
+        fields: 'inheritedPermissionsDisabled',
+        supportsAllDrives: true
+    });
+    
+    const drivePerms = await listPermissions(folderId);
+    
+    // Compare
+    const report = {
+        folderId,
+        templatePath: dbRecord.template_path,
+        
+        limitedAccess: {
+            expected: dbRecord.expected_limited_access,
+            actual: driveData.data.inheritedPermissionsDisabled ?? false,
+            matches: dbRecord.expected_limited_access === (driveData.data.inheritedPermissionsDisabled ?? false)
+        },
+        
+        permissions: {
+            expected: [...dbRecord.expected_groups, ...dbRecord.expected_users],
+            actual: drivePerms.filter(p => !p.inherited),
+            missing: [],
+            extra: [],
+            inherited: drivePerms.filter(p => p.inherited)
+        }
+    };
+    
+    return report;
+}
+```
+
+---
+
+## Acceptance Criteria
+
+### Must Pass:
+
+✅ **AC-1:** For any folder with `template.limitedAccess=true`, Drive `inheritedPermissionsDisabled=true`
+
+✅ **AC-2:** Hard reset removes domain/anyone/link permissions
+
+✅ **AC-3:** `folder_index.actual_limited_access` reflects Drive state after operations
+
+✅ **AC-4:** Enforcement skips inherited permissions with proper logging
+
+✅ **AC-5:** Manual reset can process 1000+ folders via batching
+
+✅ **AC-6:** Protected principals never removed
+
+✅ **AC-7:** All operations use `supportsAllDrives=true`
+
+---
+
+## Timeline
+
+| Phase | Duration | Dependencies |
+|-------|----------|--------------|
+| Phase 1: DB Rebuild | 1 day | None |
+| Phase 2: Drive API | 2 days | Phase 1 |
+| Phase 3: Reset Tool | 2 days | Phase 1, 2 |
+| Phase 4: Sync Fix | 1 day | Phase 2 |
+| Phase 5: Testing | 2 days | All phases |
+| **Total** | **8 days** | - |

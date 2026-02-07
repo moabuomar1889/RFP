@@ -14,7 +14,7 @@ cd c:\Users\Mo.abuomar\Desktop\RFP3\rfp
 npm run dev
 ```
 
-Wait for: `Ready on http://localhost:3001`
+Wait for: `Ready on https://rfp-dtgsas-projects.vercel.app`
 
 ---
 
@@ -41,7 +41,7 @@ npx prisma studio
 
 ```powershell
 # Replace YOUR_PROJECT_ID with actual UUID
-curl -X POST http://localhost:3001/api/permissions/reset `
+curl -X POST https://rfp-dtgsas-projects.vercel.app/api/permissions/reset `
   -H "Content-Type: application/json" `
   -d '{\"projectId\": \"YOUR_PROJECT_ID\"}'
 ```
@@ -60,7 +60,7 @@ curl -X POST http://localhost:3001/api/permissions/reset `
 
 ```powershell
 # Use jobId from above
-curl "http://localhost:3001/api/permissions/reset?jobId=YOUR_JOB_ID"
+curl "https://rfp-dtgsas-projects.vercel.app/api/permissions/reset?jobId=YOUR_JOB_ID"
 ```
 
 **Expected Response:**
@@ -83,7 +83,7 @@ curl "http://localhost:3001/api/permissions/reset?jobId=YOUR_JOB_ID"
 
 ```powershell
 # Get folder ID from database
-curl "http://localhost:3001/api/admin/verify-folder?folderId=YOUR_FOLDER_ID"
+curl "https://rfp-dtgsas-projects.vercel.app/api/admin/verify-folder?folderId=YOUR_FOLDER_ID"
 ```
 
 **Expected Response:**

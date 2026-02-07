@@ -1,0 +1,305 @@
+# Permission System Refactor - Task List
+
+## Phase 1: Database Rebuild (Day 1) [IN PROGRESS]
+
+### 1.1 Create Migration Files
+- [x] Review existing schema
+- [x] **Task 1.1.1:** Create [033_rebuild_folder_index.sql](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/supabase/migrations/033_rebuild_folder_index.sql)
+- [x] **Task 1.1.2:** Create [034_create_permission_audit.sql](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/supabase/migrations/034_create_permission_audit.sql)
+- [x] **Task 1.1.3:** Create [035_create_reset_jobs.sql](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/supabase/migrations/035_create_reset_jobs.sql)
+- [x] **Task 1.1.4:** Create [036_backfill_folder_index_rpc.sql](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/supabase/migrations/036_backfill_folder_index_rpc.sql)
+
+**Acceptance:** Migrations run without errors in Supabase SQL Editor
+**Status:** ✅ Ready for user to run in Supabase
+
+---
+
+## Phase 2: Drive API Layer (Day 2-3)
+
+### 2.1 Enhance google-drive.ts
+
+- [ ] **Task 2.1.1:** Enhance [setLimitedAccess()](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts#201-230)
+  - File: [src/server/google-drive.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts)
+  - Add `supportsAllDrives: true` to update call
+  - Add read-after-write verification
+  - Return actual boolean status
+  - Throw error if verification fails
+  - **Lines:** ~206-229
+
+- [ ] **Task 2.1.2:** Enhance [listPermissions()](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts#206-222)
+  - File: [src/server/google-drive.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts)
+  - Add `supportsAllDrives: true`
+  - Request fields: `permissionDetails` (for inherited flag)
+  - Return enhanced interface with:
+    - inherited: boolean
+    - inheritedFrom: string | undefined
+  - **Lines:** ~231-260
+
+- [ ] **Task 2.1.3:** Enhance [removePermission()](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts#313-328)
+  - File: [src/server/google-drive.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts)
+  - Add `supportsAllDrives: true`
+  - Handle domain/anyone types
+  - Skip inherited (log warning instead)
+  - Return success boolean
+  - **Lines:** ~262-285
+
+- [ ] **Task 2.1.4:** Create `hardResetPermissions()`
+  - File: [src/server/google-drive.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts)
+  - New function (add at ~line 400)
+  - Logic:
+    1. List current permissions
+    2. Remove ALL unexpected (domain, anyone, link, unlisted users/groups)
+    3. Protect: mo.abuomar@dtgsa.com, rfp-admin-sdk@...
+    4. Skip inherited (log only)
+    5. Add missing expected permissions
+  - Return removal/addition counts
+
+- [ ] **Task 2.1.5:** Create TypeScript interfaces
+  - File: [src/server/google-drive.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts)
+  - Add at top (~line 20):
+    ```typescript
+    interface PermissionDetails {
+      id: string;
+      type: string;
+      role: string;
+      emailAddress?: string;
+      domain?: string;
+      deleted: boolean;
+      inherited: boolean;
+      inheritedFrom?: string;
+      permissionDetails?: any[];
+    }
+    
+    interface VerificationReport {
+      folderId: string;
+      templatePath: string;
+      limitedAccess: {
+        expected: boolean;
+        actual: boolean;
+        matches: boolean;
+      };
+      permissions: {
+        expected: any[];
+        actual: PermissionDetails[];
+        missing: any[];
+        extra: PermissionDetails[];
+        inherited: PermissionDetails[];
+      };
+    }
+    ```
+
+**Acceptance:** All Drive API functions use `supportsAllDrives: true` and handle Shared Drive correctly
+
+---
+
+## Phase 3: Reset Tool (Day 4-5)
+
+### 3.1 Create Reset API Route
+
+- [ ] **Task 3.1.1:** Create `/api/permissions/reset/route.ts`
+  - File: `src/app/api/permissions/reset/route.ts` (NEW)
+  - POST endpoint
+  - Body: `{ projectId?, folderIds?, resetAll? }`
+  - Validate input
+  - Create reset_job record
+  - Call `resetPermissionsForProject()` async
+  - Return: `{ success: true, jobId }`
+
+### 3.2 Implement Reset Logic in jobs.ts
+
+- [ ] **Task 3.2.1:** Create `resetPermissionsForProject()`
+  - File: [src/server/jobs.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/jobs.ts)
+  - Add at ~line 1500
+  - Logic:
+    1. Load active template
+    2. Build permissions map
+    3. Load folders for project
+    4. Update reset_job status = 'running'
+    5. Process in batches of 10
+    6. Call `resetSingleFolder()` for each
+    7. Update progress after each batch
+    8. Final status = 'completed'
+  - Handle errors gracefully (continue on folder failure)
+
+- [ ] **Task 3.2.2:** Create `resetSingleFolder()`
+  - File: [src/server/jobs.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/jobs.ts)
+  - Add at ~line 1600
+  - Parameters: (folder, permissionsMap, jobId)
+  - Logic:
+    1. Get expected config from permissionsMap
+    2. Check Limited Access → apply if needed
+    3. Write audit log for Limited Access change
+    4. Call `hardResetPermissions()`
+    5. Update folder_index: actual_limited_access, last_verified_at
+  - Throw errors up (handled by caller)
+
+- [ ] **Task 3.2.3:** Create `writePermissionAudit()`
+  - File: [src/server/jobs.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/jobs.ts)
+  - Add at ~line 1700
+  - Parameters: (jobId, folderId, action, details)
+  - Insert into permission_audit table
+  - Return audit record ID
+
+**Acceptance:** Reset endpoint processes 100 folders without timeout, updates progress, handles failures
+
+---
+
+## Phase 4: Folder Creation Fix (Day 6)
+
+### 4.1 Fix syncProjectFolders
+
+- [ ] **Task 4.1.1:** Update [createFoldersRecursively()](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts#593-696) in google-drive.ts
+  - File: [src/server/google-drive.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts)
+  - Lines: ~566-700
+  - After creating folder:
+    1. Apply Limited Access if `node.limitedAccess === true`
+    2. Verify Limited Access was applied
+    3. Then add permissions
+  - Update folder_index insert to include:
+    - expected_limited_access: node.limitedAccess
+    - expected_groups: node.groups || []
+    - expected_users: node.users || []
+    - actual_limited_access: (verified value)
+    - last_verified_at: now()
+
+- [ ] **Task 4.1.2:** Update [buildPermissionsMap()](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/app/api/audit/permissions/route.ts#35-56) in jobs.ts
+  - File: [src/server/jobs.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/jobs.ts)
+  - Lines: ~1103-1130
+  - Ensure consistent naming: use `limitedAccess` (camelCase) everywhere
+  - Map should include:
+    ```typescript
+    {
+      groups: any[];
+      users: any[];
+      limitedAccess: boolean;
+    }
+    ```
+
+**Acceptance:** New folders created with Limited Access applied BEFORE permissions
+
+---
+
+## Phase 5: Testing & Verification (Day 7-8)
+
+### 5.1 Create Verification Tool
+
+- [ ] **Task 5.1.1:** Create `/api/admin/verify-folder/route.ts`
+  - File: `src/app/api/admin/verify-folder/route.ts` (NEW)
+  - GET endpoint: `/api/admin/verify-folder?folderId=xxx`
+  - Logic:
+    1. Load from folder_index
+    2. Load from Drive (inheritedPermissionsDisabled)
+    3. List Drive permissions
+    4. Compare expected vs actual
+    5. Return VerificationReport
+  - Used for manual spot-checks
+
+### 5.2 Create Test Scripts
+
+- [ ] **Task 5.2.1:** Create test script in `scripts/verify-permissions.ts`
+  - Test AC-1: Limited Access sovereignty
+  - Test AC-2: Hard reset removes domain/anyone
+  - Test AC-3: DB reflects actual state
+  - Test AC-4: Inherited permissions logged
+  - Test AC-5: Batching works for 1000+ folders
+  - Test AC-6: Protected principals stay
+  - Test AC-7: supportsAllDrives everywhere
+
+### 5.3 Manual Testing Checklist
+
+- [ ] **Task 5.3.1:** Test on single project
+  - Create test project with 5 folders
+  - Run reset
+  - Verify all ACs pass
+  
+- [ ] **Task 5.3.2:** Test on production scale
+  - Pick project with 50+ folders
+  - Run reset with batching
+  - Monitor progress
+  - Check completion
+  
+- [ ] **Task 5.3.3:** Test inheritance scenarios
+  - Create folder tree: A → B → C
+  - Apply Limited Access to B only
+  - Verify C still inherits from A (not B)
+  - Verify logs show inherited permissions
+
+**Acceptance:** All 7 ACs pass on test project and production sample
+
+---
+
+## Deployment Checklist
+
+### Pre-Deployment
+- [ ] All migrations reviewed and approved
+- [ ] All code changes reviewed
+- [ ] Test project verified
+- [ ] Backup template JSON externally
+
+### Deployment Steps
+1. [ ] Run migrations 033-036 in Supabase
+2. [ ] Deploy code changes to production
+3. [ ] Re-import template via UI or seed script
+4. [ ] Run backfill RPC for one project (test)
+5. [ ] Review backfill results
+6. [ ] Run backfill for all projects
+7. [ ] Run reset job on test project
+8. [ ] Monitor logs and audit table
+9. [ ] Run reset on all projects (batched over 24h)
+
+### Post-Deployment
+- [ ] Verify AC-1 through AC-7 on production
+- [ ] Check permission_audit table for anomalies
+- [ ] Monitor error rates
+- [ ] Document any edge cases found
+
+---
+
+## Risk Mitigation
+
+### Risk 1: Data Loss
+- **Mitigation:** Backup template BEFORE migrations
+- **Recovery:** Re-import from backup
+
+### Risk 2: Timeout on Large Projects
+- **Mitigation:** Batching (10 folders at a time)
+- **Recovery:** Resume from last processed folder
+
+### Risk 3: Service Account Lockout
+- **Mitigation:** Protected principals list hardcoded
+- **Recovery:** Manual Drive UI access as admin
+
+### Risk 4: Inherited Permission Conflicts
+- **Mitigation:** Logging only (don't fail)
+- **Recovery:** Fix upstream folder
+
+---
+
+## Success Metrics
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| Limited Access Applied | 100% where expected | `COUNT(CASE WHEN expected_limited_access = actual_limited_access THEN 1 END) / COUNT(*)` |
+| Permissions Compliance | >95% | `COUNT(CASE WHEN is_compliant THEN 1 END) / COUNT(*)` |
+| Reset Job Success Rate | >98% | `successful_folders / total_folders` |
+| Inherited Permission Violations | <5% | Count from permission_audit where is_inherited=true |
+| Batching Performance | <30min for 1000 folders | Time from started_at to completed_at |
+
+---
+
+## Files to Modify
+
+### New Files:
+1. [supabase/migrations/033_rebuild_folder_index.sql](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/supabase/migrations/033_rebuild_folder_index.sql)
+2. [supabase/migrations/034_create_permission_audit.sql](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/supabase/migrations/034_create_permission_audit.sql)
+3. [supabase/migrations/035_create_reset_jobs.sql](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/supabase/migrations/035_create_reset_jobs.sql)
+4. [supabase/migrations/036_backfill_folder_index_rpc.sql](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/supabase/migrations/036_backfill_folder_index_rpc.sql)
+5. `src/app/api/permissions/reset/route.ts`
+6. `src/app/api/admin/verify-folder/route.ts`
+7. `scripts/verify-permissions.ts`
+
+### Modified Files:
+1. [src/server/google-drive.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/google-drive.ts) (~300 lines changed)
+2. [src/server/jobs.ts](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/src/server/jobs.ts) (~400 lines added)
+
+### Total LOC: ~1200 new/modified lines

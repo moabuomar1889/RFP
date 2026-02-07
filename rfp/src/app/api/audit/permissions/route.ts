@@ -13,12 +13,20 @@ interface PermissionComparison {
     driveFolderId: string;
     expectedGroups: { email: string; role: string }[];
     expectedUsers: { email: string; role: string }[];
-    actualPermissions: { email: string; role: string; type: string }[];
-    status: 'match' | 'extra' | 'missing' | 'mismatch';
+    actualPermissions: { email: string; role: string; type: string; inherited?: boolean }[];
+    // New detailed counters
+    expectedCount: number;
+    directActualCount: number;
+    inheritedActualCount: number;
+    totalActualCount: number;
+    // Enhanced status
+    status: 'exact_match' | 'compliant' | 'non_compliant';
+    statusLabel: 'Exact Match' | 'Compliant (Inheritance Allowed)' | 'Non-Compliant';
     discrepancies: string[];
     limitedAccessExpected: boolean;
     limitedAccessActual: boolean;
 }
+
 
 interface AuditResult {
     projectId: string;
@@ -54,13 +62,22 @@ function buildPermissionsMap(nodes: any[], parentPath = ''): Record<string, any>
     return map;
 }
 
-// Compare expected vs actual permissions
+// Compare expected vs actual permissions with enhanced status semantics
 function comparePermissions(
     expected: { groups: any[]; users: any[]; limitedAccess: boolean },
     actual: any[]
-): { status: 'match' | 'extra' | 'missing' | 'mismatch'; discrepancies: string[] } {
+): {
+    status: 'exact_match' | 'compliant' | 'non_compliant';
+    statusLabel: 'Exact Match' | 'Compliant (Inheritance Allowed)' | 'Non-Compliant';
+    discrepancies: string[];
+    expectedCount: number;
+    directActualCount: number;
+    inheritedActualCount: number;
+    totalActualCount: number;
+} {
     const discrepancies: string[] = [];
 
+    // Build expected set
     const expectedEmails = new Set<string>();
     for (const g of expected.groups) {
         if (g.email) expectedEmails.add(g.email.toLowerCase());
@@ -69,6 +86,36 @@ function comparePermissions(
         if (u.email) expectedEmails.add(u.email.toLowerCase());
     }
 
+    // Protected principals to ignore
+    const protectedEmails = ['mo.abuomar@dtgsa.com'];
+
+    // Categorize actual permissions
+    const directActual: any[] = [];
+    const inheritedActual: any[] = [];
+
+    for (const p of actual) {
+        const isInherited = (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false);
+
+        if (isInherited) {
+            inheritedActual.push(p);
+        } else {
+            directActual.push(p);
+        }
+    }
+
+    // Counters
+    const expectedCount = expectedEmails.size;
+    const directActualCount = directActual.filter(p => {
+        const email = p.emailAddress?.toLowerCase();
+        return email && !protectedEmails.includes(email);
+    }).length;
+    const inheritedActualCount = inheritedActual.filter(p => {
+        const email = p.emailAddress?.toLowerCase();
+        return email && !protectedEmails.includes(email);
+    }).length;
+    const totalActualCount = directActualCount + inheritedActualCount;
+
+    // Check for missing expected permissions
     const actualEmails = new Set<string>();
     for (const p of actual) {
         if (p.emailAddress && p.type !== 'domain') {
@@ -76,58 +123,85 @@ function comparePermissions(
         }
     }
 
-    // Protected principals to ignore
-    const protectedEmails = ['mo.abuomar@dtgsa.com'];
-
-    // Check for missing permissions
     for (const email of expectedEmails) {
         if (!actualEmails.has(email)) {
             discrepancies.push(`Missing: ${email}`);
         }
     }
 
-    // Check for extra permissions
-    for (const p of actual) {
+    // Check for extra DIRECT permissions (non-inherited)
+    const extraDirect: string[] = [];
+    for (const p of directActual) {
         if (!p.emailAddress && p.type !== 'domain' && p.type !== 'anyone') continue;
 
         const email = p.emailAddress?.toLowerCase();
         if (email && expectedEmails.has(email)) continue;
         if (email && protectedEmails.includes(email)) continue;
 
-        // Robust inherited detection: check both top-level and permissionDetails
-        const isInherited = (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false);
-
-        // RULE 1: Inherited permissions are OK when limitedAccess=false (inheritance allowed)
-        //         but are violations when limitedAccess=true (inheritance blocked)
-        if (!expected.limitedAccess && isInherited) {
-            // Skip - inherited permission on non-limited folder = OK (inheritance allowed)
-            continue;
-        }
-
-        // RULE 2: Domain/anyone permissions - only enforce hard reset when limitedAccess=true
+        // RULE: Domain/anyone on non-limited folders are allowed (skip)
         if (!expected.limitedAccess && (p.type === 'domain' || p.type === 'anyone')) {
-            // Skip - no hard reset on non-limited folders
             continue;
         }
 
-        // If limitedAccess=true: inherited perms AND domain/anyone (if not in template) are violations
-        discrepancies.push(`Extra: ${email || p.type}`);
+        // Extra direct permission found
+        extraDirect.push(email || p.type);
     }
 
-    if (discrepancies.length === 0) {
-        return { status: 'match', discrepancies: [] };
+    // Check for extra INHERITED permissions
+    const extraInherited: string[] = [];
+    for (const p of inheritedActual) {
+        const email = p.emailAddress?.toLowerCase();
+        if (email && expectedEmails.has(email)) continue;
+        if (email && protectedEmails.includes(email)) continue;
+
+        // RULE: If limitedAccess=true, inherited perms are violations
+        // RULE: If limitedAccess=false, inherited perms are allowed
+        if (expected.limitedAccess) {
+            extraInherited.push(email || p.type || 'inherited');
+        }
     }
 
+    // Build discrepancies for extra direct
+    for (const item of extraDirect) {
+        discrepancies.push(`Extra (direct): ${item}`);
+    }
+
+    // Build discrepancies for extra inherited (only if limitedAccess=true)
+    for (const item of extraInherited) {
+        discrepancies.push(`Extra (inherited): ${item}`);
+    }
+
+    // Determine status based on new semantics
     const hasMissing = discrepancies.some(d => d.startsWith('Missing'));
-    const hasExtra = discrepancies.some(d => d.startsWith('Extra'));
+    const hasExtraDirect = extraDirect.length > 0;
+    const hasExtraInherited = extraInherited.length > 0;
 
-    if (hasMissing && hasExtra) {
-        return { status: 'mismatch', discrepancies };
-    } else if (hasMissing) {
-        return { status: 'missing', discrepancies };
+    let status: 'exact_match' | 'compliant' | 'non_compliant';
+    let statusLabel: 'Exact Match' | 'Compliant (Inheritance Allowed)' | 'Non-Compliant';
+
+    if (hasMissing || hasExtraDirect || hasExtraInherited) {
+        // Non-compliant: missing expected, extra direct, or extra inherited (when limitedAccess=true)
+        status = 'non_compliant';
+        statusLabel = 'Non-Compliant';
+    } else if (inheritedActualCount > 0 && !expected.limitedAccess) {
+        // Compliant: all expected exist, no extra direct, but has inherited (allowed)
+        status = 'compliant';
+        statusLabel = 'Compliant (Inheritance Allowed)';
     } else {
-        return { status: 'extra', discrepancies };
+        // Exact match: all expected exist, no extras at all
+        status = 'exact_match';
+        statusLabel = 'Exact Match';
     }
+
+    return {
+        status,
+        statusLabel,
+        discrepancies,
+        expectedCount,
+        directActualCount,
+        inheritedActualCount,
+        totalActualCount
+    };
 }
 
 export async function GET(request: NextRequest) {
@@ -220,14 +294,15 @@ export async function GET(request: NextRequest) {
             }
 
             // Compare permissions
-            const { status, discrepancies } = comparePermissions(expectedPerms, actualPerms);
+            const comparison = comparePermissions(expectedPerms, actualPerms);
 
-            // Count by status
-            switch (status) {
-                case 'match': matchCount++; break;
-                case 'extra': extraCount++; break;
-                case 'missing': missingCount++; break;
-                case 'mismatch': mismatchCount++; break;
+            // Count by status (updated for new statuses)
+            if (comparison.status === 'exact_match') {
+                matchCount++;
+            } else if (comparison.status === 'compliant') {
+                extraCount++; // Reuse extraCount for compliant (has extras but allowed)
+            } else if (comparison.status === 'non_compliant') {
+                mismatchCount++; // Map non_compliant to mismatchCount
             }
 
             comparisons.push({
@@ -247,10 +322,16 @@ export async function GET(request: NextRequest) {
                     .map((p: any) => ({
                         email: p.emailAddress,
                         role: p.role,
-                        type: p.type
+                        type: p.type,
+                        inherited: (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false)
                     })),
-                status,
-                discrepancies,
+                status: comparison.status,
+                statusLabel: comparison.statusLabel,
+                discrepancies: comparison.discrepancies,
+                expectedCount: comparison.expectedCount,
+                directActualCount: comparison.directActualCount,
+                inheritedActualCount: comparison.inheritedActualCount,
+                totalActualCount: comparison.totalActualCount,
                 limitedAccessExpected: expectedPerms.limitedAccess || false,
                 limitedAccessActual: false // TODO: Check actual Limited Access status
             });
