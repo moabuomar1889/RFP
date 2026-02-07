@@ -545,9 +545,12 @@ export default function JobsPage() {
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <div className="flex items-center gap-2">
-                                                <Progress value={job.progress || 0} className="w-[60px]" />
+                                                <Progress
+                                                    value={job.status === 'completed' || job.status === 'failed' ? 100 : (job.progress || 0)}
+                                                    className="w-[60px]"
+                                                />
                                                 <span className="text-sm text-muted-foreground w-10">
-                                                    {job.progress || 0}%
+                                                    {job.status === 'completed' || job.status === 'failed' ? 100 : (job.progress || 0)}%
                                                 </span>
                                             </div>
                                             {getStatusBadge(job.status)}
