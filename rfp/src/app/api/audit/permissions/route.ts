@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { listPermissions } from '@/server/google-drive';
+import { listPermissions, getDriveClient } from '@/server/google-drive';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -62,6 +62,17 @@ function buildPermissionsMap(nodes: any[], parentPath = ''): Record<string, any>
     return map;
 }
 
+/**
+ * Normalize roles for comparison to reduce noise from Shared Drive role mapping.
+ * Google Shared Drives map "organizer" to "fileOrganizer" for groups.
+ */
+function normalizeRole(role: string): string {
+    if (role === 'organizer' || role === 'fileOrganizer') {
+        return 'fileOrganizer';
+    }
+    return role;
+}
+
 // Compare expected vs actual permissions with enhanced status semantics
 function comparePermissions(
     expected: { groups: any[]; users: any[]; limitedAccess: boolean },
@@ -77,13 +88,22 @@ function comparePermissions(
 } {
     const discrepancies: string[] = [];
 
-    // Build expected set
+    // Build expected set (with normalized roles for comparison)
     const expectedEmails = new Set<string>();
+    const expectedRoleMap = new Map<string, string>();
     for (const g of expected.groups) {
-        if (g.email) expectedEmails.add(g.email.toLowerCase());
+        if (g.email) {
+            const emailLower = g.email.toLowerCase();
+            expectedEmails.add(emailLower);
+            expectedRoleMap.set(emailLower, normalizeRole(g.role || 'reader'));
+        }
     }
     for (const u of expected.users) {
-        if (u.email) expectedEmails.add(u.email.toLowerCase());
+        if (u.email) {
+            const emailLower = u.email.toLowerCase();
+            expectedEmails.add(emailLower);
+            expectedRoleMap.set(emailLower, normalizeRole(u.role || 'reader'));
+        }
     }
 
     // Protected principals to ignore
@@ -284,6 +304,21 @@ export async function GET(request: NextRequest) {
 
             if (!expectedPerms) continue;
 
+            // Get actual Limited Access status from Drive
+            let actualLimitedAccess: boolean | null = null;
+            try {
+                const drive = await getDriveClient();
+                const folderRes = await drive.files.get({
+                    fileId: folder.drive_folder_id,
+                    supportsAllDrives: true,
+                    fields: 'id,name,inheritedPermissionsDisabled'
+                });
+                actualLimitedAccess = folderRes.data.inheritedPermissionsDisabled ?? false;
+            } catch (err) {
+                console.error(`Failed to get folder metadata for ${folder.drive_folder_id}:`, err);
+                actualLimitedAccess = null;
+            }
+
             // Get actual permissions from Drive
             let actualPerms: any[] = [];
             try {
@@ -333,7 +368,7 @@ export async function GET(request: NextRequest) {
                 inheritedActualCount: comparison.inheritedActualCount,
                 totalActualCount: comparison.totalActualCount,
                 limitedAccessExpected: expectedPerms.limitedAccess || false,
-                limitedAccessActual: false // TODO: Check actual Limited Access status
+                limitedAccessActual: actualLimitedAccess ?? false
             });
         }
 

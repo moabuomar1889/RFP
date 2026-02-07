@@ -89,8 +89,9 @@ async function getEnhancedPermissions(folderId: string): Promise<{
         actualLimitedAccess = folderRes.data.inheritedPermissionsDisabled ?? false;
     } catch (err) {
         console.error(`Failed to get folder metadata for ${folderId}:`, err);
-        // If we can't fetch it, default to false (assume no Limited Access)
-        actualLimitedAccess = false;
+        // CRITICAL: Keep null to indicate unreadable, not false
+        // This triggers status="unknown" and recommendedAction="verify_drive_truth"
+        actualLimitedAccess = null;
     }
 
     // Get permissions with all fields
@@ -125,6 +126,32 @@ async function getEnhancedPermissions(folderId: string): Promise<{
     return { permissions, actualLimitedAccess };
 }
 
+/**
+ * Normalize roles for comparison to reduce noise from Shared Drive role mapping.
+ * 
+ * Google Shared Drives map "organizer" permissions to "fileOrganizer" role,
+ * which causes false role mismatches when comparing template (organizer) 
+ * vs actual Drive permissions (fileOrganizer).
+ * 
+ * Normalization rules:
+ * - organizer → fileOrganizer (for groups in Shared Drives)
+ * - fileOrganizer → fileOrganizer (already normalized)
+ * - All other roles unchanged
+ * 
+ * Unit test coverage:
+ * - normalizeRole('organizer') === 'fileOrganizer'
+ * - normalizeRole('fileOrganizer') === 'fileOrganizer'
+ * - normalizeRole('writer') === 'writer'
+ * - normalizeRole('reader') === 'reader'
+ */
+function normalizeRole(role: string): string {
+    // Treat organizer and fileOrganizer as equivalent for Shared Drives
+    if (role === 'organizer' || role === 'fileOrganizer') {
+        return 'fileOrganizer';
+    }
+    return role;
+}
+
 // Comprehensive comparison logic
 function analyzeFolder(
     expected: { groups: any[]; users: any[]; limitedAccess: boolean },
@@ -151,13 +178,13 @@ function analyzeFolder(
 } {
     const protectedEmails = ['mo.abuomar@dtgsa.com'];
 
-    // Build expected set
+    // Build expected set (with normalized roles)
     const expectedMap = new Map<string, string>();
     for (const g of expected.groups) {
-        if (g.email) expectedMap.set(g.email.toLowerCase(), g.role || 'reader');
+        if (g.email) expectedMap.set(g.email.toLowerCase(), normalizeRole(g.role || 'reader'));
     }
     for (const u of expected.users) {
-        if (u.email) expectedMap.set(u.email.toLowerCase(), u.role || 'reader');
+        if (u.email) expectedMap.set(u.email.toLowerCase(), normalizeRole(u.role || 'reader'));
     }
 
     // Categorize actual
@@ -183,13 +210,14 @@ function analyzeFolder(
         }
     }
 
-    // Find role mismatches
+    // Find role mismatches (with normalized role comparison)
     const roleMismatches: string[] = [];
     for (const p of actual) {
         if (expectedMap.has(p.identifier)) {
             const expectedRole = expectedMap.get(p.identifier)!;
-            if (p.role !== expectedRole) {
-                roleMismatches.push(`${p.identifier}(${expectedRole}→${p.role})`);
+            const actualRole = normalizeRole(p.role);
+            if (actualRole !== expectedRole) {
+                roleMismatches.push(`${p.identifier}(${expectedRole}→${actualRole})`);
             }
         }
     }
