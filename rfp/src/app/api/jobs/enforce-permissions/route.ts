@@ -11,6 +11,17 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
     try {
+        const body = await request.json();
+        const { projectId } = body;
+
+        // Validate projectId if provided
+        if (projectId && typeof projectId !== 'string') {
+            return NextResponse.json(
+                { success: false, error: 'Invalid projectId' },
+                { status: 400 }
+            );
+        }
+
         const supabase = getSupabaseAdmin();
         const jobId = uuidv4();
 
@@ -20,7 +31,9 @@ export async function POST(request: NextRequest) {
             p_job_type: 'enforce_permissions',
             p_status: 'pending',
             p_triggered_by: 'admin',
-            p_job_details: { action: 'enforce_all' },
+            p_job_details: projectId
+                ? { action: 'enforce_single', projectId }
+                : { action: 'enforce_all' },
         });
 
         if (jobError) {
@@ -31,11 +44,12 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Trigger Inngest job
+        // Trigger Inngest job with projectId
         await inngest.send({
             name: 'permissions/enforce',
             data: {
                 jobId,
+                projectId: projectId || null,
                 triggeredBy: 'admin',
             },
         });
@@ -43,7 +57,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             success: true,
             jobId,
-            message: 'Enforce permissions job started'
+            message: projectId
+                ? `Enforce permissions job started for project ${projectId}`
+                : 'Enforce permissions job started for all projects'
         });
     } catch (error) {
         console.error('Error starting enforce permissions job:', error);
