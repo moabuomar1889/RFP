@@ -11,6 +11,7 @@ import {
     buildPermissionsMap,
     normalizeRole,
 } from '@/server/audit-helpers';
+import { CANONICAL_RANK } from '@/lib/template-engine/types';
 import {
     getAllProjects,
     getAllFoldersRecursive,
@@ -862,10 +863,16 @@ async function enforceProjectPermissionsWithLogging(
             const groupEmailLower = group.email.toLowerCase();
             const expectedRole = group.role || 'reader';
 
-            // Check if permission already exists with correct role
+            // Check if permission already exists with correct or lower role
             const existingPerm = actualEmailsMap.get(groupEmailLower);
-            if (existingPerm && existingPerm.role === expectedRole) {
-                // Already has correct permission - skip silently or log as info
+            if (existingPerm) {
+                const actualRank = CANONICAL_RANK[normalizeRole(existingPerm.role)] ?? 0;
+                const expectedRank = CANONICAL_RANK[normalizeRole(expectedRole)] ?? 0;
+                if (actualRank <= expectedRank) {
+                    // No-escalation guard: actual is same or lower privilege — do nothing
+                    continue;
+                }
+                // actualRank > expectedRank: over-privileged, will be handled by downgrade logic
                 continue;
             }
 
@@ -900,23 +907,33 @@ async function enforceProjectPermissionsWithLogging(
         for (const user of expectedPerms.users) {
             if (!user.email) continue;
             const emailLower = user.email.toLowerCase();
-            if (!actualEmailsMap.has(emailLower)) {
-                try {
-                    await addPermission(folder.drive_folder_id, 'user', user.role || 'reader', user.email);
-                    added++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
-                        email: user.email,
-                        type: 'user',
-                        role: user.role
-                    });
-                } catch (err: any) {
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
-                        email: user.email,
-                        error: err.message
-                    });
+            const existingPerm = actualEmailsMap.get(emailLower);
+            if (existingPerm) {
+                const actualRank = CANONICAL_RANK[normalizeRole(existingPerm.role)] ?? 0;
+                const expectedRank = CANONICAL_RANK[normalizeRole(user.role || 'reader')] ?? 0;
+                if (actualRank <= expectedRank) {
+                    // No-escalation guard: actual is same or lower privilege — do nothing
+                    continue;
                 }
-                await sleep(RATE_LIMIT_DELAY);
+                // actualRank > expectedRank: over-privileged, will be handled by downgrade logic
+                continue;
             }
+            // Missing — add permission
+            try {
+                await addPermission(folder.drive_folder_id, 'user', user.role || 'reader', user.email);
+                added++;
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
+                    email: user.email,
+                    type: 'user',
+                    role: user.role
+                });
+            } catch (err: any) {
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
+                    email: user.email,
+                    error: err.message
+                });
+            }
+            await sleep(RATE_LIMIT_DELAY);
         }
 
         // Step 3b: REMOVE unauthorized permissions

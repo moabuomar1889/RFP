@@ -63,17 +63,18 @@ export const CANONICAL_RANK: Record<string, number> = {
     manager: 4,
 };
 
-/** Human-readable label matching Google Drive UI. */
+/** Map canonical role key → human-readable UI label. */
 export function canonicalRoleLabel(role: string): string {
-    const labels: Record<string, string> = {
-        viewer: 'Viewer',
-        commenter: 'Commenter',
-        contributor: 'Contributor',
-        contentManager: 'Content Manager',
-        manager: 'Manager',
-    };
-    return labels[toCanonicalRole(role)] || role;
+    switch (role) {
+        case 'viewer': return 'Viewer';
+        case 'commenter': return 'Commenter';
+        case 'contributor': return 'Contributor';
+        case 'contentManager': return 'Content Manager';
+        case 'manager': return 'Manager';
+        default: return role;
+    }
 }
+
 
 /**
  * Legacy ROLE_RANK — uses API-level roles.

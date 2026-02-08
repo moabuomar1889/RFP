@@ -47,6 +47,19 @@ import {
 import { toast } from "sonner";
 
 // ─── Types (unchanged) ──────────────────────────────────────
+// Backend ComparisonRow — pre-computed by API
+interface ComparisonRow {
+    type: 'group' | 'user';
+    identifier: string;
+    expectedRole: string | null;
+    expectedRoleRaw: string | null;
+    actualRole: string | null;
+    actualRoleRaw: string | null;
+    status: 'match' | 'missing' | 'extra' | 'mismatch' | 'drive_member';
+    tags: string[];
+    inherited: boolean;
+}
+
 interface PermissionComparison {
     folderPath: string;
     normalizedPath: string;
@@ -58,13 +71,15 @@ interface PermissionComparison {
         role: string;
         type: string;
         inherited?: boolean;
-        classification?: 'NOT_INHERITED' | 'NON_REMOVABLE_DRIVE_MEMBERSHIP' | 'REMOVABLE_PARENT_FOLDER';
+        classification?: string;
     }[];
+    comparisonRows?: ComparisonRow[];
+    matchCount?: number;
+    extraCount?: number;
+    missingCount?: number;
+    mismatchCount?: number;
     status: "exact_match" | "compliant" | "non_compliant";
-    statusLabel:
-    | "Exact Match"
-    | "Compliant (Inheritance Allowed)"
-    | "Non-Compliant";
+    statusLabel: string;
     discrepancies: string[];
     expectedCount: number;
     directActualCount: number;
@@ -317,18 +332,32 @@ interface DiffRow {
     expectedRole: string | null;
     actualRole: string | null;
     inherited: boolean;
-    diffStatus: "match" | "missing" | "extra" | "role_mismatch" | "drive_member";
+    diffStatus: "match" | "missing" | "extra" | "role_mismatch" | "mismatch" | "drive_member";
+    tags?: string[];
 }
 
-// Access-based role ranking for UI comparison
+// Access-based role ranking for UI fallback comparison
 const CANONICAL_RANK_UI: Record<string, number> = {
     viewer: 0, commenter: 1, contributor: 2, contentManager: 3, manager: 4,
-    // API-level fallback
     reader: 0, writer: 2, fileOrganizer: 3, organizer: 4,
 };
 const canonicalRank = (role: string) => CANONICAL_RANK_UI[normalizeRole(role)] ?? 0;
 
 function buildDiffRows(comp: PermissionComparison): DiffRow[] {
+    // Prefer pre-computed API rows when available
+    if (comp.comparisonRows && comp.comparisonRows.length > 0) {
+        return comp.comparisonRows.map(r => ({
+            type: r.type,
+            email: r.identifier,
+            expectedRole: r.expectedRole,  // Already a canonical label from API
+            actualRole: r.actualRole,      // Already a canonical label from API
+            inherited: r.inherited,
+            diffStatus: r.status === 'mismatch' ? 'role_mismatch' : r.status,
+            tags: r.tags,
+        }));
+    }
+
+    // Fallback: client-side derivation (backward compat)
     const rows: DiffRow[] = [];
     const actualMap = new Map<
         string,
@@ -341,78 +370,70 @@ function buildDiffRows(comp: PermissionComparison): DiffRow[] {
         }
     }
 
-    // Expected groups
     for (const g of comp.expectedGroups) {
         const emailLower = g.email.toLowerCase();
         const actual = actualMap.get(emailLower);
         if (actual) {
-            // Access-based: actualRank <= expectedRank = match
             const isMatch = canonicalRank(actual.role) <= canonicalRank(g.role);
+            const tags: string[] = [];
+            if (isMatch && canonicalRank(actual.role) < canonicalRank(g.role)) {
+                tags.push('More restrictive');
+            }
             rows.push({
-                type: "group",
-                email: g.email,
-                expectedRole: g.role,
-                actualRole: actual.role,
+                type: "group", email: g.email,
+                expectedRole: g.role, actualRole: actual.role,
                 inherited: !!actual.inherited,
                 diffStatus: isMatch ? "match" : "role_mismatch",
+                tags,
             });
             actualMap.delete(emailLower);
         } else {
             rows.push({
-                type: "group",
-                email: g.email,
-                expectedRole: g.role,
-                actualRole: null,
-                inherited: false,
-                diffStatus: "missing",
+                type: "group", email: g.email,
+                expectedRole: g.role, actualRole: null,
+                inherited: false, diffStatus: "missing",
             });
         }
     }
 
-    // Expected users
     for (const u of comp.expectedUsers) {
         const emailLower = u.email.toLowerCase();
         const actual = actualMap.get(emailLower);
         if (actual) {
-            // Access-based: actualRank <= expectedRank = match
             const isMatch = canonicalRank(actual.role) <= canonicalRank(u.role);
+            const tags: string[] = [];
+            if (isMatch && canonicalRank(actual.role) < canonicalRank(u.role)) {
+                tags.push('More restrictive');
+            }
             rows.push({
-                type: "user",
-                email: u.email,
-                expectedRole: u.role,
-                actualRole: actual.role,
+                type: "user", email: u.email,
+                expectedRole: u.role, actualRole: actual.role,
                 inherited: !!actual.inherited,
                 diffStatus: isMatch ? "match" : "role_mismatch",
+                tags,
             });
             actualMap.delete(emailLower);
         } else {
             rows.push({
-                type: "user",
-                email: u.email,
-                expectedRole: u.role,
-                actualRole: null,
-                inherited: false,
-                diffStatus: "missing",
+                type: "user", email: u.email,
+                expectedRole: u.role, actualRole: null,
+                inherited: false, diffStatus: "missing",
             });
         }
     }
 
-    // Remaining actual = extra or drive_member
     for (const [emailKey, perm] of actualMap) {
         const isDriveMember = perm.classification === 'NON_REMOVABLE_DRIVE_MEMBERSHIP';
         rows.push({
             type: perm.type === "group" ? "group" : "user",
-            email: emailKey,
-            expectedRole: null,
-            actualRole: perm.role,
+            email: emailKey, expectedRole: null, actualRole: perm.role,
             inherited: !!perm.inherited,
             diffStatus: isDriveMember ? "drive_member" : "extra",
         });
     }
 
-    // Sort: issues first, drive_member at bottom
     const order = { missing: 0, role_mismatch: 1, extra: 2, match: 3, drive_member: 4 };
-    rows.sort((a, b) => order[a.diffStatus] - order[b.diffStatus]);
+    rows.sort((a, b) => (order[a.diffStatus as keyof typeof order] ?? 5) - (order[b.diffStatus as keyof typeof order] ?? 5));
 
     return rows;
 }
@@ -435,16 +456,25 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
         }
     };
 
-    const getDiffBadge = (status: string) => {
+    const getDiffBadge = (row: DiffRow) => {
+        const status = row.diffStatus;
+        const tags = row.tags || [];
         switch (status) {
             case "match":
                 return (
-                    <Badge
-                        variant="outline"
-                        className="text-xs bg-green-500/10 text-green-600 border-green-500/30"
-                    >
-                        ✓ Match
-                    </Badge>
+                    <span className="flex items-center gap-1">
+                        <Badge
+                            variant="outline"
+                            className="text-xs bg-green-500/10 text-green-600 border-green-500/30"
+                        >
+                            ✓ Match
+                        </Badge>
+                        {tags.includes('More restrictive') && (
+                            <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-500 border-blue-500/20">
+                                ↓ More restrictive
+                            </Badge>
+                        )}
+                    </span>
                 );
             case "missing":
                 return (
@@ -477,16 +507,17 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
                     </TooltipProvider>
                 );
             case "role_mismatch":
+            case "mismatch":
                 return (
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Badge className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/30">
-                                    ↔ Role Mismatch
+                                    ↑ Over-Privileged
                                 </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
-                                Principal exists but with a different role than expected
+                                Actual role has higher privilege than expected
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
@@ -568,7 +599,7 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
                                     <span className="text-xs text-muted-foreground">—</span>
                                 )}
                             </TableCell>
-                            <TableCell>{getDiffBadge(row.diffStatus)}</TableCell>
+                            <TableCell>{getDiffBadge(row)}</TableCell>
                         </TableRow>
                     ))}
                     {rows.length === 0 && (
