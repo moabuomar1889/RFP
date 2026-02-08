@@ -102,8 +102,8 @@ function TreeNode({
         <div>
             <div
                 className={`flex items-center gap-1 py-1.5 px-2 rounded-md cursor-pointer text-sm transition-colors ${isSelected
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "hover:bg-muted/50"
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "hover:bg-muted/50"
                     }`}
                 style={{ paddingLeft: `${level * 16 + 8}px` }}
                 onClick={() => onSelect(nodeId)}
@@ -132,7 +132,17 @@ function TreeNode({
                 )}
                 <span className="truncate">{node.name}</span>
                 {isLimited && (
-                    <Lock className="h-3 w-3 text-amber-500 flex-shrink-0 ml-auto" />
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0 ml-auto" />
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-[250px]">
+                                <p className="font-semibold text-xs">Locked by Restrictive Tree</p>
+                                <p className="text-xs text-muted-foreground">This folder or its parent enforces Limited Access</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 )}
             </div>
             {isExpanded &&
@@ -190,15 +200,30 @@ function EffectivePolicyTable({ node, state }: { node: FolderNode; state: Templa
                             </div>
                         </TableCell>
                         <TableCell>
-                            {effectivePolicy.limitedAccess ? (
-                                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/30">
-                                    ✓ Enabled
-                                </Badge>
-                            ) : (
-                                <Badge variant="outline" className="text-muted-foreground">
-                                    ✗ Disabled
-                                </Badge>
-                            )}
+                            <div className="flex items-center gap-2">
+                                {effectivePolicy.limitedAccess ? (
+                                    <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                                        ✓ Enabled
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="outline" className="text-muted-foreground">
+                                        ✗ Disabled
+                                    </Badge>
+                                )}
+                                {effectivePolicy.limitedAccess && derivedPolicy.limitedAccessSource === "inherited" && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom" className="max-w-[250px]">
+                                                <p className="font-semibold text-xs">Locked by Restrictive Tree</p>
+                                                <p className="text-xs text-muted-foreground">This folder or its parent enforces Limited Access</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                            </div>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                             {getSourceLabel(
@@ -294,14 +319,12 @@ function ExplicitPolicyTable({
                                         <TooltipTrigger asChild>
                                             <div className="flex items-center gap-2">
                                                 <Switch disabled checked={true} />
-                                                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                                    <AlertTriangle className="h-3 w-3 text-amber-500" />
-                                                    Locked
-                                                </span>
+                                                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                                             </div>
                                         </TooltipTrigger>
-                                        <TooltipContent side="bottom" className="max-w-[300px]">
-                                            <p className="text-sm">{uiLockState.reason}</p>
+                                        <TooltipContent side="bottom" className="max-w-[250px]">
+                                            <p className="font-semibold text-xs">Locked by Restrictive Tree</p>
+                                            <p className="text-xs text-muted-foreground">This folder or its parent enforces Limited Access</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -319,19 +342,7 @@ function ExplicitPolicyTable({
                                 </div>
                             )}
                         </TableCell>
-                        <TableCell>
-                            {isExplicitlySet && !uiLockState.limitedToggleLocked && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    onClick={onClearLimited}
-                                    title="Revert to inherit"
-                                >
-                                    Reset
-                                </Button>
-                            )}
-                        </TableCell>
+                        <TableCell />
                     </TableRow>
 
                     {/* Groups Row */}
