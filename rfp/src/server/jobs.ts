@@ -778,8 +778,19 @@ async function enforceProjectPermissionsWithLogging(
 
         // Get actual permissions from Drive
         let actualPerms;
+        let driveId: string | undefined;
         try {
             actualPerms = await listPermissions(folder.drive_folder_id);
+
+            // Fetch driveId for accurate inherited permission classification
+            const { getDriveClient } = await import('@/server/google-drive');
+            const drive = await getDriveClient();
+            const folderMeta = await drive.files.get({
+                fileId: folder.drive_folder_id,
+                supportsAllDrives: true,
+                fields: 'id,driveId',
+            });
+            driveId = (folderMeta.data as any).driveId;
         } catch (err: any) {
             await writeJobLog(jobId, project.id, project.name, templatePath, 'error', 'error', {
                 message: `Failed to get permissions: ${err.message}`
@@ -903,7 +914,7 @@ async function enforceProjectPermissionsWithLogging(
             // Check if this permission is expected
             if (!expectedEmails.has(emailLower)) {
                 // Classify inherited permissions BEFORE counting as violation
-                const inheritedClassification = classifyInheritedPermission(actual);
+                const inheritedClassification = classifyInheritedPermission(actual, driveId);
                 const isInherited = inheritedClassification !== 'NOT_INHERITED';
                 const inheritedFrom = actual.inheritedFrom ?? actual.permissionDetails?.[0]?.inheritedFrom;
 
@@ -1036,8 +1047,9 @@ async function enforceProjectPermissionsWithLogging(
             const debugPayload = buildFolderDebugPayload(
                 templatePath,
                 expectedPerms.limitedAccess,
-                null, // actualLimitedAccess not re-read here (requires separate API call)
-                finalPerms
+                null,
+                finalPerms,
+                driveId
             );
             await writeJobLog(jobId, project.id, project.name, templatePath, 'post_enforcement_state', 'info', {
                 ...debugPayload,

@@ -77,7 +77,8 @@ function buildPermissionsMap(nodes: any[], parentPath = ''): Record<string, any>
 // Compare expected vs actual permissions with enhanced status semantics
 function comparePermissions(
     expected: { groups: any[]; users: any[]; limitedAccess: boolean },
-    actual: any[]
+    actual: any[],
+    driveId?: string
 ): {
     status: 'exact_match' | 'compliant' | 'non_compliant';
     statusLabel: 'Exact Match' | 'Compliant (Inheritance Allowed)' | 'Non-Compliant';
@@ -120,7 +121,7 @@ function comparePermissions(
     let inheritedNonRemovableCount = 0;
 
     for (const p of actual) {
-        const cls = classifyInheritedPermission(p);
+        const cls = classifyInheritedPermission(p, driveId);
         if (cls === 'NOT_INHERITED') {
             directActual.push(p);
         } else if (cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') {
@@ -324,16 +325,18 @@ export async function GET(request: NextRequest) {
 
             if (!expectedPerms) continue;
 
-            // Get actual Limited Access status from Drive
+            // Get actual Limited Access status + driveId from Drive
             let actualLimitedAccess: boolean | null = null;
+            let driveId: string | undefined;
             try {
                 const drive = await getDriveClient();
                 const folderRes = await drive.files.get({
                     fileId: folder.drive_folder_id,
                     supportsAllDrives: true,
-                    fields: 'id,name,inheritedPermissionsDisabled'
+                    fields: 'id,name,driveId,inheritedPermissionsDisabled'
                 });
                 actualLimitedAccess = folderRes.data.inheritedPermissionsDisabled ?? false;
+                driveId = (folderRes.data as any).driveId;
             } catch (err) {
                 console.error(`Failed to get folder metadata for ${folder.drive_folder_id}:`, err);
                 actualLimitedAccess = null;
@@ -348,8 +351,8 @@ export async function GET(request: NextRequest) {
                 continue;
             }
 
-            // Compare permissions
-            const comparison = comparePermissions(expectedPerms, actualPerms);
+            // Compare permissions (pass driveId for accurate classification)
+            const comparison = comparePermissions(expectedPerms, actualPerms, driveId);
 
             // Count by status using structured diff arrays
             if (comparison.status === 'exact_match') {

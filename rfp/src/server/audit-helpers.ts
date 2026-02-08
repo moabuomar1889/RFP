@@ -97,27 +97,42 @@ export type InheritedClassification =
 /**
  * Classify an inherited permission by its source.
  *
- * Rules (from verified Drive behavior):
- *   - If inherited AND inheritedFrom starts with "0A" → Shared Drive membership.
+ * ROBUST APPROACH (driveId equality):
+ *   - If inherited AND (inheritedFrom === driveId) → Shared Drive membership.
  *     These are NON-REMOVABLE via file permissions.delete.
  *     They MUST NOT be counted as violations.
- *   - If inherited AND inheritedFrom is a normal folder ID → parent folder.
- *     These are REMOVABLE after limitedAccess is enabled.
+ *   - If inherited AND inheritedFrom is a folderId (NOT driveId) → parent folder.
+ *     These are REMOVABLE when limitedAccess is enabled.
  *   - If not inherited → NOT_INHERITED (direct permission).
+ *
+ * @param perm - Permission object from Drive API (with permissionDetails)
+ * @param driveId - The Shared Drive ID from files.get (optional, falls back to heuristic)
  */
-export function classifyInheritedPermission(perm: any): InheritedClassification {
+export function classifyInheritedPermission(perm: any, driveId?: string): InheritedClassification {
+    // Check inherited from permissionDetails (most reliable) or top-level
     const isInherited =
         (perm.inherited === true) ||
         (perm.permissionDetails?.some?.((d: any) => d.inherited) ?? false);
 
     if (!isInherited) return 'NOT_INHERITED';
 
+    // Get inheritedFrom: prefer permissionDetails (API v3 detailed), fallback to top-level
     const inheritedFrom =
-        perm.inheritedFrom ??
-        perm.permissionDetails?.find?.((d: any) => d.inherited)?.inheritedFrom;
+        perm.permissionDetails?.find?.((d: any) => d.inherited)?.inheritedFrom ??
+        perm.inheritedFrom;
 
-    // Shared Drive membership IDs start with "0A"
-    if (inheritedFrom && typeof inheritedFrom === 'string' && inheritedFrom.startsWith('0A')) {
+    if (!inheritedFrom) {
+        // Inherited but no source info — treat conservatively as drive membership
+        return 'NON_REMOVABLE_DRIVE_MEMBERSHIP';
+    }
+
+    // PRIMARY: Compare against driveId (from files.get)
+    if (driveId && inheritedFrom === driveId) {
+        return 'NON_REMOVABLE_DRIVE_MEMBERSHIP';
+    }
+
+    // FALLBACK when driveId not available: prefix heuristic (less reliable)
+    if (!driveId && typeof inheritedFrom === 'string' && inheritedFrom.startsWith('0A')) {
         return 'NON_REMOVABLE_DRIVE_MEMBERSHIP';
     }
 
@@ -175,14 +190,15 @@ export function buildFolderDebugPayload(
     folderPath: string,
     expectedLimitedAccess: boolean,
     actualLimitedAccess: boolean | null,
-    actualPerms: any[]
+    actualPerms: any[],
+    driveId?: string
 ): Record<string, unknown> {
     let direct = 0;
     let inherited = 0;
     let inheritedNonRemovable = 0;
 
     for (const p of actualPerms) {
-        const cls = classifyInheritedPermission(p);
+        const cls = classifyInheritedPermission(p, driveId);
         if (cls === 'NOT_INHERITED') direct++;
         else if (cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') inheritedNonRemovable++;
         else inherited++;
@@ -192,6 +208,7 @@ export function buildFolderDebugPayload(
         folderPath,
         expected_limitedAccess: expectedLimitedAccess,
         actual_limitedAccess: actualLimitedAccess,
+        driveId: driveId || 'unknown',
         counts: { direct, inherited, inherited_non_removable: inheritedNonRemovable },
     };
 }
