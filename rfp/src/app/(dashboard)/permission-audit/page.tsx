@@ -1,24 +1,70 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { RefreshCw, CheckCircle2, AlertTriangle, XCircle, AlertCircle, ChevronDown, ChevronRight, Download, Shield, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+    RefreshCw,
+    CheckCircle2,
+    AlertTriangle,
+    XCircle,
+    AlertCircle,
+    ChevronDown,
+    ChevronRight,
+    Download,
+    Shield,
+    Loader2,
+    Folder,
+    FolderOpen,
+    Lock,
+    Users,
+    User,
+    Info,
+} from "lucide-react";
+import { toast } from "sonner";
 
+// ─── Types (unchanged) ──────────────────────────────────────
 interface PermissionComparison {
     folderPath: string;
     normalizedPath: string;
     driveFolderId: string;
     expectedGroups: { email: string; role: string }[];
     expectedUsers: { email: string; role: string }[];
-    actualPermissions: { email: string; role: string; type: string; inherited?: boolean }[];
-    // Enhanced status
-    status: 'exact_match' | 'compliant' | 'non_compliant';
-    statusLabel: 'Exact Match' | 'Compliant (Inheritance Allowed)' | 'Non-Compliant';
+    actualPermissions: {
+        email: string;
+        role: string;
+        type: string;
+        inherited?: boolean;
+    }[];
+    status: "exact_match" | "compliant" | "non_compliant";
+    statusLabel:
+    | "Exact Match"
+    | "Compliant (Inheritance Allowed)"
+    | "Non-Compliant";
     discrepancies: string[];
-    // Detailed counters
     expectedCount: number;
     directActualCount: number;
     inheritedActualCount: number;
@@ -44,29 +90,33 @@ interface Project {
     project_code: string;
 }
 
+// ─── Helpers ────────────────────────────────────────────────
 const getRoleLabel = (role: string) => {
     const roleMap: Record<string, string> = {
-        'owner': 'Owner',
-        'organizer': 'Manager',
-        'fileOrganizer': 'Content Manager',
-        'writer': 'Contributor',
-        'commenter': 'Commenter',
-        'reader': 'Viewer'
+        owner: "Owner",
+        organizer: "Manager",
+        fileOrganizer: "Content Manager",
+        writer: "Contributor",
+        commenter: "Commenter",
+        reader: "Viewer",
     };
     return roleMap[role] || role;
 };
 
-const getStatusIcon = (status: string) => {
+const normalizeRole = (role: string) => {
+    if (role === "organizer" || role === "fileOrganizer") return "organizer";
+    return role;
+};
+
+const getStatusIcon = (status: string, size = "h-4 w-4") => {
     switch (status) {
-        case 'exact_match':
-            return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-        case 'compliant':
-            return <Shield className="h-5 w-5 text-blue-500" />;
-        case 'non_compliant':
-            return <XCircle className="h-5 w-5 text-red-500" />;
-        // Backward compatibility
-        case 'match':
-            return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+        case "exact_match":
+        case "match":
+            return <CheckCircle2 className={`${size} text-green-500`} />;
+        case "compliant":
+            return <Shield className={`${size} text-blue-500`} />;
+        case "non_compliant":
+            return <XCircle className={`${size} text-red-500`} />;
         default:
             return null;
     }
@@ -74,206 +124,788 @@ const getStatusIcon = (status: string) => {
 
 const getStatusBadge = (status: string) => {
     switch (status) {
-        case 'exact_match':
-            return <Badge className="bg-green-500 hover:bg-green-600">Exact Match</Badge>;
-        case 'compliant':
-            return <Badge className="bg-blue-500 hover:bg-blue-600">Compliant (Inheritance Allowed)</Badge>;
-        case 'non_compliant':
-            return <Badge className="bg-red-500 hover:bg-red-600">Non-Compliant</Badge>;
-        // Backward compatibility
-        case 'match':
-            return <Badge className="bg-green-500">Match</Badge>;
-        case 'extra':
-            return <Badge className="bg-yellow-500">Extra Access</Badge>;
-        case 'missing':
-            return <Badge className="bg-red-500">Missing</Badge>;
-        case 'mismatch':
-            return <Badge className="bg-orange-500">Mismatch</Badge>;
+        case "exact_match":
+            return (
+                <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
+                    Exact Match
+                </Badge>
+            );
+        case "compliant":
+            return (
+                <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">
+                    Compliant
+                </Badge>
+            );
+        case "non_compliant":
+            return (
+                <Badge className="bg-red-500/10 text-red-600 border-red-500/30">
+                    Non-Compliant
+                </Badge>
+            );
         default:
             return null;
     }
 };
 
+// ─── Build tree structure from flat comparisons ─────────────
+interface TreeNode {
+    id: string;
+    name: string;
+    path: string;
+    comparison: PermissionComparison | null;
+    children: TreeNode[];
+}
+
+function buildFolderTree(comparisons: PermissionComparison[]): TreeNode[] {
+    const roots: TreeNode[] = [];
+    const nodeMap = new Map<string, TreeNode>();
+
+    // Sort by path depth
+    const sorted = [...comparisons].sort(
+        (a, b) => a.normalizedPath.split("/").length - b.normalizedPath.split("/").length
+    );
+
+    for (const comp of sorted) {
+        const parts = comp.normalizedPath.split("/").filter(Boolean);
+        const name = parts[parts.length - 1] || comp.normalizedPath;
+        const node: TreeNode = {
+            id: comp.normalizedPath,
+            name,
+            path: comp.normalizedPath,
+            comparison: comp,
+            children: [],
+        };
+        nodeMap.set(comp.normalizedPath, node);
+
+        // Find parent
+        const parentPath = parts.slice(0, -1).join("/");
+        const parent = parentPath ? nodeMap.get(parentPath) : null;
+        if (parent) {
+            parent.children.push(node);
+        } else {
+            roots.push(node);
+        }
+    }
+    return roots;
+}
+
+// ─── Folder Tree Node ───────────────────────────────────────
+function AuditTreeNode({
+    node,
+    selectedPath,
+    expandedPaths,
+    onSelect,
+    onToggleExpand,
+    level = 0,
+}: {
+    node: TreeNode;
+    selectedPath: string | null;
+    expandedPaths: Set<string>;
+    onSelect: (path: string) => void;
+    onToggleExpand: (path: string) => void;
+    level?: number;
+}) {
+    const isSelected = selectedPath === node.path;
+    const isExpanded = expandedPaths.has(node.path);
+    const hasChildren = node.children.length > 0;
+    const status = node.comparison?.status;
+
+    return (
+        <div>
+            <div
+                className={`flex items-center gap-1 py-1.5 px-2 rounded-md cursor-pointer text-sm transition-colors ${isSelected
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "hover:bg-muted/50"
+                    }`}
+                style={{ paddingLeft: `${level * 16 + 8}px` }}
+                onClick={() => onSelect(node.path)}
+            >
+                {hasChildren ? (
+                    <button
+                        className="p-0.5 hover:bg-muted rounded"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleExpand(node.path);
+                        }}
+                    >
+                        {isExpanded ? (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                        ) : (
+                            <ChevronRight className="h-3.5 w-3.5" />
+                        )}
+                    </button>
+                ) : (
+                    <span className="w-5" />
+                )}
+                {isExpanded ? (
+                    <FolderOpen className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                ) : (
+                    <Folder className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                )}
+                <span className="truncate flex-1">{node.name}</span>
+                {status && (
+                    <span className="flex-shrink-0">
+                        {getStatusIcon(status, "h-3.5 w-3.5")}
+                    </span>
+                )}
+                {node.comparison?.limitedAccessExpected && (
+                    <Lock className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                )}
+            </div>
+            {isExpanded &&
+                node.children.map((child) => (
+                    <AuditTreeNode
+                        key={child.path}
+                        node={child}
+                        selectedPath={selectedPath}
+                        expandedPaths={expandedPaths}
+                        onSelect={onSelect}
+                        onToggleExpand={onToggleExpand}
+                        level={level + 1}
+                    />
+                ))}
+        </div>
+    );
+}
+
+// ─── Summary Bar ────────────────────────────────────────────
+function AuditSummaryBar({ comp }: { comp: PermissionComparison }) {
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-blue-500" />
+                <h3 className="font-semibold text-sm">Folder Summary</h3>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+                {getStatusBadge(comp.status)}
+                {comp.limitedAccessExpected && (
+                    <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                        <Lock className="h-3 w-3 mr-1" />
+                        Limited Access
+                    </Badge>
+                )}
+                <div className="flex gap-4 text-xs text-muted-foreground ml-auto">
+                    <span>Expected: <strong className="text-foreground">{comp.expectedCount}</strong></span>
+                    <span>Direct: <strong className="text-foreground">{comp.directActualCount}</strong></span>
+                    <span>Inherited: <strong className="text-foreground">{comp.inheritedActualCount}</strong></span>
+                    <span>Total: <strong className="text-foreground">{comp.totalActualCount}</strong></span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Comparison Table (Unified Diff) ────────────────────────
+interface DiffRow {
+    type: "group" | "user";
+    email: string;
+    expectedRole: string | null;
+    actualRole: string | null;
+    inherited: boolean;
+    diffStatus: "match" | "missing" | "extra" | "role_mismatch";
+}
+
+function buildDiffRows(comp: PermissionComparison): DiffRow[] {
+    const rows: DiffRow[] = [];
+    const actualMap = new Map<
+        string,
+        { role: string; type: string; inherited?: boolean }
+    >();
+
+    for (const p of comp.actualPermissions) {
+        if (p.email) {
+            actualMap.set(p.email.toLowerCase(), p);
+        }
+    }
+
+    // Expected groups
+    for (const g of comp.expectedGroups) {
+        const emailLower = g.email.toLowerCase();
+        const actual = actualMap.get(emailLower);
+        if (actual) {
+            const rolesMatch =
+                normalizeRole(g.role) === normalizeRole(actual.role);
+            rows.push({
+                type: "group",
+                email: g.email,
+                expectedRole: g.role,
+                actualRole: actual.role,
+                inherited: !!actual.inherited,
+                diffStatus: rolesMatch ? "match" : "role_mismatch",
+            });
+            actualMap.delete(emailLower);
+        } else {
+            rows.push({
+                type: "group",
+                email: g.email,
+                expectedRole: g.role,
+                actualRole: null,
+                inherited: false,
+                diffStatus: "missing",
+            });
+        }
+    }
+
+    // Expected users
+    for (const u of comp.expectedUsers) {
+        const emailLower = u.email.toLowerCase();
+        const actual = actualMap.get(emailLower);
+        if (actual) {
+            const rolesMatch =
+                normalizeRole(u.role) === normalizeRole(actual.role);
+            rows.push({
+                type: "user",
+                email: u.email,
+                expectedRole: u.role,
+                actualRole: actual.role,
+                inherited: !!actual.inherited,
+                diffStatus: rolesMatch ? "match" : "role_mismatch",
+            });
+            actualMap.delete(emailLower);
+        } else {
+            rows.push({
+                type: "user",
+                email: u.email,
+                expectedRole: u.role,
+                actualRole: null,
+                inherited: false,
+                diffStatus: "missing",
+            });
+        }
+    }
+
+    // Remaining actual = extra
+    for (const [emailKey, perm] of actualMap) {
+        rows.push({
+            type: perm.type === "group" ? "group" : "user",
+            email: emailKey,
+            expectedRole: null,
+            actualRole: perm.role,
+            inherited: !!perm.inherited,
+            diffStatus: "extra",
+        });
+    }
+
+    // Sort: issues first
+    const order = { missing: 0, role_mismatch: 1, extra: 2, match: 3 };
+    rows.sort((a, b) => order[a.diffStatus] - order[b.diffStatus]);
+
+    return rows;
+}
+
+function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
+    const rows = buildDiffRows(comp);
+
+    const getRowTint = (status: string) => {
+        switch (status) {
+            case "missing":
+                return "bg-red-500/5";
+            case "extra":
+                return "bg-yellow-500/5";
+            case "role_mismatch":
+                return "bg-orange-500/5";
+            default:
+                return "";
+        }
+    };
+
+    const getDiffBadge = (status: string) => {
+        switch (status) {
+            case "match":
+                return (
+                    <Badge
+                        variant="outline"
+                        className="text-xs bg-green-500/10 text-green-600 border-green-500/30"
+                    >
+                        ✓ Match
+                    </Badge>
+                );
+            case "missing":
+                return (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Badge className="text-xs bg-red-500/10 text-red-600 border-red-500/30">
+                                    ✗ Missing
+                                </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Expected in template but not found in Google Drive
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                );
+            case "extra":
+                return (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Badge className="text-xs bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+                                    ⚠ Extra
+                                </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Found in Google Drive but not defined in template
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                );
+            case "role_mismatch":
+                return (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Badge className="text-xs bg-orange-500/10 text-orange-600 border-orange-500/30">
+                                    ↔ Role Mismatch
+                                </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Principal exists but with a different role than expected
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                );
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-green-500" />
+                <h3 className="font-semibold text-sm">Comparison Table</h3>
+                <Badge variant="secondary" className="text-xs">
+                    Expected vs Actual
+                </Badge>
+            </div>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-[60px]">Type</TableHead>
+                        <TableHead>Identifier</TableHead>
+                        <TableHead className="w-[110px]">Expected</TableHead>
+                        <TableHead className="w-[110px]">Actual</TableHead>
+                        <TableHead className="w-[120px]">Status</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {rows.map((row, i) => (
+                        <TableRow key={`${row.email}-${i}`} className={getRowTint(row.diffStatus)}>
+                            <TableCell>
+                                <Badge variant="outline" className="text-xs">
+                                    {row.type === "group" ? (
+                                        <><Users className="h-3 w-3 mr-1" />Grp</>
+                                    ) : (
+                                        <><User className="h-3 w-3 mr-1" />Usr</>
+                                    )}
+                                </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs font-mono truncate max-w-[200px]">
+                                {row.email}
+                                {row.inherited && (
+                                    <Badge variant="secondary" className="text-[10px] ml-1.5">
+                                        inherited
+                                    </Badge>
+                                )}
+                            </TableCell>
+                            <TableCell>
+                                {row.expectedRole ? (
+                                    <Badge variant="outline" className="text-xs">
+                                        {getRoleLabel(row.expectedRole)}
+                                    </Badge>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                            </TableCell>
+                            <TableCell>
+                                {row.actualRole ? (
+                                    <Badge variant="outline" className="text-xs">
+                                        {getRoleLabel(row.actualRole)}
+                                    </Badge>
+                                ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
+                                )}
+                            </TableCell>
+                            <TableCell>{getDiffBadge(row.diffStatus)}</TableCell>
+                        </TableRow>
+                    ))}
+                    {rows.length === 0 && (
+                        <TableRow>
+                            <TableCell
+                                colSpan={5}
+                                className="text-center text-muted-foreground text-sm py-6"
+                            >
+                                No permissions defined for this folder
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </div>
+    );
+}
+
+// ─── Discrepancy List ───────────────────────────────────────
+function AuditDiscrepancyList({ comp }: { comp: PermissionComparison }) {
+    if (comp.discrepancies.length === 0) return null;
+
+    const missing = comp.discrepancies.filter((d) => d.startsWith("Missing"));
+    const extra = comp.discrepancies.filter(
+        (d) => d.startsWith("Extra") || d.startsWith("Unexpected")
+    );
+    const roleMismatch = comp.discrepancies.filter(
+        (d) => d.includes("mismatch") || d.includes("Mismatch")
+    );
+    const other = comp.discrepancies.filter(
+        (d) =>
+            !d.startsWith("Missing") &&
+            !d.startsWith("Extra") &&
+            !d.startsWith("Unexpected") &&
+            !d.includes("mismatch") &&
+            !d.includes("Mismatch")
+    );
+
+    const renderGroup = (
+        title: string,
+        items: string[],
+        icon: React.ReactNode,
+        colorClass: string
+    ) => {
+        if (items.length === 0) return null;
+        return (
+            <div>
+                <h4 className={`text-xs font-semibold mb-1 flex items-center gap-1.5 ${colorClass}`}>
+                    {icon}
+                    {title} ({items.length})
+                </h4>
+                <ul className="space-y-0.5 ml-5">
+                    {items.map((d, i) => (
+                        <li key={i} className="text-xs text-muted-foreground list-disc">
+                            {d}
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        );
+    };
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+                <h3 className="font-semibold text-sm">Discrepancies</h3>
+                <Badge variant="outline" className="text-xs">
+                    {comp.discrepancies.length} issues
+                </Badge>
+            </div>
+            <div className="space-y-3 p-3 rounded-lg border bg-muted/20">
+                {renderGroup(
+                    "Missing",
+                    missing,
+                    <XCircle className="h-3.5 w-3.5" />,
+                    "text-red-600"
+                )}
+                {renderGroup(
+                    "Extra Access",
+                    extra,
+                    <AlertTriangle className="h-3.5 w-3.5" />,
+                    "text-yellow-600"
+                )}
+                {renderGroup(
+                    "Role Mismatches",
+                    roleMismatch,
+                    <AlertCircle className="h-3.5 w-3.5" />,
+                    "text-orange-600"
+                )}
+                {renderGroup(
+                    "Other",
+                    other,
+                    <Info className="h-3.5 w-3.5" />,
+                    "text-muted-foreground"
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─── Stats Row ──────────────────────────────────────────────
+function StatsRow({ result }: { result: AuditResult }) {
+    const stats = [
+        {
+            label: "Match",
+            value: result.matchCount,
+            icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+            bg: "bg-green-100 dark:bg-green-900",
+        },
+        {
+            label: "Extra",
+            value: result.extraCount,
+            icon: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
+            bg: "bg-yellow-100 dark:bg-yellow-900",
+        },
+        {
+            label: "Missing",
+            value: result.missingCount,
+            icon: <XCircle className="h-5 w-5 text-red-500" />,
+            bg: "bg-red-100 dark:bg-red-900",
+        },
+        {
+            label: "Mismatch",
+            value: result.mismatchCount,
+            icon: <AlertCircle className="h-5 w-5 text-orange-500" />,
+            bg: "bg-orange-100 dark:bg-orange-900",
+        },
+    ];
+
+    return (
+        <div className="grid grid-cols-4 gap-4">
+            {stats.map((s) => (
+                <Card key={s.label}>
+                    <CardContent className="pt-6">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-full ${s.bg}`}>{s.icon}</div>
+                            <div>
+                                <p className="text-2xl font-bold">{s.value}</p>
+                                <p className="text-sm text-muted-foreground">{s.label}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+    );
+}
+
+// ─── Main Page ──────────────────────────────────────────────
 export default function PermissionAuditPage() {
     const [projects, setProjects] = useState<Project[]>([]);
-    const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+    const [selectedProjectId, setSelectedProjectId] = useState<string>("");
     const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
     const [loading, setLoading] = useState(false);
-    const [filter, setFilter] = useState<'all' | 'issues'>('all');
-    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+    const [enforcing, setEnforcing] = useState(false);
 
+    // Tree state
+    const [selectedPath, setSelectedPath] = useState<string | null>(null);
+    const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+    const [filter, setFilter] = useState<"all" | "issues">("all");
+
+    // Fetch projects
     useEffect(() => {
         const fetchProjects = async () => {
             try {
-                const res = await fetch('/api/projects');
+                const res = await fetch("/api/projects");
                 const data = await res.json();
-                if (data.success) {
-                    setProjects(data.projects || []);
-                }
+                if (data.success) setProjects(data.projects || []);
             } catch (error) {
-                console.error('Error fetching projects:', error);
+                console.error("Error fetching projects:", error);
             }
         };
         fetchProjects();
     }, []);
 
+    // Run audit
     const runAudit = useCallback(async () => {
         if (!selectedProjectId) return;
-
         setLoading(true);
+        setAuditResult(null);
+        setSelectedPath(null);
         try {
-            const res = await fetch(`/api/audit/permissions?projectId=${selectedProjectId}`);
+            const res = await fetch(
+                `/api/audit/permissions?projectId=${selectedProjectId}`
+            );
             const data = await res.json();
             if (data.success) {
                 setAuditResult(data.result);
+                // Auto-expand and select first
+                if (data.result.comparisons.length > 0) {
+                    const tree = buildFolderTree(data.result.comparisons);
+                    const allPaths = new Set(tree.map((n) => n.path));
+                    setExpandedPaths(allPaths);
+                    setSelectedPath(data.result.comparisons[0].normalizedPath);
+                }
+                toast.success(
+                    `Audit complete: ${data.result.totalFolders} folders analyzed`
+                );
             } else {
-                console.error('Audit failed:', data.error);
+                toast.error("Audit failed: " + (data.error || "Unknown error"));
             }
         } catch (error) {
-            console.error('Error running audit:', error);
+            console.error("Error running audit:", error);
+            toast.error("Error running audit");
         } finally {
             setLoading(false);
         }
     }, [selectedProjectId]);
 
+    // Enforce THIS project only (FIX: was sending { all: true })
     const enforceProject = useCallback(async () => {
         if (!selectedProjectId) return;
-
-        setLoading(true);
+        setEnforcing(true);
         try {
-            const res = await fetch('/api/jobs/enforce-permissions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ projectId: selectedProjectId })
+            const res = await fetch("/api/jobs/enforce-permissions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ projectId: selectedProjectId }),
             });
             const data = await res.json();
             if (data.success) {
-                window.location.href = '/jobs';
+                toast.success("Enforcement job started for selected project");
+                window.location.href = "/jobs";
             } else {
-                console.error('Enforce failed:', data.error);
-                alert('Failed to start enforcement job: ' + data.error);
+                toast.error("Failed: " + (data.error || "Unknown error"));
             }
         } catch (error) {
-            console.error('Error starting enforcement:', error);
-            alert('Error starting enforcement job');
+            console.error("Error enforcing:", error);
+            toast.error("Error starting enforcement job");
         } finally {
-            setLoading(false);
+            setEnforcing(false);
         }
     }, [selectedProjectId]);
 
+    // Enforce ALL projects
     const enforceAllProjects = useCallback(async () => {
-        const confirmed = confirm('Enforce permissions for ALL projects? This will create a job for each project.');
+        const confirmed = confirm(
+            "Enforce permissions for ALL projects? This will create a job for each project."
+        );
         if (!confirmed) return;
-
-        setLoading(true);
+        setEnforcing(true);
         try {
-            const res = await fetch('/api/jobs/enforce-permissions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ all: true })
+            const res = await fetch("/api/jobs/enforce-permissions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}), // No projectId = all
             });
             const data = await res.json();
             if (data.success) {
-                window.location.href = '/jobs';
+                toast.success("Enforcement jobs started for all projects");
+                window.location.href = "/jobs";
             } else {
-                console.error('Enforce all failed:', data.error);
-                alert('Failed to start enforcement jobs: ' + data.error);
+                toast.error("Failed: " + (data.error || "Unknown error"));
             }
         } catch (error) {
-            console.error('Error starting enforcement:', error);
-            alert('Error starting enforcement jobs');
+            console.error("Error enforcing all:", error);
+            toast.error("Error starting enforcement jobs");
         } finally {
-            setLoading(false);
+            setEnforcing(false);
         }
     }, []);
 
-    const filteredComparisons = auditResult?.comparisons.filter(c =>
-        filter === 'all' || c.status !== 'exact_match'
-    ) || [];
-
-    const toggleFolder = (path: string) => {
-        setExpandedFolders(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(path)) {
-                newSet.delete(path);
-            } else {
-                newSet.add(path);
-            }
-            return newSet;
-        });
-    };
-
-    const exportV2 = async (format: 'csv' | 'json') => {
+    // Export
+    const exportAudit = async (format: "csv" | "json") => {
         if (!selectedProjectId) return;
-
         try {
-            const res = await fetch(`/api/audit/export?projectId=${selectedProjectId}&format=${format}`);
-
-            if (format === 'json') {
+            const res = await fetch(
+                `/api/audit/export?projectId=${selectedProjectId}&format=${format}`
+            );
+            if (format === "json") {
                 const data = await res.json();
-                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const blob = new Blob([JSON.stringify(data, null, 2)], {
+                    type: "application/json",
+                });
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
+                const a = document.createElement("a");
                 a.href = url;
-                a.download = `audit_export_v2_${auditResult?.projectCode}_${new Date().toISOString().split('T')[0]}.json`;
+                a.download = `audit_${auditResult?.projectCode}_${new Date().toISOString().split("T")[0]}.json`;
                 a.click();
+                URL.revokeObjectURL(url);
             } else {
                 const blob = await res.blob();
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
+                const a = document.createElement("a");
                 a.href = url;
-                a.download = `audit_export_v2_${auditResult?.projectCode}_${new Date().toISOString().split('T')[0]}.csv`;
+                a.download = `audit_${auditResult?.projectCode}_${new Date().toISOString().split("T")[0]}.csv`;
                 a.click();
+                URL.revokeObjectURL(url);
             }
+            toast.success(`Exported as ${format.toUpperCase()}`);
         } catch (error) {
-            console.error('Export failed:', error);
+            console.error("Export failed:", error);
+            toast.error("Export failed");
         }
     };
 
+    const handleToggleExpand = useCallback((path: string) => {
+        setExpandedPaths((prev) => {
+            const next = new Set(prev);
+            if (next.has(path)) next.delete(path);
+            else next.add(path);
+            return next;
+        });
+    }, []);
+
+    // Build tree + filter
+    const tree = auditResult ? buildFolderTree(auditResult.comparisons) : [];
+    const selectedComp = auditResult?.comparisons.find(
+        (c) => c.normalizedPath === selectedPath
+    );
+
+    // Filter comparisons for tree
+    const filteredComparisons =
+        filter === "issues"
+            ? auditResult?.comparisons.filter((c) => c.status !== "exact_match") || []
+            : auditResult?.comparisons || [];
+    const filteredTree = buildFolderTree(filteredComparisons);
+
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
+            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold flex items-center gap-2">
-                        <Shield className="h-8 w-8" />
+                    <h1 className="text-3xl font-bold tracking-tight">
                         Permission Audit
                     </h1>
-                    <p className="text-muted-foreground mt-1">
+                    <p className="text-muted-foreground text-sm">
                         Compare template permissions with actual Google Drive permissions
                     </p>
                 </div>
                 {auditResult && (
                     <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => exportV2('csv')}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Export CSV v2
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => exportAudit("csv")}
+                        >
+                            <Download className="h-4 w-4 mr-1" />
+                            CSV
                         </Button>
-                        <Button variant="outline" onClick={() => exportV2('json')}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Export JSON v2
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => exportAudit("json")}
+                        >
+                            <Download className="h-4 w-4 mr-1" />
+                            JSON
                         </Button>
                     </div>
                 )}
             </div>
 
+            {/* Project Selector + Run Audit */}
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex items-center gap-4">
                         <div className="flex-1">
-                            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                            <Select
+                                value={selectedProjectId}
+                                onValueChange={setSelectedProjectId}
+                            >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Select a project to audit" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {projects.map(p => (
+                                    {projects.map((p) => (
                                         <SelectItem key={p.id} value={p.id}>
-                                            {p.project_code} - {p.name}
+                                            {p.project_code} — {p.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Button onClick={runAudit} disabled={!selectedProjectId || loading}>
+                        <Button
+                            onClick={runAudit}
+                            disabled={!selectedProjectId || loading}
+                        >
                             {loading ? (
                                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                             ) : (
@@ -281,216 +913,147 @@ export default function PermissionAuditPage() {
                             )}
                             Run Audit
                         </Button>
-                        <Button
-                            onClick={enforceProject}
-                            disabled={!selectedProjectId || loading}
-                            variant="default"
-                            className="bg-blue-600 hover:bg-blue-700"
-                        >
-                            {loading ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <Shield className="h-4 w-4 mr-2" />
-                            )}
-                            Enforce This Project
-                        </Button>
-                        <Button
-                            onClick={enforceAllProjects}
-                            disabled={loading}
-                            variant="destructive"
-                        >
-                            {loading ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <Shield className="h-4 w-4 mr-2" />
-                            )}
-                            Enforce All Projects
-                        </Button>
                     </div>
                 </CardContent>
             </Card>
 
+            {/* Stats Row */}
+            {auditResult && <StatsRow result={auditResult} />}
+
+            {/* Master-Detail Layout */}
             {auditResult && (
-                <div className="grid grid-cols-4 gap-4">
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-full bg-green-100 dark:bg-green-900">
-                                    <CheckCircle2 className="h-6 w-6 text-green-500" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold">{auditResult.matchCount}</p>
-                                    <p className="text-sm text-muted-foreground">Match</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900">
-                                    <AlertTriangle className="h-6 w-6 text-yellow-500" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold">{auditResult.extraCount}</p>
-                                    <p className="text-sm text-muted-foreground">Extra Access</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-full bg-red-100 dark:bg-red-900">
-                                    <XCircle className="h-6 w-6 text-red-500" />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold">{auditResult.missingCount}</p>
-                                    <p className="text-sm text-muted-foreground">Missing</p>
+                <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+                    {/* LEFT: Folder Tree */}
+                    <Card className="h-[calc(100vh-420px)] flex flex-col">
+                        <CardHeader className="py-3 px-4 flex-shrink-0">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm">
+                                    Folders ({filteredComparisons.length})
+                                </CardTitle>
+                                <div className="flex gap-1">
+                                    <Button
+                                        variant={filter === "all" ? "default" : "ghost"}
+                                        size="sm"
+                                        className="h-6 text-xs px-2"
+                                        onClick={() => setFilter("all")}
+                                    >
+                                        All
+                                    </Button>
+                                    <Button
+                                        variant={filter === "issues" ? "default" : "ghost"}
+                                        size="sm"
+                                        className="h-6 text-xs px-2"
+                                        onClick={() => setFilter("issues")}
+                                    >
+                                        Issues
+                                    </Button>
                                 </div>
                             </div>
+                        </CardHeader>
+                        <CardContent className="flex-1 overflow-hidden px-2 pb-2">
+                            <ScrollArea className="h-full">
+                                {filteredTree.map((node) => (
+                                    <AuditTreeNode
+                                        key={node.path}
+                                        node={node}
+                                        selectedPath={selectedPath}
+                                        expandedPaths={expandedPaths}
+                                        onSelect={setSelectedPath}
+                                        onToggleExpand={handleToggleExpand}
+                                    />
+                                ))}
+                                {filteredTree.length === 0 && (
+                                    <div className="text-center py-8 text-sm text-muted-foreground">
+                                        {filter === "issues"
+                                            ? "No issues found! All permissions match."
+                                            : "No folders to display."}
+                                    </div>
+                                )}
+                            </ScrollArea>
                         </CardContent>
                     </Card>
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-full bg-orange-100 dark:bg-orange-900">
-                                    <AlertCircle className="h-6 w-6 text-orange-500" />
+
+                    {/* RIGHT: Details Panel */}
+                    <div className="h-[calc(100vh-420px)] overflow-hidden">
+                        {selectedComp ? (
+                            <Card className="h-full flex flex-col">
+                                <CardHeader className="py-3 px-4 flex-shrink-0 border-b">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <CardTitle className="text-lg flex items-center gap-2">
+                                                <Folder className="h-5 w-5 text-amber-500" />
+                                                {selectedComp.normalizedPath
+                                                    .split("/")
+                                                    .pop()}
+                                            </CardTitle>
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                {selectedComp.normalizedPath}
+                                            </p>
+                                        </div>
+                                        {getStatusBadge(selectedComp.status)}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="flex-1 overflow-auto px-4 py-3">
+                                    <ScrollArea className="h-full">
+                                        <div className="space-y-6 pr-2">
+                                            <AuditSummaryBar comp={selectedComp} />
+                                            <div className="border-t" />
+                                            <AuditComparisonTable comp={selectedComp} />
+                                            <div className="border-t" />
+                                            <AuditDiscrepancyList comp={selectedComp} />
+                                        </div>
+                                    </ScrollArea>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <Card className="h-full flex items-center justify-center">
+                                <div className="text-center text-muted-foreground">
+                                    <Folder className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                                    <p className="font-medium">Select a folder</p>
+                                    <p className="text-sm">
+                                        Click a folder in the tree to view its audit details
+                                    </p>
                                 </div>
-                                <div>
-                                    <p className="text-2xl font-bold">{auditResult.mismatchCount}</p>
-                                    <p className="text-sm text-muted-foreground">Mismatch</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </Card>
+                        )}
+                    </div>
                 </div>
             )}
 
+            {/* Enforcement Footer */}
             {auditResult && (
                 <Card>
-                    <CardHeader>
+                    <CardContent className="py-4">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <CardTitle>Folder Comparisons</CardTitle>
-                                <CardDescription>
-                                    {auditResult.totalFolders} folders analyzed for {auditResult.projectCode}
-                                </CardDescription>
-                            </div>
-                            <div className="flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground">
+                                Enforce template permissions on Google Drive
+                            </p>
+                            <div className="flex gap-2">
                                 <Button
-                                    variant={filter === 'all' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => setFilter('all')}
+                                    onClick={enforceProject}
+                                    disabled={!selectedProjectId || enforcing}
+                                    className="bg-blue-600 hover:bg-blue-700"
                                 >
-                                    All
-                                </Button>
-                                <Button
-                                    variant={filter === 'issues' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => setFilter('issues')}
-                                >
-                                    Issues Only
-                                </Button>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2">
-                            {filteredComparisons.map((c, idx) => (
-                                <div key={idx} className="border rounded-lg">
-                                    <div
-                                        className={`flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 ${c.status !== 'exact_match' ? 'bg-muted/30' : ''
-                                            }`}
-                                        onClick={() => toggleFolder(c.folderPath)}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {expandedFolders.has(c.folderPath) ? (
-                                                <ChevronDown className="h-4 w-4" />
-                                            ) : (
-                                                <ChevronRight className="h-4 w-4" />
-                                            )}
-                                            {getStatusIcon(c.status)}
-                                            <span className="font-medium">{c.normalizedPath}</span>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <span className="text-sm text-muted-foreground">
-                                                Expected: {c.expectedCount} |
-                                                Direct: {c.directActualCount} |
-                                                Inherited: {c.inheritedActualCount} |
-                                                Total: {c.totalActualCount}
-                                            </span>
-                                            {getStatusBadge(c.status)}
-                                        </div>
-                                    </div>
-
-                                    {expandedFolders.has(c.folderPath) && (
-                                        <div className="p-4 bg-muted/20 border-t">
-                                            <div className="grid grid-cols-2 gap-6">
-                                                <div>
-                                                    <h4 className="font-semibold mb-2 text-sm">Expected (Template)</h4>
-                                                    <div className="space-y-1">
-                                                        {c.expectedGroups.map((g, i) => (
-                                                            <div key={`g-${i}`} className="flex items-center justify-between text-sm">
-                                                                <span className="flex items-center gap-2">
-                                                                    <Badge variant="outline" className="text-xs">Group</Badge>
-                                                                    {g.email}
-                                                                </span>
-                                                                <span className="text-muted-foreground">{getRoleLabel(g.role)}</span>
-                                                            </div>
-                                                        ))}
-                                                        {c.expectedUsers.map((u, i) => (
-                                                            <div key={`u-${i}`} className="flex items-center justify-between text-sm">
-                                                                <span className="flex items-center gap-2">
-                                                                    <Badge variant="outline" className="text-xs">User</Badge>
-                                                                    {u.email}
-                                                                </span>
-                                                                <span className="text-muted-foreground">{getRoleLabel(u.role)}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <h4 className="font-semibold mb-2 text-sm">Actual (Google Drive)</h4>
-                                                    <div className="space-y-1">
-                                                        {c.actualPermissions.map((p, i) => (
-                                                            <div key={i} className="flex items-center justify-between text-sm">
-                                                                <span className="flex items-center gap-2">
-                                                                    <Badge variant="outline" className="text-xs capitalize">{p.type}</Badge>
-                                                                    {p.email}
-                                                                </span>
-                                                                <span className="text-muted-foreground">{getRoleLabel(p.role)}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {c.discrepancies.length > 0 && (
-                                                <div className="mt-4 pt-4 border-t">
-                                                    <h4 className="font-semibold mb-2 text-sm text-red-500">Discrepancies</h4>
-                                                    <ul className="list-disc list-inside text-sm space-y-1">
-                                                        {c.discrepancies.map((d, i) => (
-                                                            <li key={i} className={d.startsWith('Missing') ? 'text-red-600' : 'text-yellow-600'}>
-                                                                {d}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                        </div>
+                                    {enforcing ? (
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <Shield className="h-4 w-4 mr-2" />
                                     )}
-                                </div>
-                            ))}
-
-                            {filteredComparisons.length === 0 && (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    {filter === 'issues'
-                                        ? 'No issues found! All permissions match the template.'
-                                        : 'No folders to display. Run the audit first.'}
-                                </div>
-                            )}
+                                    Enforce This Project
+                                </Button>
+                                <Button
+                                    onClick={enforceAllProjects}
+                                    disabled={enforcing}
+                                    variant="destructive"
+                                >
+                                    {enforcing ? (
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <Shield className="h-4 w-4 mr-2" />
+                                    )}
+                                    Enforce All Projects
+                                </Button>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

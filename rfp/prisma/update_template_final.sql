@@ -1,4 +1,24 @@
-[
+-- ============================================================================
+-- UPDATE TEMPLATE - Insert Latest Version & Clean Up Old Versions
+-- ============================================================================
+-- This script inserts the latest template from template_output.json
+-- and optionally cleans up old versions
+
+BEGIN;
+
+-- Step 1: Insert the new template version
+-- The version number auto-increments from the current max version
+INSERT INTO rfp.folder_templates (
+    version_number,
+    template_json,
+    is_active,
+    created_by,
+    notes,
+    created_at
+)
+SELECT 
+    COALESCE(MAX(version_number), 0) + 1 as version_number,
+    '[
   {
     "name": "Project Delivery",
     "users": [],
@@ -351,4 +371,49 @@
     ],
     "limitedAccess": false
   }
-]
+]'::jsonb as template_json,
+    true as is_active,
+    'admin' as created_by,
+    'Final template with TBE and Technical Submittal updates' as notes,
+    NOW() as created_at
+FROM rfp.folder_templates;
+
+-- Step 2: Mark all previous versions as inactive
+UPDATE rfp.folder_templates
+SET is_active = false
+WHERE version_number < (SELECT MAX(version_number) FROM rfp.folder_templates);
+
+-- Step 3: (OPTIONAL) Delete old versions - UNCOMMENT TO EXECUTE
+-- Keep only the latest version
+-- DELETE FROM rfp.folder_templates
+-- WHERE version_number < (SELECT MAX(version_number) FROM rfp.folder_templates);
+
+COMMIT;
+
+-- ============================================================================
+-- VERIFICATION
+-- ============================================================================
+
+-- Check the new version was inserted
+SELECT 
+    version_number,
+    is_active,
+    created_at,
+    created_by,
+    notes,
+    jsonb_array_length(template_json::jsonb) as root_folder_count
+FROM rfp.folder_templates
+ORDER BY version_number DESC;
+
+-- Count active versions (should be exactly 1)
+SELECT COUNT(*) as active_versions
+FROM rfp.folder_templates
+WHERE is_active = true;
+
+-- Check specific folders in the new template
+SELECT 
+    version_number,
+    elem->>'name' as folder_name
+FROM rfp.folder_templates,
+     jsonb_array_elements(template_json::jsonb) as elem
+WHERE is_active = true;

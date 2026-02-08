@@ -1,18 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     DropdownMenu,
@@ -21,15 +14,19 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
     RefreshCw,
     CheckCircle2,
     XCircle,
     Clock,
     Play,
-    RotateCcw,
     Loader2,
     ChevronDown,
-    ChevronRight,
     FolderIcon,
     UserPlus,
     UserMinus,
@@ -37,9 +34,14 @@ import {
     Info,
     Shield,
     FolderSync,
+    Ban,
+    Activity,
+    Timer,
+    Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
+// ─── Types (unchanged) ──────────────────────────────────────
 interface Job {
     id: string;
     job_type: string;
@@ -61,32 +63,47 @@ interface JobLog {
     project_name: string | null;
     folder_path: string | null;
     action: string;
-    status: 'info' | 'success' | 'warning' | 'error';
+    status: "info" | "success" | "warning" | "error";
     details: Record<string, unknown>;
     created_at: string;
 }
 
+// ─── Helpers (unchanged logic) ──────────────────────────────
 function getStatusBadge(status: string) {
     switch (status) {
         case "running":
             return (
-                <Badge className="bg-blue-500">
+                <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">
                     <Clock className="mr-1 h-3 w-3" />
                     Running
                 </Badge>
             );
+        case "pending":
+            return (
+                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                    <Clock className="mr-1 h-3 w-3" />
+                    Pending
+                </Badge>
+            );
         case "completed":
             return (
-                <Badge className="bg-green-500">
+                <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
                     <CheckCircle2 className="mr-1 h-3 w-3" />
                     Completed
                 </Badge>
             );
         case "failed":
             return (
-                <Badge variant="destructive">
+                <Badge className="bg-red-500/10 text-red-600 border-red-500/30">
                     <XCircle className="mr-1 h-3 w-3" />
                     Failed
+                </Badge>
+            );
+        case "cancelled":
+            return (
+                <Badge className="bg-gray-500/10 text-gray-600 border-gray-500/30">
+                    <Ban className="mr-1 h-3 w-3" />
+                    Cancelled
                 </Badge>
             );
         default:
@@ -96,30 +113,41 @@ function getStatusBadge(status: string) {
 
 function getJobTypeName(type: string): string {
     const names: Record<string, string> = {
-        'template_sync_all': 'Template Sync - All Projects',
-        'template_sync_changes': 'Template Changes Sync',
-        'sync_project': 'Sync Project',
-        'permission_enforcement': 'Permission Enforcement',
-        'project_sync': 'Project Sync',
-        'build_folder_index': 'Rebuild Folder Index',
-        'reconcile_index': 'Reconcile Index',
+        template_sync_all: "Template Sync - All Projects",
+        template_sync_changes: "Template Changes Sync",
+        sync_project: "Sync Project",
+        permission_enforcement: "Permission Enforcement",
+        enforce_permissions: "Enforce Permissions",
+        project_sync: "Project Sync",
+        build_folder_index: "Rebuild Folder Index",
+        rebuild_index: "Rebuild Index",
+        reconcile_index: "Reconcile Index",
     };
-    return names[type] || type.replace(/_/g, ' ');
+    return names[type] || type.replace(/_/g, " ");
+}
+
+function getJobTypeIcon(type: string) {
+    if (type.includes("enforce") || type.includes("permission"))
+        return <Shield className="h-4 w-4 text-blue-500" />;
+    if (type.includes("sync") || type.includes("index") || type.includes("rebuild"))
+        return <FolderSync className="h-4 w-4 text-purple-500" />;
+    return <Activity className="h-4 w-4 text-gray-500" />;
 }
 
 function getLogIcon(action: string, status: string) {
-    if (status === 'error') return <XCircle className="h-4 w-4 text-red-500" />;
-    if (status === 'warning') return <AlertCircle className="h-4 w-4 text-yellow-500" />;
-
+    if (status === "error")
+        return <XCircle className="h-4 w-4 text-red-500" />;
+    if (status === "warning")
+        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
     switch (action) {
-        case 'add_permission':
+        case "add_permission":
             return <UserPlus className="h-4 w-4 text-green-500" />;
-        case 'remove_permission':
+        case "remove_permission":
             return <UserMinus className="h-4 w-4 text-orange-500" />;
-        case 'start_project':
-        case 'complete_project':
+        case "start_project":
+        case "complete_project":
             return <FolderIcon className="h-4 w-4 text-blue-500" />;
-        case 'limited_access':
+        case "limited_access":
             return <CheckCircle2 className="h-4 w-4 text-purple-500" />;
         default:
             return <Info className="h-4 w-4 text-gray-500" />;
@@ -129,50 +157,60 @@ function getLogIcon(action: string, status: string) {
 function getLogMessage(log: JobLog): string {
     const details = log.details as Record<string, string>;
     switch (log.action) {
-        case 'job_started':
-            return `Job started by ${details.triggeredBy || 'admin'}`;
-        case 'projects_found':
+        case "job_started":
+            return `Job started by ${details.triggeredBy || "admin"}`;
+        case "projects_found":
             return `Found ${details.count} projects to process`;
-        case 'start_project':
+        case "start_project":
             return `Processing: ${log.project_name} (${details.pr_number})`;
-        case 'folders_found':
+        case "folders_found":
             return `Found ${details.count} folders in ${log.project_name}`;
-        case 'add_permission':
+        case "add_permission":
             return `Added ${details.type} permission for ${details.email} as ${details.role}`;
-        case 'add_permission_failed':
+        case "add_permission_failed":
             return `Failed to add ${details.email}: ${details.error}`;
-        case 'remove_permission':
+        case "remove_permission":
             return `Removed unauthorized permission: ${details.email}`;
-        case 'remove_permission_failed':
+        case "remove_permission_failed":
             return `Failed to remove ${details.email}: ${details.error}`;
-        case 'limited_access':
+        case "limited_access":
             return `Enabled Limited Access on folder`;
-        case 'complete_project':
+        case "complete_project":
             return `Completed ${log.project_name}: ${details.added} added, ${details.reverted} removed`;
-        case 'job_completed':
+        case "job_completed":
             return `Job completed: ${details.totalProjects} projects, ${details.totalAdded} added, ${details.totalReverted} removed`;
-        case 'error':
+        case "error":
             return `Error: ${details.message}`;
-        case 'warning':
+        case "warning":
             return `Warning: ${details.message}`;
         default:
-            return log.action.replace(/_/g, ' ');
+            return log.action.replace(/_/g, " ");
     }
 }
 
-function JobLogs({ jobId }: { jobId: string }) {
+function formatElapsed(start: string, end?: string): string {
+    const startMs = new Date(start).getTime();
+    const endMs = end ? new Date(end).getTime() : Date.now();
+    const diff = Math.floor((endMs - startMs) / 1000);
+    const mins = Math.floor(diff / 60);
+    const secs = diff % 60;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+}
+
+// ─── Job Log Viewer ─────────────────────────────────────────
+function JobLogViewer({ jobId, isActive }: { jobId: string; isActive: boolean }) {
     const [logs, setLogs] = useState<JobLog[]>([]);
     const [loading, setLoading] = useState(true);
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     const fetchLogs = useCallback(async () => {
         try {
             const res = await fetch(`/api/jobs/${jobId}/logs`);
             const data = await res.json();
-            if (data.success) {
-                setLogs(data.logs || []);
-            }
+            if (data.success) setLogs(data.logs || []);
         } catch (error) {
-            console.error('Error fetching logs:', error);
+            console.error("Error fetching logs:", error);
         } finally {
             setLoading(false);
         }
@@ -180,14 +218,20 @@ function JobLogs({ jobId }: { jobId: string }) {
 
     useEffect(() => {
         fetchLogs();
-        // Auto-refresh logs every 2 seconds
         const interval = setInterval(fetchLogs, 2000);
         return () => clearInterval(interval);
     }, [fetchLogs]);
 
+    // Auto-scroll to bottom
+    useEffect(() => {
+        if (scrollRef.current && isActive) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [logs, isActive]);
+
     if (loading) {
         return (
-            <div className="flex items-center justify-center py-4">
+            <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
         );
@@ -195,61 +239,285 @@ function JobLogs({ jobId }: { jobId: string }) {
 
     if (logs.length === 0) {
         return (
-            <div className="py-4 text-center text-sm text-muted-foreground">
-                No detailed logs yet. Logs will appear as the job progresses.
+            <div className="py-8 text-center text-sm text-muted-foreground">
+                No logs yet. Logs will appear as the job progresses.
             </div>
         );
     }
 
     return (
-        <div className="max-h-[400px] overflow-y-auto space-y-1 py-2">
+        <div
+            ref={scrollRef}
+            className="max-h-[calc(100vh-680px)] min-h-[200px] overflow-y-auto font-mono text-xs bg-gray-950 rounded-lg p-2 space-y-0.5"
+        >
             {logs.map((log) => (
                 <div
                     key={log.id}
-                    className={`flex items-start gap-2 px-2 py-1.5 rounded text-sm ${log.status === 'error' ? 'bg-red-50 dark:bg-red-950' :
-                        log.status === 'warning' ? 'bg-yellow-50 dark:bg-yellow-950' :
-                            log.status === 'success' ? 'bg-green-50 dark:bg-green-950' :
-                                'bg-gray-50 dark:bg-gray-900'
+                    className={`flex items-start gap-2 px-2 py-1 rounded ${log.status === "error"
+                            ? "bg-red-950/50 text-red-300"
+                            : log.status === "warning"
+                                ? "bg-yellow-950/50 text-yellow-300"
+                                : log.status === "success"
+                                    ? "bg-green-950/30 text-green-300"
+                                    : "text-gray-300"
                         }`}
                 >
-                    <div className="mt-0.5">{getLogIcon(log.action, log.status)}</div>
+                    <div className="mt-0.5 flex-shrink-0">
+                        {getLogIcon(log.action, log.status)}
+                    </div>
                     <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{getLogMessage(log)}</div>
+                        <span className="truncate block">{getLogMessage(log)}</span>
                         {log.folder_path && (
-                            <div className="text-xs text-muted-foreground truncate">
+                            <span className="text-[10px] text-gray-500 truncate block">
                                 📁 {log.folder_path}
-                            </div>
+                            </span>
                         )}
                     </div>
-                    <div className="text-xs text-muted-foreground whitespace-nowrap">
+                    <span className="text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0">
                         {new Date(log.created_at).toLocaleTimeString()}
-                    </div>
+                    </span>
                 </div>
             ))}
         </div>
     );
 }
 
+// ─── Job List Item ──────────────────────────────────────────
+function JobListItem({
+    job,
+    isSelected,
+    onSelect,
+}: {
+    job: Job;
+    isSelected: boolean;
+    onSelect: () => void;
+}) {
+    const isRunning = job.status === "running";
+    return (
+        <div
+            className={`flex items-center gap-3 py-2.5 px-3 rounded-md cursor-pointer text-sm transition-all ${isSelected
+                    ? "bg-primary/10 border border-primary/30"
+                    : "hover:bg-muted/50 border border-transparent"
+                } ${isRunning ? "animate-pulse-subtle" : ""}`}
+            onClick={onSelect}
+        >
+            <div className="flex-shrink-0">{getJobTypeIcon(job.job_type)}</div>
+            <div className="flex-1 min-w-0">
+                <div className="font-medium text-xs truncate">
+                    {getJobTypeName(job.job_type)}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                    {new Date(job.created_at).toLocaleString()}
+                </div>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+                {getStatusBadge(job.status)}
+                {isRunning && (
+                    <Progress
+                        value={job.progress || 0}
+                        className="w-[50px] h-1.5"
+                    />
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─── Job Detail Header ──────────────────────────────────────
+function JobDetailHeader({ job }: { job: Job }) {
+    const isRunning = job.status === "running";
+    const [elapsed, setElapsed] = useState(
+        formatElapsed(job.created_at, job.completed_at)
+    );
+
+    // Live elapsed timer for running jobs
+    useEffect(() => {
+        if (!isRunning) {
+            setElapsed(formatElapsed(job.created_at, job.completed_at));
+            return;
+        }
+        const interval = setInterval(() => {
+            setElapsed(formatElapsed(job.created_at));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [isRunning, job.created_at, job.completed_at]);
+
+    return (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    {getJobTypeIcon(job.job_type)}
+                    <div>
+                        <h3 className="font-semibold">
+                            {getJobTypeName(job.job_type)}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                            Triggered by{" "}
+                            <span className="font-medium">
+                                {job.triggered_by || "system"}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                {getStatusBadge(job.status)}
+            </div>
+            <div className="flex gap-4 text-xs text-muted-foreground">
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                Started: {new Date(job.created_at).toLocaleString()}
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent>Job creation timestamp</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                {job.completed_at && (
+                    <span className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Completed: {new Date(job.completed_at).toLocaleString()}
+                    </span>
+                )}
+                <span className="flex items-center gap-1">
+                    <Timer className="h-3 w-3" />
+                    {isRunning ? "Elapsed: " : "Duration: "}{elapsed}
+                </span>
+            </div>
+            {job.error_message && (
+                <div className="text-xs text-red-500 bg-red-500/10 p-2 rounded border border-red-500/30">
+                    {job.error_message}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ─── Job Progress ───────────────────────────────────────────
+function JobProgress({ job }: { job: Job }) {
+    const progress =
+        job.status === "completed" || job.status === "failed"
+            ? 100
+            : job.progress || 0;
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-blue-500" />
+                <h4 className="text-sm font-semibold">Progress</h4>
+            </div>
+            <div className="space-y-1.5">
+                <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Completion</span>
+                    <span className="font-medium">{progress}%</span>
+                </div>
+                <Progress value={progress} className="h-2.5" />
+                <div className="flex gap-4 text-xs text-muted-foreground">
+                    <span>
+                        Tasks:{" "}
+                        <strong className="text-foreground">
+                            {job.completed_tasks || 0}
+                        </strong>{" "}
+                        / {job.total_tasks || 0}
+                    </span>
+                    {(job.failed_count ?? 0) > 0 && (
+                        <span className="text-red-500">
+                            Failed:{" "}
+                            <strong>{job.failed_count}</strong>
+                        </span>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Stats Row ──────────────────────────────────────────────
+function StatsRow({
+    stats,
+    totalJobs,
+}: {
+    stats: { running: number; completedToday: number; failedThisWeek: number };
+    totalJobs: number;
+}) {
+    const items = [
+        {
+            label: "Running",
+            value: stats.running,
+            icon: <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />,
+            bg: "bg-blue-100 dark:bg-blue-900",
+        },
+        {
+            label: "Completed Today",
+            value: stats.completedToday,
+            icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+            bg: "bg-green-100 dark:bg-green-900",
+        },
+        {
+            label: "Failed",
+            value: stats.failedThisWeek,
+            icon: <XCircle className="h-5 w-5 text-red-500" />,
+            bg: "bg-red-100 dark:bg-red-900",
+        },
+        {
+            label: "Total",
+            value: totalJobs,
+            icon: <Activity className="h-5 w-5 text-gray-500" />,
+            bg: "bg-gray-100 dark:bg-gray-800",
+        },
+    ];
+
+    return (
+        <div className="grid grid-cols-4 gap-4">
+            {items.map((s) => (
+                <Card key={s.label}>
+                    <CardContent className="pt-6">
+                        <div className="flex items-center gap-4">
+                            <div className={`p-3 rounded-full ${s.bg}`}>{s.icon}</div>
+                            <div>
+                                <p className="text-2xl font-bold">{s.value}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {s.label}
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+        </div>
+    );
+}
+
+// ─── Main Page ──────────────────────────────────────────────
 export default function JobsPage() {
     const [loading, setLoading] = useState(true);
     const [jobs, setJobs] = useState<Job[]>([]);
-    const [stats, setStats] = useState({ running: 0, completedToday: 0, failedThisWeek: 0 });
+    const [stats, setStats] = useState({
+        running: 0,
+        completedToday: 0,
+        failedThisWeek: 0,
+    });
     const [tab, setTab] = useState("all");
-    const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
+    const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
     const [clearingJobs, setClearingJobs] = useState(false);
-    const [stoppingJobs, setStoppingJobs] = useState<Set<string>>(new Set());
+    const [stoppingJobId, setStoppingJobId] = useState<string | null>(null);
 
     const fetchJobs = useCallback(async () => {
         try {
             const res = await fetch(`/api/jobs?status=${tab}`);
             const data = await res.json();
-
             if (data.success) {
                 setJobs(data.jobs || []);
-                setStats(data.stats || { running: 0, completedToday: 0, failedThisWeek: 0 });
+                setStats(
+                    data.stats || {
+                        running: 0,
+                        completedToday: 0,
+                        failedThisWeek: 0,
+                    }
+                );
             }
         } catch (error) {
-            console.error('Error fetching jobs:', error);
+            console.error("Error fetching jobs:", error);
         } finally {
             setLoading(false);
         }
@@ -259,92 +527,87 @@ export default function JobsPage() {
         fetchJobs();
     }, [fetchJobs]);
 
-    // Auto-refresh every 3 seconds
+    // Auto-refresh every 5 seconds
     useEffect(() => {
-        const interval = setInterval(fetchJobs, 3000);
+        const interval = setInterval(fetchJobs, 5000);
         return () => clearInterval(interval);
     }, [fetchJobs]);
 
-    const toggleExpand = (jobId: string) => {
-        setExpandedJobs(prev => {
-            const next = new Set(prev);
-            if (next.has(jobId)) {
-                next.delete(jobId);
+    // FIX: Stop Job — POST /api/jobs/stop with { jobId }
+    const stopJob = async (jobId: string) => {
+        setStoppingJobId(jobId);
+        try {
+            const res = await fetch("/api/jobs/stop", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ jobId }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("Job stopped successfully");
+                await fetchJobs(); // immediate refresh
             } else {
-                next.add(jobId);
+                toast.error(data.error || "Failed to stop job");
             }
-            return next;
-        });
+        } catch (error) {
+            console.error("Error stopping job:", error);
+            toast.error("Failed to stop job");
+        } finally {
+            setStoppingJobId(null);
+        }
     };
 
+    // FIX: Clear Jobs — POST /api/jobs/clear
     const clearAllJobs = async () => {
+        const confirmed = confirm(
+            "Clear all completed/failed/cancelled jobs from history?"
+        );
+        if (!confirmed) return;
         setClearingJobs(true);
         try {
-            const response = await fetch("/api/jobs/clear", {
+            const res = await fetch("/api/jobs/clear", {
                 method: "POST",
             });
-            const data = await response.json();
+            const data = await res.json();
             if (data.success) {
-                toast.success(`Cleared ${data.deleted} jobs`);
-                fetchJobs();
+                toast.success(`Cleared ${data.deleted || 0} jobs`);
+                setSelectedJobId(null);
+                await fetchJobs(); // immediate refresh
             } else {
                 toast.error(data.error || "Failed to clear jobs");
             }
         } catch (error) {
+            console.error("Error clearing jobs:", error);
             toast.error("Failed to clear jobs");
         } finally {
             setClearingJobs(false);
         }
     };
 
-    const stopJob = async (jobId: string) => {
-        setStoppingJobs(prev => new Set(prev).add(jobId));
+    const triggerJob = async (
+        jobType: "rebuild_index" | "enforce_permissions"
+    ) => {
         try {
-            const response = await fetch("/api/jobs/stop", {
+            const endpoint =
+                jobType === "rebuild_index"
+                    ? "/api/jobs/rebuild-index"
+                    : "/api/jobs/enforce-permissions";
+            const res = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ jobId }),
+                body: JSON.stringify({}),
             });
-            const data = await response.json();
+            const data = await res.json();
             if (data.success) {
-                toast.success("Job stopped successfully");
-                fetchJobs();
-            } else {
-                toast.error(data.error || "Failed to stop job");
-            }
-        } catch (error) {
-            toast.error("Failed to stop job");
-        } finally {
-            setStoppingJobs(prev => {
-                const next = new Set(prev);
-                next.delete(jobId);
-                return next;
-            });
-        }
-    };
-
-
-    const triggerJob = async (jobType: 'rebuild_index' | 'enforce_permissions') => {
-        try {
-            const endpoint = jobType === 'rebuild_index'
-                ? '/api/jobs/rebuild-index'
-                : '/api/jobs/enforce-permissions';
-
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                toast.success(`Started ${jobType === 'rebuild_index' ? 'Rebuild Index' : 'Enforce Permissions'} job`);
-                fetchJobs();
+                toast.success(
+                    `Started ${jobType === "rebuild_index" ? "Rebuild Index" : "Enforce Permissions"} job`
+                );
+                await fetchJobs();
             } else {
                 toast.error(data.error || `Failed to start ${jobType} job`);
             }
         } catch (error) {
-            console.error('Error triggering job:', error);
+            console.error("Error triggering job:", error);
             toast.error(`Failed to start ${jobType} job`);
         }
     };
@@ -354,7 +617,8 @@ export default function JobsPage() {
         return job.status === tab;
     });
 
-    const runningJobs = jobs.filter(j => j.status === 'running');
+    const selectedJob = jobs.find((j) => j.id === selectedJobId);
+    const isSelectedRunning = selectedJob?.status === "running";
 
     if (loading) {
         return (
@@ -365,22 +629,23 @@ export default function JobsPage() {
     }
 
     return (
-        <div className="space-y-6">
-            {/* Page Header */}
+        <div className="space-y-4">
+            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Jobs</h1>
-                    <p className="text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                         Monitor background sync and enforcement jobs
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={fetchJobs}>
+                    <Button variant="outline" size="sm" onClick={fetchJobs}>
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Refresh
                     </Button>
                     <Button
                         variant="outline"
+                        size="sm"
                         onClick={clearAllJobs}
                         disabled={clearingJobs}
                         className="text-red-600 hover:text-red-700"
@@ -388,24 +653,28 @@ export default function JobsPage() {
                         {clearingJobs ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         ) : (
-                            <XCircle className="mr-2 h-4 w-4" />
+                            <Trash2 className="mr-2 h-4 w-4" />
                         )}
-                        Clear Jobs
+                        Clear
                     </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button>
+                            <Button size="sm">
                                 <Play className="mr-2 h-4 w-4" />
                                 New Job
                                 <ChevronDown className="ml-2 h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => triggerJob('rebuild_index')}>
+                            <DropdownMenuItem
+                                onClick={() => triggerJob("rebuild_index")}
+                            >
                                 <FolderSync className="mr-2 h-4 w-4" />
                                 Rebuild Index
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => triggerJob('enforce_permissions')}>
+                            <DropdownMenuItem
+                                onClick={() => triggerJob("enforce_permissions")}
+                            >
                                 <Shield className="mr-2 h-4 w-4" />
                                 Enforce Permissions
                             </DropdownMenuItem>
@@ -415,158 +684,135 @@ export default function JobsPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid gap-4 md:grid-cols-4">
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="text-2xl font-bold">{stats.running}</div>
-                        <p className="text-sm text-muted-foreground">Running</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="text-2xl font-bold text-green-500">{stats.completedToday}</div>
-                        <p className="text-sm text-muted-foreground">Completed Today</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="text-2xl font-bold text-red-500">{stats.failedThisWeek}</div>
-                        <p className="text-sm text-muted-foreground">Failed This Week</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="text-2xl font-bold">{jobs.length}</div>
-                        <p className="text-sm text-muted-foreground">Total Jobs</p>
-                    </CardContent>
-                </Card>
-            </div>
+            <StatsRow stats={stats} totalJobs={jobs.length} />
 
-            {/* Active Job Display with Live Logs */}
-            {runningJobs.length > 0 && (
-                <Card className="border-blue-500 border-2">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-                            Active Job
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {runningJobs.map((job) => (
-                            <div key={job.id} className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="font-medium">{getJobTypeName(job.job_type)}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            Started by {job.triggered_by || 'system'}
-                                        </p>
-                                    </div>
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        onClick={() => stopJob(job.id)}
-                                        disabled={stoppingJobs.has(job.id)}
-                                    >
-                                        {stoppingJobs.has(job.id) ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Stopping...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <XCircle className="mr-2 h-4 w-4" />
-                                                Stop Job
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span>Progress</span>
-                                        <span>
-                                            {job.completed_tasks || 0} / {job.total_tasks || 0} projects ({job.progress || 0}%)
-                                        </span>
-                                    </div>
-                                    <Progress value={job.progress || 0} className="h-3" />
-                                </div>
-                                {/* Live Logs */}
-                                <div className="border rounded-lg">
-                                    <div className="px-3 py-2 bg-muted font-medium text-sm border-b">
-                                        Live Logs
-                                    </div>
-                                    <JobLogs jobId={job.id} />
-                                </div>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Jobs List */}
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <CardTitle>Job History</CardTitle>
+            {/* Master-Detail */}
+            <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+                {/* LEFT: Job List */}
+                <Card className="h-[calc(100vh-340px)] flex flex-col">
+                    <CardHeader className="py-3 px-4 flex-shrink-0">
                         <Tabs value={tab} onValueChange={setTab}>
-                            <TabsList>
-                                <TabsTrigger value="all">All</TabsTrigger>
-                                <TabsTrigger value="running">Running</TabsTrigger>
-                                <TabsTrigger value="completed">Completed</TabsTrigger>
-                                <TabsTrigger value="failed">Failed</TabsTrigger>
+                            <TabsList className="w-full h-8">
+                                <TabsTrigger value="all" className="text-xs flex-1">
+                                    All
+                                </TabsTrigger>
+                                <TabsTrigger value="running" className="text-xs flex-1">
+                                    Running
+                                </TabsTrigger>
+                                <TabsTrigger value="completed" className="text-xs flex-1">
+                                    Done
+                                </TabsTrigger>
+                                <TabsTrigger value="failed" className="text-xs flex-1">
+                                    Failed
+                                </TabsTrigger>
                             </TabsList>
                         </Tabs>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    {filteredJobs.length === 0 ? (
-                        <div className="py-12 text-center text-muted-foreground">
-                            No jobs found. Jobs will appear here when you run sync or enforce operations.
-                        </div>
-                    ) : (
-                        <div className="space-y-2">
-                            {filteredJobs.map((job) => (
-                                <div key={job.id} className="border rounded-lg">
-                                    <div
-                                        className="flex items-center gap-4 p-4 cursor-pointer hover:bg-muted/50"
-                                        onClick={() => toggleExpand(job.id)}
-                                    >
-                                        <div className="flex-shrink-0">
-                                            {expandedJobs.has(job.id) ? (
-                                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                                            ) : (
-                                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-hidden px-2 pb-2">
+                        <ScrollArea className="h-full">
+                            <div className="space-y-1">
+                                {filteredJobs.map((job) => (
+                                    <JobListItem
+                                        key={job.id}
+                                        job={job}
+                                        isSelected={selectedJobId === job.id}
+                                        onSelect={() => setSelectedJobId(job.id)}
+                                    />
+                                ))}
+                                {filteredJobs.length === 0 && (
+                                    <div className="text-center py-8 text-sm text-muted-foreground">
+                                        No jobs found.
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+
+                {/* RIGHT: Detail Panel */}
+                <div className="h-[calc(100vh-340px)] overflow-hidden">
+                    {selectedJob ? (
+                        <Card className="h-full flex flex-col">
+                            <CardHeader className="py-3 px-4 flex-shrink-0 border-b">
+                                <JobDetailHeader job={selectedJob} />
+                            </CardHeader>
+                            <CardContent className="flex-1 overflow-auto px-4 py-3">
+                                <div className="space-y-4">
+                                    {/* Progress */}
+                                    <JobProgress job={selectedJob} />
+
+                                    <div className="border-t" />
+
+                                    {/* Actions */}
+                                    <div className="flex gap-2">
+                                        {isSelectedRunning && (
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={() =>
+                                                    stopJob(selectedJob.id)
+                                                }
+                                                disabled={
+                                                    stoppingJobId ===
+                                                    selectedJob.id
+                                                }
+                                            >
+                                                {stoppingJobId ===
+                                                    selectedJob.id ? (
+                                                    <>
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        Stopping…
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Ban className="mr-2 h-4 w-4" />
+                                                        Stop Job
+                                                    </>
+                                                )}
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                    <div className="border-t" />
+
+                                    {/* Live Logs */}
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <Activity className="h-4 w-4 text-green-500" />
+                                            <h4 className="text-sm font-semibold">
+                                                {isSelectedRunning
+                                                    ? "Live Logs"
+                                                    : "Logs"}
+                                            </h4>
+                                            {isSelectedRunning && (
+                                                <span className="flex h-2 w-2">
+                                                    <span className="animate-ping absolute h-2 w-2 rounded-full bg-green-400 opacity-75" />
+                                                    <span className="relative rounded-full h-2 w-2 bg-green-500" />
+                                                </span>
                                             )}
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="font-medium">{getJobTypeName(job.job_type)}</div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {new Date(job.created_at).toLocaleString()} • {job.triggered_by || 'system'}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-2">
-                                                <Progress
-                                                    value={job.status === 'completed' || job.status === 'failed' ? 100 : (job.progress || 0)}
-                                                    className="w-[60px]"
-                                                />
-                                                <span className="text-sm text-muted-foreground w-10">
-                                                    {job.status === 'completed' || job.status === 'failed' ? 100 : (job.progress || 0)}%
-                                                </span>
-                                            </div>
-                                            {getStatusBadge(job.status)}
-                                        </div>
+                                        <JobLogViewer
+                                            jobId={selectedJob.id}
+                                            isActive={isSelectedRunning || false}
+                                        />
                                     </div>
-                                    {expandedJobs.has(job.id) && (
-                                        <div className="border-t px-4 pb-4">
-                                            <JobLogs jobId={job.id} />
-                                        </div>
-                                    )}
                                 </div>
-                            ))}
-                        </div>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card className="h-full flex items-center justify-center">
+                            <div className="text-center text-muted-foreground">
+                                <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                                <p className="font-medium">Select a job</p>
+                                <p className="text-sm">
+                                    Click a job in the list to view its details
+                                    and logs
+                                </p>
+                            </div>
+                        </Card>
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }
