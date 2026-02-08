@@ -195,6 +195,112 @@ export function buildPermissionsMap(
     return map;
 }
 
+/**
+ * Build a flat map of template paths → their EFFECTIVE permissions.
+ * Unlike buildPermissionsMap (explicit-only), this accumulates inherited
+ * groups/users from parent nodes down the tree, then applies per-node
+ * overrides (remove/downgrade).
+ *
+ * This matches what the Template Editor Effective Policy panel shows.
+ */
+export function buildEffectivePermissionsMap(
+    nodes: any[],
+    parentPath: string = '',
+    parentGroups: any[] = [],
+    parentUsers: any[] = [],
+): Record<string, FolderPermissions> {
+    const map: Record<string, FolderPermissions> = {};
+
+    for (const node of nodes) {
+        const nodeName = node.text || node.name;
+        if (!nodeName) continue;
+
+        const path = parentPath ? `${parentPath}/${nodeName}` : nodeName;
+
+        // Merge: start with inherited from parent, then layer node's own explicit
+        const nodeGroups: any[] = node.groups || [];
+        const nodeUsers: any[] = node.users || [];
+
+        // Dedup merge: node explicit principals override inherited (by email)
+        const mergedGroupMap = new Map<string, any>();
+        for (const g of parentGroups) {
+            if (g?.email) mergedGroupMap.set(g.email.toLowerCase(), { ...g });
+        }
+        for (const g of nodeGroups) {
+            if (g?.email) mergedGroupMap.set(g.email.toLowerCase(), { ...g });
+        }
+
+        const mergedUserMap = new Map<string, any>();
+        for (const u of parentUsers) {
+            if (u?.email) mergedUserMap.set(u.email.toLowerCase(), { ...u });
+        }
+        for (const u of nodeUsers) {
+            if (u?.email) mergedUserMap.set(u.email.toLowerCase(), { ...u });
+        }
+
+        let effectiveGroups = Array.from(mergedGroupMap.values());
+        let effectiveUsers = Array.from(mergedUserMap.values());
+
+        // Apply subtractive overrides at this node
+        const overrides = node.overrides;
+        if (overrides) {
+            const removeSet = new Set(
+                (overrides.remove ?? []).map((r: any) => (r.identifier || '').toLowerCase())
+            );
+            const downgradeMap = new Map(
+                (overrides.downgrade ?? []).map((d: any) => [(d.identifier || '').toLowerCase(), d])
+            );
+
+            // Filter removed
+            effectiveGroups = effectiveGroups.filter(g => !removeSet.has(g.email.toLowerCase()));
+            effectiveUsers = effectiveUsers.filter(u => !removeSet.has(u.email.toLowerCase()));
+
+            // Apply downgrades
+            for (const g of effectiveGroups) {
+                const d = downgradeMap.get(g.email.toLowerCase()) as any;
+                if (d) {
+                    const currentRank = ROLE_RANK[normalizeRole(g.role || 'reader')] ?? 0;
+                    const targetRank = ROLE_RANK[normalizeRole(d.role)] ?? 0;
+                    if (targetRank < currentRank) {
+                        g.role = d.role;
+                    }
+                }
+            }
+            for (const u of effectiveUsers) {
+                const d = downgradeMap.get(u.email.toLowerCase()) as any;
+                if (d) {
+                    const currentRank = ROLE_RANK[normalizeRole(u.role || 'reader')] ?? 0;
+                    const targetRank = ROLE_RANK[normalizeRole(d.role)] ?? 0;
+                    if (targetRank < currentRank) {
+                        u.role = d.role;
+                    }
+                }
+            }
+        }
+
+        map[path] = {
+            groups: effectiveGroups,
+            users: effectiveUsers,
+            limitedAccess: node.limitedAccess || false,
+            overrides: node.overrides,
+        };
+
+        // Recurse into children, passing this node's effective principals as parent
+        const children = node.nodes || node.children || [];
+        if (children.length > 0) {
+            const childMap = buildEffectivePermissionsMap(
+                children,
+                path,
+                effectiveGroups,
+                effectiveUsers,
+            );
+            Object.assign(map, childMap);
+        }
+    }
+
+    return map;
+}
+
 // ─── Effective Policy Resolver (for Enforcement/Audit) ──────────────────────
 
 /** Canonical role ranking for override comparison. */

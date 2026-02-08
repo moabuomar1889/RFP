@@ -4,9 +4,7 @@ import { listPermissions, getDriveClient } from '@/server/google-drive';
 import {
     normalizeRole,
     classifyInheritedPermission,
-    buildPermissionsMap as sharedBuildPermissionsMap,
-    buildFolderDebugPayload,
-    computeDesiredEffectivePolicy,
+    buildEffectivePermissionsMap,
 } from '@/server/audit-helpers';
 
 const supabaseAdmin = createClient(
@@ -48,28 +46,7 @@ interface AuditResult {
     comparisons: PermissionComparison[];
 }
 
-// Build permissions map from template JSON
-function buildPermissionsMap(nodes: any[], parentPath = ''): Record<string, any> {
-    const map: Record<string, any> = {};
-
-    for (const node of nodes) {
-        const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
-
-        map[currentPath] = {
-            groups: node.groups || [],
-            users: node.users || [],
-            limitedAccess: node.limitedAccess || false,
-            overrides: node.overrides,
-        };
-
-        if (node.children && node.children.length > 0) {
-            const childMap = buildPermissionsMap(node.children, currentPath);
-            Object.assign(map, childMap);
-        }
-    }
-
-    return map;
-}
+// buildPermissionsMap replaced by buildEffectivePermissionsMap from audit-helpers
 
 /**
  * Normalize roles for comparison to reduce noise from Shared Drive role mapping.
@@ -116,18 +93,12 @@ function comparePermissions(
         }
     }
 
-    // Apply overrides: remove override targets from expected, adjust downgrade roles
+    // Extract override-removed set for drive membership tracking (Adjustment #4)
+    // NOTE: groups/users are already effective (inherited + overrides applied by buildEffectivePermissionsMap)
     const overrideRemovedSet = new Set<string>();
-    if (expected.overrides) {
-        const desiredPrincipals = computeDesiredEffectivePolicy(expected);
-        for (const dp of desiredPrincipals) {
-            if (dp.overrideAction === 'removed') {
-                expectedEmails.delete(dp.identifier);
-                expectedRoleMap.delete(dp.identifier);
-                overrideRemovedSet.add(dp.identifier);
-            } else if (dp.overrideAction === 'downgraded') {
-                expectedRoleMap.set(dp.identifier, normalizeRole(dp.role));
-            }
+    if (expected.overrides?.remove) {
+        for (const r of expected.overrides.remove) {
+            if (r.identifier) overrideRemovedSet.add(r.identifier.toLowerCase());
         }
     }
 
@@ -314,7 +285,7 @@ export async function GET(request: NextRequest) {
         const templateNodes = Array.isArray(template.template_json)
             ? template.template_json
             : template.template_json.template || [];
-        const permissionsMap = buildPermissionsMap(templateNodes);
+        const permissionsMap = buildEffectivePermissionsMap(templateNodes);
 
         // Get indexed folders for this project
         const { data: folders } = await supabaseAdmin.rpc('list_project_folders', {
