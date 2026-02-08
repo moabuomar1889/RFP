@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRawSupabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
     try {
-        const supabase = getRawSupabaseAdmin();
+        const supabase = getSupabaseAdmin();
 
         // Use RPC to clear jobs
         const { data, error } = await supabase.rpc('clear_all_jobs');
