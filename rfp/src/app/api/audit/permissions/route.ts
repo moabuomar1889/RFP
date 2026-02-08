@@ -6,6 +6,7 @@ import {
     classifyInheritedPermission,
     buildEffectivePermissionsMap,
 } from '@/server/audit-helpers';
+import { CANONICAL_RANK } from '@/lib/template-engine/types';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -167,11 +168,16 @@ function comparePermissions(
 
         const email = p.emailAddress?.toLowerCase();
         if (email && expectedEmails.has(email)) {
-            // Check role match (normalizing organizer/fileOrganizer)
+            // Access-based role comparison: actualRank <= expectedRank = MATCH
+            // Only flag Role Mismatch when actual > expected (higher privilege)
             const expectedRole = expectedRoleMap.get(email);
             const actualRole = normalizeRole(p.role);
-            if (expectedRole && expectedRole !== actualRole) {
-                discrepancies.push(`Role mismatch: ${email} (expected=${expectedRole}, actual=${actualRole})`);
+            if (expectedRole && actualRole) {
+                const expectedRank = CANONICAL_RANK[expectedRole] ?? 0;
+                const actualRank = CANONICAL_RANK[actualRole] ?? 0;
+                if (actualRank > expectedRank) {
+                    discrepancies.push(`Role mismatch: ${email} (expected=${expectedRole}, actual=${actualRole})`);
+                }
             }
             continue;
         }

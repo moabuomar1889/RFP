@@ -8,6 +8,8 @@
  *   - Only measurement + classification logic lives here.
  */
 
+import { toCanonicalRole, CANONICAL_RANK } from '@/lib/template-engine/types';
+
 // ─── Canonical Principal Model ──────────────────────────────────────────────
 export interface CanonicalPrincipal {
     type: 'group' | 'user';
@@ -44,14 +46,12 @@ export function normalizeTemplateUser(u: any): CanonicalPrincipal | null {
 // ─── Role Normalization ─────────────────────────────────────────────────────
 
 /**
- * Normalize roles for comparison.
- * Google Shared Drives map "organizer" → "fileOrganizer" for groups.
+ * Normalize a Drive API role to its canonical form.
+ * Uses the canonical role model from types.ts:
+ *   reader → viewer, writer → contributor, fileOrganizer → contentManager, organizer → manager
  */
 export function normalizeRole(role: string): string {
-    if (role === 'organizer' || role === 'fileOrganizer') {
-        return 'fileOrganizer';
-    }
-    return role;
+    return toCanonicalRole(role);
 }
 
 // ─── Project Normalization ──────────────────────────────────────────────────
@@ -306,14 +306,8 @@ export function buildEffectivePermissionsMap(
 
 // ─── Effective Policy Resolver (for Enforcement/Audit) ──────────────────────
 
-/** Canonical role ranking for override comparison. */
-const ROLE_RANK: Record<string, number> = {
-    reader: 0,
-    commenter: 1,
-    writer: 2,
-    fileOrganizer: 3,
-    organizer: 3,
-};
+/** Canonical role ranking for override comparison. Uses CANONICAL_RANK from types.ts. */
+const ROLE_RANK = CANONICAL_RANK;
 
 export interface DesiredPrincipal {
     type: 'group' | 'user';

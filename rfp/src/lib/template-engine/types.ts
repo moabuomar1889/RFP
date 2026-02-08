@@ -13,34 +13,92 @@
  * - uiLockState: controls what the UI allows editing
  */
 
-// ─── Role Ranking (Shared Drive Canonical) ──────────────────
+// ─── Canonical Role Model (Match Google Drive UI) ───────────
 
+/**
+ * Drive API roles (stored in template JSON and returned by Drive API).
+ * These are the RAW API-level roles. Use toCanonicalRole() for comparison.
+ */
 export type DriveRole = 'reader' | 'commenter' | 'writer' | 'fileOrganizer' | 'organizer';
 
-/** Canonical role ranking: higher number = more access.
- *  organizer and fileOrganizer are treated as equivalent rank (3).
- *  Google Shared Drives map organizer ↔ fileOrganizer for groups.
+/**
+ * Canonical roles matching the Google Drive UI.
+ * This is the SINGLE SOURCE OF TRUTH for role comparison, ranking, and display.
+ */
+export type CanonicalRole = 'viewer' | 'commenter' | 'contributor' | 'contentManager' | 'manager';
+
+/**
+ * Map Drive API role → Canonical role.
+ *
+ *   reader         → viewer
+ *   commenter      → commenter
+ *   writer         → contributor
+ *   fileOrganizer  → contentManager
+ *   organizer      → manager
+ *
+ * IMPORTANT: organizer ≠ fileOrganizer. They are DIFFERENT in Google Drive UI.
+ */
+export function toCanonicalRole(apiRole: string): CanonicalRole {
+    switch (apiRole) {
+        case 'reader': return 'viewer';
+        case 'commenter': return 'commenter';
+        case 'writer': return 'contributor';
+        case 'fileOrganizer': return 'contentManager';
+        case 'organizer': return 'manager';
+        // Canonical roles passed through unchanged
+        case 'viewer': return 'viewer';
+        case 'contributor': return 'contributor';
+        case 'contentManager': return 'contentManager';
+        case 'manager': return 'manager';
+        default: return 'viewer';
+    }
+}
+
+/** Canonical role ranking: higher number = more access. */
+export const CANONICAL_RANK: Record<string, number> = {
+    viewer: 0,
+    commenter: 1,
+    contributor: 2,
+    contentManager: 3,
+    manager: 4,
+};
+
+/** Human-readable label matching Google Drive UI. */
+export function canonicalRoleLabel(role: string): string {
+    const labels: Record<string, string> = {
+        viewer: 'Viewer',
+        commenter: 'Commenter',
+        contributor: 'Contributor',
+        contentManager: 'Content Manager',
+        manager: 'Manager',
+    };
+    return labels[toCanonicalRole(role)] || role;
+}
+
+/**
+ * Legacy ROLE_RANK — uses API-level roles.
+ * organizer (4) ≠ fileOrganizer (3). They are DIFFERENT ranks.
  */
 export const ROLE_RANK: Record<string, number> = {
     reader: 0,
     commenter: 1,
     writer: 2,
     fileOrganizer: 3,
-    organizer: 3,
+    organizer: 4,
 };
 
 /**
- * Normalize organizer/fileOrganizer to 'organizer' for comparison purposes.
- * Google Shared Drives map organizer ↔ fileOrganizer; treat them as equivalent.
+ * Normalize a role string to its canonical form for ranking.
+ * @deprecated Use toCanonicalRole + CANONICAL_RANK instead.
  */
 export function normalizeRoleForRank(role: string): string {
-    if (role === 'fileOrganizer') return 'organizer';
-    return role;
+    return role; // No longer collapses organizer→fileOrganizer
 }
 
 /** Get the numeric rank of a role (higher = more access). */
 export function roleRank(role: string): number {
-    return ROLE_RANK[normalizeRoleForRank(role)] ?? 0;
+    // Use canonical ranking for consistency
+    return CANONICAL_RANK[toCanonicalRole(role)] ?? 0;
 }
 
 /** True if roleA provides ≤ access than roleB. */

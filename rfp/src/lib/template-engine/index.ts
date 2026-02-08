@@ -16,6 +16,7 @@ export type {
     TemplateTreeState,
     RawTemplateNode,
     DriveRole,
+    CanonicalRole,
     Overrides,
     OverrideEntry,
     DowngradeEntry,
@@ -24,10 +25,13 @@ export type {
 // Runtime values from types
 export {
     ROLE_RANK,
+    CANONICAL_RANK,
     roleRank,
     normalizeRoleForRank,
     isRoleLessOrEqual,
     hasActiveOverrides,
+    toCanonicalRole,
+    canonicalRoleLabel,
 } from './types';
 
 // Engine functions

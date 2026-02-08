@@ -95,19 +95,32 @@ interface Project {
 // ─── Helpers ────────────────────────────────────────────────
 const getRoleLabel = (role: string) => {
     const roleMap: Record<string, string> = {
+        // Canonical roles
+        viewer: "Viewer",
+        commenter: "Commenter",
+        contributor: "Contributor",
+        contentManager: "Content Manager",
+        manager: "Manager",
+        // API-level roles (backward compat)
         owner: "Owner",
         organizer: "Manager",
         fileOrganizer: "Content Manager",
         writer: "Contributor",
-        commenter: "Commenter",
         reader: "Viewer",
     };
     return roleMap[role] || role;
 };
 
 const normalizeRole = (role: string) => {
-    if (role === "organizer" || role === "fileOrganizer") return "organizer";
-    return role;
+    // Map Drive API roles → canonical roles
+    const map: Record<string, string> = {
+        reader: "viewer",
+        commenter: "commenter",
+        writer: "contributor",
+        fileOrganizer: "contentManager",
+        organizer: "manager",
+    };
+    return map[role] || role;
 };
 
 const getStatusIcon = (status: string, size = "h-4 w-4") => {
@@ -307,6 +320,14 @@ interface DiffRow {
     diffStatus: "match" | "missing" | "extra" | "role_mismatch" | "drive_member";
 }
 
+// Access-based role ranking for UI comparison
+const CANONICAL_RANK_UI: Record<string, number> = {
+    viewer: 0, commenter: 1, contributor: 2, contentManager: 3, manager: 4,
+    // API-level fallback
+    reader: 0, writer: 2, fileOrganizer: 3, organizer: 4,
+};
+const canonicalRank = (role: string) => CANONICAL_RANK_UI[normalizeRole(role)] ?? 0;
+
 function buildDiffRows(comp: PermissionComparison): DiffRow[] {
     const rows: DiffRow[] = [];
     const actualMap = new Map<
@@ -325,15 +346,15 @@ function buildDiffRows(comp: PermissionComparison): DiffRow[] {
         const emailLower = g.email.toLowerCase();
         const actual = actualMap.get(emailLower);
         if (actual) {
-            const rolesMatch =
-                normalizeRole(g.role) === normalizeRole(actual.role);
+            // Access-based: actualRank <= expectedRank = match
+            const isMatch = canonicalRank(actual.role) <= canonicalRank(g.role);
             rows.push({
                 type: "group",
                 email: g.email,
                 expectedRole: g.role,
                 actualRole: actual.role,
                 inherited: !!actual.inherited,
-                diffStatus: rolesMatch ? "match" : "role_mismatch",
+                diffStatus: isMatch ? "match" : "role_mismatch",
             });
             actualMap.delete(emailLower);
         } else {
@@ -353,15 +374,15 @@ function buildDiffRows(comp: PermissionComparison): DiffRow[] {
         const emailLower = u.email.toLowerCase();
         const actual = actualMap.get(emailLower);
         if (actual) {
-            const rolesMatch =
-                normalizeRole(u.role) === normalizeRole(actual.role);
+            // Access-based: actualRank <= expectedRank = match
+            const isMatch = canonicalRank(actual.role) <= canonicalRank(u.role);
             rows.push({
                 type: "user",
                 email: u.email,
                 expectedRole: u.role,
                 actualRole: actual.role,
                 inherited: !!actual.inherited,
-                diffStatus: rolesMatch ? "match" : "role_mismatch",
+                diffStatus: isMatch ? "match" : "role_mismatch",
             });
             actualMap.delete(emailLower);
         } else {
