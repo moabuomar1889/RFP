@@ -6,6 +6,8 @@
  * 2. If ANY ancestor has limitedAccess=true → this node's effective is true
  * 3. If ancestor is limited → uiLockState.limitedToggleLocked = true
  * 4. No node can represent limitedAccess=false under a limited ancestor
+ * 5. If overrides exist, effective limitedAccess is forced true
+ * 6. Overrides are subtractive only: remove or downgrade inherited principals
  * 
  * PERFORMANCE:
  * - recomputeSubtree() only recomputes the affected subtree
@@ -24,7 +26,13 @@ import type {
     UiLockState,
     RawTemplateNode,
     ExplicitPolicy,
+    Overrides,
+    OverrideEntry,
+    DowngradeEntry,
+    DriveRole,
 } from './types';
+
+import { hasActiveOverrides, roleRank, isRoleLessOrEqual } from './types';
 
 // ─── Limited Access Computation ─────────────────────────────
 
@@ -32,14 +40,24 @@ import type {
  * Compute the derived limitedAccess for a single node.
  * 
  * Logic:
- * 1. If node has explicit limitedAccess → use it
- * 2. Else if node has parent → inherit parent's derived value
- * 3. Else (root with no explicit) → system default = false
+ * 1. If overrides exist → force true (override-required)
+ * 2. If node has explicit limitedAccess → use it
+ * 3. Else if node has parent → inherit parent's derived value
+ * 4. Else (root with no explicit) → system default = false
  */
 function computeDerivedLimitedAccess(
     node: FolderNode,
     nodes: Record<string, FolderNode>
 ): DerivedPolicy {
+    // Rule: overrides require limitedAccess to be enabled
+    if (hasActiveOverrides(node.explicitPolicy.overrides)) {
+        return {
+            limitedAccess: true,
+            limitedAccessSource: 'override-required',
+            limitedAccessInheritedFrom: null,
+        };
+    }
+
     // Case 1: Explicit value on this node
     if (node.explicitPolicy.limitedAccess !== undefined) {
         return {
@@ -86,15 +104,24 @@ function computeDerivedLimitedAccess(
 /**
  * Determine if the limitedAccess toggle should be locked.
  * 
- * Rule: If any ANCESTOR has limitedAccess=true (derived), lock this node.
- * The toggle is locked because the child MUST be limited — no override allowed.
+ * Rules:
+ * 1. If any ANCESTOR has limitedAccess=true (derived), lock this node.
+ * 2. If overrides exist on this node, lock (because overrides force it true).
  */
 function computeUiLockState(
     node: FolderNode,
     nodes: Record<string, FolderNode>
 ): UiLockState {
+    // Lock if overrides force limitedAccess
+    if (hasActiveOverrides(node.explicitPolicy.overrides)) {
+        return {
+            limitedToggleLocked: true,
+            reason: 'Overrides require Limited Access to be enabled. Remove all overrides to unlock.',
+        };
+    }
+
     if (node.parentId === null) {
-        // Root nodes are always editable
+        // Root nodes are always editable (unless overrides lock them above)
         return { limitedToggleLocked: false, reason: null };
     }
 
@@ -134,7 +161,7 @@ function collectInheritedPrincipals(
 
         const principals = ancestor.explicitPolicy[type];
         for (const p of principals) {
-            const key = `${p.email}|${p.role}`;
+            const key = p.email.toLowerCase();
             if (!seen.has(key)) {
                 seen.add(key);
                 result.push({
@@ -143,6 +170,7 @@ function collectInheritedPrincipals(
                     role: p.role,
                     scope: 'inherited',
                     sourceNodeId: ancestor.id,
+                    overrideAction: 'none',
                 });
             }
         }
@@ -160,7 +188,9 @@ function collectInheritedPrincipals(
  * 1. Start with explicit principals on this node
  * 2. Add inherited principals from ancestors
  * 3. Deduplicate: explicit wins over inherited (by email)
- * 4. Track scope for each principal
+ * 4. Apply overrides.remove (mark as removed, exclude from effective)
+ * 5. Apply overrides.downgrade (cap role)
+ * 6. Track scope and overrideAction for each principal
  */
 function computeEffectivePrincipals(
     node: FolderNode,
@@ -180,6 +210,7 @@ function computeEffectivePrincipals(
                 role: g.role,
                 scope: 'explicit',
                 sourceNodeId: null,
+                overrideAction: 'none',
             });
         }
     }
@@ -195,6 +226,7 @@ function computeEffectivePrincipals(
                 role: u.role,
                 scope: 'explicit',
                 sourceNodeId: null,
+                overrideAction: 'none',
             });
         }
     }
@@ -216,6 +248,37 @@ function computeEffectivePrincipals(
         if (!seen.has(key)) {
             seen.add(key);
             result.push(p);
+        }
+    }
+
+    // Step 5: Apply overrides
+    const overrides = node.explicitPolicy.overrides;
+    if (overrides) {
+        // Build lookup sets for fast checking
+        const removeSet = new Set(
+            (overrides.remove ?? []).map(r => r.identifier.toLowerCase())
+        );
+        const downgradeMap = new Map(
+            (overrides.downgrade ?? []).map(d => [d.identifier.toLowerCase(), d])
+        );
+
+        for (const principal of result) {
+            const key = principal.email.toLowerCase();
+
+            if (removeSet.has(key) && principal.scope === 'inherited') {
+                principal.overrideAction = 'removed';
+            } else if (downgradeMap.has(key) && principal.scope === 'inherited') {
+                const downgrade = downgradeMap.get(key)!;
+                const originalRole = principal.role;
+                // Cap to min(inherited, downgrade target)
+                if (!isRoleLessOrEqual(downgrade.role, originalRole)) {
+                    // Requested downgrade role is HIGHER than inherited — invalid, ignore
+                    continue;
+                }
+                principal.inheritedRole = originalRole;
+                principal.role = downgrade.role as 'reader' | 'writer' | 'organizer';
+                principal.overrideAction = 'downgraded';
+            }
         }
     }
 
@@ -354,6 +417,130 @@ export function enforceStructuralSafety(
     return { ...state, nodes: newNodes };
 }
 
+// ─── Validation ─────────────────────────────────────────────
+
+export interface ValidationError {
+    nodeId: string;
+    field: string;
+    message: string;
+    severity: 'error' | 'warning';
+}
+
+/**
+ * Validate overrides on a node.
+ * Returns an array of validation errors.
+ */
+export function validateOverrides(
+    node: FolderNode,
+    nodes: Record<string, FolderNode>
+): ValidationError[] {
+    const errors: ValidationError[] = [];
+    const overrides = node.explicitPolicy.overrides;
+    if (!overrides) return errors;
+
+    // Collect inherited principal emails for existence checks
+    const inheritedGroups = collectInheritedPrincipals(node, nodes, 'groups');
+    const inheritedUsers = collectInheritedPrincipals(node, nodes, 'users');
+    const inheritedMap = new Map<string, EffectivePrincipal>();
+    for (const p of [...inheritedGroups, ...inheritedUsers]) {
+        inheritedMap.set(p.email.toLowerCase(), p);
+    }
+
+    // Track identifiers for conflict detection
+    const removeSet = new Set<string>();
+    const downgradeSet = new Set<string>();
+
+    // Validate remove entries
+    for (const entry of overrides.remove ?? []) {
+        // Adjustment #2: Only user|group with email identifiers
+        if (entry.type !== 'user' && entry.type !== 'group') {
+            errors.push({
+                nodeId: node.id,
+                field: 'overrides.remove',
+                message: `Override remove only supports type 'user' or 'group', got '${entry.type}'.`,
+                severity: 'error',
+            });
+            continue;
+        }
+        if (!entry.identifier || !entry.identifier.includes('@')) {
+            errors.push({
+                nodeId: node.id,
+                field: 'overrides.remove',
+                message: `Override remove requires a valid email identifier, got '${entry.identifier}'.`,
+                severity: 'error',
+            });
+            continue;
+        }
+
+        const key = entry.identifier.toLowerCase();
+        removeSet.add(key);
+
+        if (!inheritedMap.has(key)) {
+            errors.push({
+                nodeId: node.id,
+                field: 'overrides.remove',
+                message: `Cannot remove "${entry.identifier}" — not found in inherited principals.`,
+                severity: 'error',
+            });
+        }
+    }
+
+    // Validate downgrade entries
+    for (const entry of overrides.downgrade ?? []) {
+        // Adjustment #2: Only user|group with email identifiers
+        if (entry.type !== 'user' && entry.type !== 'group') {
+            errors.push({
+                nodeId: node.id,
+                field: 'overrides.downgrade',
+                message: `Override downgrade only supports type 'user' or 'group', got '${entry.type}'.`,
+                severity: 'error',
+            });
+            continue;
+        }
+        if (!entry.identifier || !entry.identifier.includes('@')) {
+            errors.push({
+                nodeId: node.id,
+                field: 'overrides.downgrade',
+                message: `Override downgrade requires a valid email identifier, got '${entry.identifier}'.`,
+                severity: 'error',
+            });
+            continue;
+        }
+
+        const key = entry.identifier.toLowerCase();
+        downgradeSet.add(key);
+
+        const inherited = inheritedMap.get(key);
+        if (!inherited) {
+            errors.push({
+                nodeId: node.id,
+                field: 'overrides.downgrade',
+                message: `Cannot downgrade "${entry.identifier}" — not found in inherited principals.`,
+                severity: 'error',
+            });
+        } else if (!isRoleLessOrEqual(entry.role, inherited.role)) {
+            errors.push({
+                nodeId: node.id,
+                field: 'overrides.downgrade',
+                message: `Cannot downgrade "${entry.identifier}" to "${entry.role}" — must be ≤ inherited role "${inherited.role}".`,
+                severity: 'error',
+            });
+        }
+
+        // Conflict check
+        if (removeSet.has(key)) {
+            errors.push({
+                nodeId: node.id,
+                field: 'overrides',
+                message: `Conflict: "${entry.identifier}" is in both remove and downgrade.`,
+                severity: 'error',
+            });
+        }
+    }
+
+    return errors;
+}
+
 // ─── Serialization ──────────────────────────────────────────
 
 /**
@@ -361,6 +548,7 @@ export function enforceStructuralSafety(
  * 
  * - Assigns unique IDs to each node
  * - Sets up parent/child relationships
+ * - Reads overrides from raw nodes
  * - Runs full recomputation after deserialization
  * - Runs structural safety enforcement
  */
@@ -382,6 +570,7 @@ export function deserializeTemplate(
             limitedAccess: raw.limitedAccess, // undefined if absent
             groups: raw.groups ?? [],
             users: raw.users ?? [],
+            overrides: raw.overrides, // NEW: read overrides
         };
 
         nodes[id] = {
@@ -467,6 +656,11 @@ export function serializeTemplate(state: TemplateTreeState): RawTemplateNode[] {
             raw.users = node.explicitPolicy.users;
         }
 
+        // Only include overrides if has active entries
+        if (hasActiveOverrides(node.explicitPolicy.overrides)) {
+            raw.overrides = node.explicitPolicy.overrides;
+        }
+
         // Serialize children
         if (node.childrenIds.length > 0) {
             raw.children = node.childrenIds.map(serializeNode);
@@ -484,7 +678,7 @@ export function serializeTemplate(state: TemplateTreeState): RawTemplateNode[] {
  * Toggle limitedAccess on a node.
  * Returns new tree state with all derived values recomputed.
  * 
- * SAFETY: If parent is limited, this is a no-op (UI should prevent this).
+ * SAFETY: If parent is limited or overrides lock it, this is a no-op.
  */
 export function toggleLimitedAccess(
     state: TemplateTreeState,
@@ -517,7 +711,6 @@ export function toggleLimitedAccess(
     newState = recomputeSubtree(newState, nodeId);
 
     // Enforce structural safety on descendants
-    // (strip any child explicit false under newly-limited parent)
     newState = enforceStructuralSafety(newState);
 
     // Recompute again after safety cleanup
@@ -528,7 +721,7 @@ export function toggleLimitedAccess(
 
 /**
  * Clear explicit limitedAccess on a node (revert to inherit).
- * Only allowed if parent is NOT limited.
+ * Only allowed if parent is NOT limited and no overrides exist.
  */
 export function clearLimitedAccess(
     state: TemplateTreeState,
@@ -568,6 +761,12 @@ export function addPrincipal(
 ): TemplateTreeState {
     const node = state.nodes[nodeId];
     if (!node) return state;
+
+    // Adjustment #3: Only root nodes can add new principals.
+    // Child nodes may only use subtractive overrides (remove/downgrade).
+    if (node.parentId !== null) {
+        return state;
+    }
 
     // Dedup check: skip if already exists on this node
     const existing = node.explicitPolicy[type];
@@ -620,6 +819,194 @@ export function removePrincipal(
             explicitPolicy: {
                 ...node.explicitPolicy,
                 [type]: newList,
+            },
+        },
+    };
+
+    let newState: TemplateTreeState = { ...state, nodes: newNodes };
+    newState = recomputeSubtree(newState, nodeId);
+    return newState;
+}
+
+// ─── Override Mutation Helpers (Immutable) ───────────────────
+
+/**
+ * Add a "remove" override for an inherited principal at this node.
+ */
+export function addOverrideRemove(
+    state: TemplateTreeState,
+    nodeId: string,
+    type: 'group' | 'user',
+    identifier: string
+): TemplateTreeState {
+    const node = state.nodes[nodeId];
+    if (!node) return state;
+
+    const overrides = node.explicitPolicy.overrides ?? { remove: [], downgrade: [] };
+    const key = identifier.toLowerCase();
+
+    // Already in remove set?
+    if ((overrides.remove ?? []).some(r => r.identifier.toLowerCase() === key)) {
+        return state;
+    }
+
+    // Remove from downgrade if present (conflict: can't be in both)
+    const newDowngrade = (overrides.downgrade ?? []).filter(
+        d => d.identifier.toLowerCase() !== key
+    );
+
+    const newOverrides: Overrides = {
+        ...overrides,
+        remove: [...(overrides.remove ?? []), { type, identifier: identifier.toLowerCase() }],
+        downgrade: newDowngrade,
+    };
+
+    const newNodes = {
+        ...state.nodes,
+        [nodeId]: {
+            ...node,
+            explicitPolicy: {
+                ...node.explicitPolicy,
+                overrides: newOverrides,
+            },
+        },
+    };
+
+    let newState: TemplateTreeState = { ...state, nodes: newNodes };
+    newState = recomputeSubtree(newState, nodeId);
+    return newState;
+}
+
+/**
+ * Remove a "remove" override (undo removal of an inherited principal).
+ */
+export function removeOverrideRemove(
+    state: TemplateTreeState,
+    nodeId: string,
+    identifier: string
+): TemplateTreeState {
+    const node = state.nodes[nodeId];
+    if (!node) return state;
+
+    const overrides = node.explicitPolicy.overrides;
+    if (!overrides?.remove) return state;
+
+    const key = identifier.toLowerCase();
+    const newRemove = overrides.remove.filter(
+        r => r.identifier.toLowerCase() !== key
+    );
+
+    // No change?
+    if (newRemove.length === overrides.remove.length) return state;
+
+    const newOverrides: Overrides = {
+        ...overrides,
+        remove: newRemove,
+    };
+
+    // Clean up: if both arrays are empty, set overrides to undefined
+    const cleanOverrides = hasActiveOverrides(newOverrides) ? newOverrides : undefined;
+
+    const newNodes = {
+        ...state.nodes,
+        [nodeId]: {
+            ...node,
+            explicitPolicy: {
+                ...node.explicitPolicy,
+                overrides: cleanOverrides,
+            },
+        },
+    };
+
+    let newState: TemplateTreeState = { ...state, nodes: newNodes };
+    newState = recomputeSubtree(newState, nodeId);
+    return newState;
+}
+
+/**
+ * Set a "downgrade" override for an inherited principal at this node.
+ */
+export function setOverrideDowngrade(
+    state: TemplateTreeState,
+    nodeId: string,
+    type: 'group' | 'user',
+    identifier: string,
+    role: DriveRole
+): TemplateTreeState {
+    const node = state.nodes[nodeId];
+    if (!node) return state;
+
+    const overrides = node.explicitPolicy.overrides ?? { remove: [], downgrade: [] };
+    const key = identifier.toLowerCase();
+
+    // Remove from remove set if present (conflict)
+    const newRemove = (overrides.remove ?? []).filter(
+        r => r.identifier.toLowerCase() !== key
+    );
+
+    // Replace or add in downgrade
+    const newDowngrade = (overrides.downgrade ?? []).filter(
+        d => d.identifier.toLowerCase() !== key
+    );
+    newDowngrade.push({ type, identifier: identifier.toLowerCase(), role });
+
+    const newOverrides: Overrides = {
+        ...overrides,
+        remove: newRemove,
+        downgrade: newDowngrade,
+    };
+
+    const newNodes = {
+        ...state.nodes,
+        [nodeId]: {
+            ...node,
+            explicitPolicy: {
+                ...node.explicitPolicy,
+                overrides: newOverrides,
+            },
+        },
+    };
+
+    let newState: TemplateTreeState = { ...state, nodes: newNodes };
+    newState = recomputeSubtree(newState, nodeId);
+    return newState;
+}
+
+/**
+ * Remove a "downgrade" override (undo role cap on an inherited principal).
+ */
+export function removeOverrideDowngrade(
+    state: TemplateTreeState,
+    nodeId: string,
+    identifier: string
+): TemplateTreeState {
+    const node = state.nodes[nodeId];
+    if (!node) return state;
+
+    const overrides = node.explicitPolicy.overrides;
+    if (!overrides?.downgrade) return state;
+
+    const key = identifier.toLowerCase();
+    const newDowngrade = overrides.downgrade.filter(
+        d => d.identifier.toLowerCase() !== key
+    );
+
+    if (newDowngrade.length === overrides.downgrade.length) return state;
+
+    const newOverrides: Overrides = {
+        ...overrides,
+        downgrade: newDowngrade,
+    };
+
+    const cleanOverrides = hasActiveOverrides(newOverrides) ? newOverrides : undefined;
+
+    const newNodes = {
+        ...state.nodes,
+        [nodeId]: {
+            ...node,
+            explicitPolicy: {
+                ...node.explicitPolicy,
+                overrides: cleanOverrides,
             },
         },
     };

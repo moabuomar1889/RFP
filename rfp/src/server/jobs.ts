@@ -5,7 +5,11 @@ import {
     isValidProject,
     classifyInheritedPermission,
     buildFolderDebugPayload,
+    computeDesiredEffectivePolicy,
     type NormalizedProject,
+    type FolderPermissions,
+    buildPermissionsMap,
+    normalizeRole,
 } from '@/server/audit-helpers';
 import {
     getAllProjects,
@@ -807,6 +811,20 @@ async function enforceProjectPermissionsWithLogging(
             if (u.email) expectedEmails.add(u.email.toLowerCase());
         }
 
+        // Compute desired effective policy with overrides
+        const desiredPrincipals = computeDesiredEffectivePolicy(expectedPerms);
+        const overrideRemoveSet = new Set(
+            desiredPrincipals.filter(p => p.overrideAction === 'removed').map(p => p.identifier)
+        );
+        const overrideDowngradeMap = new Map(
+            desiredPrincipals.filter(p => p.overrideAction === 'downgraded').map(p => [p.identifier, p.role])
+        );
+
+        // Remove overridden principals from expectedEmails so they get caught by removal logic
+        for (const email of overrideRemoveSet) {
+            expectedEmails.delete(email);
+        }
+
         // Build map of actual ACTIVE emails (exclude deleted permissions from Limited Access)
         const actualEmailsMap = new Map<string, any>();
         for (const perm of actualPerms) {
@@ -1040,6 +1058,64 @@ async function enforceProjectPermissionsWithLogging(
             }
         }
 
+        // Step 3d: Override enforcement — downgrade roles for principals targeted by override.downgrade
+        for (const [email, desiredRole] of overrideDowngradeMap) {
+            const existingPerm = actualEmailsMap.get(email);
+            if (!existingPerm) continue;
+
+            const actualRole = normalizeRole(existingPerm.role);
+            const targetRole = normalizeRole(desiredRole);
+            if (actualRole === targetRole) continue; // Already at correct role
+
+            // Classify: drive memberships cannot be role-changed at folder level
+            const cls = classifyInheritedPermission(existingPerm, driveId);
+            if (cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') {
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'override_downgrade_blocked', 'warning', {
+                    action: 'BLOCKED',
+                    reason: 'NON_REMOVABLE_DRIVE_MEMBERSHIP',
+                    email,
+                    actualRole,
+                    desiredRole: targetRole,
+                    message: 'Cannot downgrade Shared Drive membership role at folder level.'
+                });
+                continue;
+            }
+
+            // For direct permissions: delete and re-add with lower role
+            if (cls === 'NOT_INHERITED') {
+                try {
+                    await removePermission(folder.drive_folder_id, existingPerm.id!);
+                    await sleep(RATE_LIMIT_DELAY);
+                    await addPermission(folder.drive_folder_id, existingPerm.type, targetRole as any, existingPerm.emailAddress);
+                    reverted++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'override_downgrade', 'success', {
+                        email,
+                        fromRole: actualRole,
+                        toRole: targetRole,
+                        action: 'DOWNGRADED'
+                    });
+                } catch (err: any) {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'override_downgrade_failed', 'error', {
+                        email,
+                        fromRole: actualRole,
+                        toRole: targetRole,
+                        error: err.message
+                    });
+                }
+                await sleep(RATE_LIMIT_DELAY);
+            } else {
+                // Inherited from parent folder — log that it needs attention
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'override_downgrade_inherited', 'warning', {
+                    action: 'BLOCKED',
+                    reason: 'INHERITED_PERMISSION',
+                    email,
+                    actualRole,
+                    desiredRole: targetRole,
+                    message: 'Cannot downgrade inherited permission. Must be changed at source folder.'
+                });
+            }
+        }
+
         // Step 4: POST-ENFORCEMENT RE-READ — verify final Drive state
         try {
             await sleep(RATE_LIMIT_DELAY);
@@ -1070,32 +1146,7 @@ async function enforceProjectPermissionsWithLogging(
     return { violations, reverted, added };
 }
 
-// Helper: Build a map of template paths to their expected permissions
-function buildPermissionsMap(nodes: any[], parentPath: string = ''): Record<string, { groups: any[]; users: any[]; limitedAccess: boolean }> {
-    const map: Record<string, { groups: any[]; users: any[]; limitedAccess: boolean }> = {};
-
-    for (const node of nodes) {
-        const nodeName = node.text || node.name;
-        if (!nodeName) continue;
-
-        const path = parentPath ? `${parentPath}/${nodeName}` : nodeName;
-
-        map[path] = {
-            groups: node.groups || [],
-            users: node.users || [],
-            limitedAccess: node.limitedAccess || false,
-        };
-
-        // Recurse into children
-        const children = node.nodes || node.children || [];
-        if (children.length > 0) {
-            const childMap = buildPermissionsMap(children, path);
-            Object.assign(map, childMap);
-        }
-    }
-
-    return map;
-}
+// NOTE: buildPermissionsMap has been moved to @/server/audit-helpers (shared module).
 
 async function reconcileProjectIndex(project: any): Promise<number> {
     let issues = 0;

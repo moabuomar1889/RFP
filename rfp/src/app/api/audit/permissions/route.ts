@@ -6,6 +6,7 @@ import {
     classifyInheritedPermission,
     buildPermissionsMap as sharedBuildPermissionsMap,
     buildFolderDebugPayload,
+    computeDesiredEffectivePolicy,
 } from '@/server/audit-helpers';
 
 const supabaseAdmin = createClient(
@@ -57,7 +58,8 @@ function buildPermissionsMap(nodes: any[], parentPath = ''): Record<string, any>
         map[currentPath] = {
             groups: node.groups || [],
             users: node.users || [],
-            limitedAccess: node.limitedAccess || false
+            limitedAccess: node.limitedAccess || false,
+            overrides: node.overrides,
         };
 
         if (node.children && node.children.length > 0) {
@@ -77,7 +79,7 @@ function buildPermissionsMap(nodes: any[], parentPath = ''): Record<string, any>
 
 // Compare expected vs actual permissions with enhanced status semantics
 function comparePermissions(
-    expected: { groups: any[]; users: any[]; limitedAccess: boolean },
+    expected: { groups: any[]; users: any[]; limitedAccess: boolean; overrides?: any },
     actual: any[],
     driveId?: string
 ): {
@@ -90,6 +92,7 @@ function comparePermissions(
     expectedCount: number;
     directActualCount: number;
     inheritedActualCount: number;
+    requiresDriveMembershipChange: string[];
     inheritedNonRemovableCount: number;
     totalActualCount: number;
 } {
@@ -113,6 +116,21 @@ function comparePermissions(
         }
     }
 
+    // Apply overrides: remove override targets from expected, adjust downgrade roles
+    const overrideRemovedSet = new Set<string>();
+    if (expected.overrides) {
+        const desiredPrincipals = computeDesiredEffectivePolicy(expected);
+        for (const dp of desiredPrincipals) {
+            if (dp.overrideAction === 'removed') {
+                expectedEmails.delete(dp.identifier);
+                expectedRoleMap.delete(dp.identifier);
+                overrideRemovedSet.add(dp.identifier);
+            } else if (dp.overrideAction === 'downgraded') {
+                expectedRoleMap.set(dp.identifier, normalizeRole(dp.role));
+            }
+        }
+    }
+
     // Protected principals to ignore
     const protectedEmails = ['mo.abuomar@dtgsa.com'];
 
@@ -121,12 +139,21 @@ function comparePermissions(
     const inheritedActual: any[] = [];
     let inheritedNonRemovableCount = 0;
 
+    // Adjustment #4: Track override-removed principals persisting as non-removable drive membership
+    const requiresDriveMembershipChange: string[] = [];
+
     for (const p of actual) {
         const cls = classifyInheritedPermission(p, driveId);
         if (cls === 'NOT_INHERITED') {
             directActual.push(p);
         } else if (cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') {
             inheritedNonRemovableCount++;
+            // If this principal was targeted by an override remove, flag it
+            const email = p.emailAddress?.toLowerCase();
+            if (email && overrideRemovedSet.has(email)) {
+                requiresDriveMembershipChange.push(email);
+                discrepancies.push(`Requires Drive membership change: ${email} (override-removed but non-removable at folder level)`);
+            }
             // Do NOT push to inheritedActual — these are never violations
         } else {
             inheritedActual.push(p);
@@ -220,7 +247,7 @@ function comparePermissions(
     let status: 'exact_match' | 'compliant' | 'non_compliant';
     let statusLabel: 'Exact Match' | 'Compliant (Inheritance Allowed)' | 'Non-Compliant';
 
-    if (hasMissing || hasExtraDirect || hasExtraInherited) {
+    if (hasMissing || hasExtraDirect || hasExtraInherited || requiresDriveMembershipChange.length > 0) {
         status = 'non_compliant';
         statusLabel = 'Non-Compliant';
     } else if (inheritedActualCount > 0 && !expected.limitedAccess) {
@@ -238,6 +265,7 @@ function comparePermissions(
         missing,
         extraDirect,
         extraInherited,
+        requiresDriveMembershipChange,
         expectedCount,
         directActualCount,
         inheritedActualCount,

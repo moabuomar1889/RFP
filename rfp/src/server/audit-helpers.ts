@@ -154,6 +154,10 @@ export interface FolderPermissions {
     groups: any[];
     users: any[];
     limitedAccess: boolean;
+    overrides?: {
+        remove?: { type: string; identifier: string }[];
+        downgrade?: { type: string; identifier: string; role: string }[];
+    };
 }
 
 /**
@@ -178,6 +182,7 @@ export function buildPermissionsMap(
             groups: node.groups || [],
             users: node.users || [],
             limitedAccess: node.limitedAccess || false,
+            overrides: node.overrides,
         };
 
         const children = node.nodes || node.children || [];
@@ -188,6 +193,91 @@ export function buildPermissionsMap(
     }
 
     return map;
+}
+
+// ─── Effective Policy Resolver (for Enforcement/Audit) ──────────────────────
+
+/** Canonical role ranking for override comparison. */
+const ROLE_RANK: Record<string, number> = {
+    reader: 0,
+    commenter: 1,
+    writer: 2,
+    fileOrganizer: 3,
+    organizer: 3,
+};
+
+export interface DesiredPrincipal {
+    type: 'group' | 'user';
+    identifier: string;
+    role: string;
+    overrideAction: 'none' | 'removed' | 'downgraded';
+}
+
+/**
+ * Compute the desired effective policy for a folder by applying overrides.
+ * 
+ * This is a standalone helper for enforcement/audit.
+ * It takes the raw folder permissions (explicit only) and produces the final
+ * list indicating which principals should be present and at what role,
+ * accounting for override removals and downgrades.
+ * 
+ * NOTE: This does NOT resolve template inheritance — it expects `perms`
+ * to contain the fully-merged explicit + inherited principals as stored
+ * in the template JSON at each node level.
+ */
+export function computeDesiredEffectivePolicy(
+    perms: FolderPermissions
+): DesiredPrincipal[] {
+    const result: DesiredPrincipal[] = [];
+
+    // Collect all explicit principals
+    for (const g of perms.groups || []) {
+        if (!g?.email) continue;
+        result.push({
+            type: 'group',
+            identifier: g.email.toLowerCase(),
+            role: normalizeRole(g.role || 'reader'),
+            overrideAction: 'none',
+        });
+    }
+    for (const u of perms.users || []) {
+        if (!u?.email) continue;
+        result.push({
+            type: 'user',
+            identifier: u.email.toLowerCase(),
+            role: normalizeRole(u.role || 'reader'),
+            overrideAction: 'none',
+        });
+    }
+
+    // Apply overrides
+    const overrides = perms.overrides;
+    if (overrides) {
+        const removeSet = new Set(
+            (overrides.remove ?? []).map(r => r.identifier.toLowerCase())
+        );
+        const downgradeMap = new Map(
+            (overrides.downgrade ?? []).map(d => [d.identifier.toLowerCase(), d])
+        );
+
+        for (const p of result) {
+            const key = p.identifier.toLowerCase();
+            if (removeSet.has(key)) {
+                p.overrideAction = 'removed';
+            } else if (downgradeMap.has(key)) {
+                const d = downgradeMap.get(key)!;
+                const targetRole = normalizeRole(d.role);
+                const currentRank = ROLE_RANK[p.role] ?? 0;
+                const targetRank = ROLE_RANK[targetRole] ?? 0;
+                if (targetRank < currentRank) {
+                    p.role = targetRole;
+                    p.overrideAction = 'downgraded';
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 // ─── Debug Logging ──────────────────────────────────────────────────────────

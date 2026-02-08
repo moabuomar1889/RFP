@@ -15,6 +15,19 @@ export type {
     FolderNode,
     TemplateTreeState,
     RawTemplateNode,
+    DriveRole,
+    Overrides,
+    OverrideEntry,
+    DowngradeEntry,
+} from './types';
+
+// Runtime values from types
+export {
+    ROLE_RANK,
+    roleRank,
+    normalizeRoleForRank,
+    isRoleLessOrEqual,
+    hasActiveOverrides,
 } from './types';
 
 // Engine functions
@@ -28,4 +41,9 @@ export {
     clearLimitedAccess,
     addPrincipal,
     removePrincipal,
+    addOverrideRemove,
+    removeOverrideRemove,
+    setOverrideDowngrade,
+    removeOverrideDowngrade,
+    validateOverrides,
 } from './engine';

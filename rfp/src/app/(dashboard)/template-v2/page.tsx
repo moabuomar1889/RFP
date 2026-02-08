@@ -52,6 +52,9 @@ import {
     Download,
     History,
     Play,
+    Undo2,
+    Ban,
+    ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -59,6 +62,7 @@ import type {
     TemplateTreeState,
     RawTemplateNode,
     EffectivePrincipal,
+    DriveRole,
 } from "@/lib/template-engine/types";
 import {
     deserializeTemplate,
@@ -67,6 +71,12 @@ import {
     clearLimitedAccess,
     addPrincipal,
     removePrincipal,
+    addOverrideRemove,
+    removeOverrideRemove,
+    setOverrideDowngrade,
+    removeOverrideDowngrade,
+    hasActiveOverrides,
+    ROLE_RANK,
 } from "@/lib/template-engine";
 
 // ─── Auto-Save Constants ────────────────────────────────────
@@ -169,6 +179,7 @@ function EffectivePolicyTable({ node, state }: { node: FolderNode; state: Templa
     const getSourceLabel = (source: string, fromId: string | null) => {
         if (source === "explicit") return "Explicit";
         if (source === "system-default") return "System Default";
+        if (source === "override-required") return "Required by Overrides";
         if (source === "inherited" && fromId) {
             const sourceNode = state.nodes[fromId];
             return `Inherited from "${sourceNode?.name || fromId}"`;
@@ -232,8 +243,8 @@ function EffectivePolicyTable({ node, state }: { node: FolderNode; state: Templa
                             )}
                         </TableCell>
                     </TableRow>
-                    {effectivePolicy.principals.map((p, i) => (
-                        <TableRow key={`${p.email}-${i}`}>
+                    {effectivePolicy.principals.filter(p => p.overrideAction !== 'removed').map((p, i) => (
+                        <TableRow key={`${p.email}-${i}`} className={p.overrideAction === 'downgraded' ? 'bg-orange-500/5' : ''}>
                             <TableCell className="font-medium">
                                 <div className="flex items-center gap-2">
                                     {p.type === "group" ? (
@@ -242,6 +253,11 @@ function EffectivePolicyTable({ node, state }: { node: FolderNode; state: Templa
                                         <User className="h-3.5 w-3.5 text-green-500" />
                                     )}
                                     <span className="text-xs truncate max-w-[160px]">{p.email}</span>
+                                    {p.overrideAction === 'downgraded' && (
+                                        <Badge className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 px-1.5">
+                                            Max: {p.role}
+                                        </Badge>
+                                    )}
                                 </div>
                             </TableCell>
                             <TableCell>
@@ -446,23 +462,41 @@ function ExplicitPolicyTable({
     );
 }
 
+// ─── Downgrade Role Picker Inline ───────────────────────────
+const DOWNGRADE_ROLES: DriveRole[] = ['reader', 'commenter', 'writer'];
+
 // ─── Table C: Principals Breakdown ──────────────────────────
 function PrincipalsBreakdownTable({
     node,
     state,
     onRemove,
+    onOverrideRemove,
+    onUndoOverrideRemove,
+    onOverrideDowngrade,
+    onUndoOverrideDowngrade,
 }: {
     node: FolderNode;
     state: TemplateTreeState;
     onRemove: (type: "groups" | "users", email: string) => void;
+    onOverrideRemove: (type: "group" | "user", email: string) => void;
+    onUndoOverrideRemove: (email: string) => void;
+    onOverrideDowngrade: (type: "group" | "user", email: string, role: DriveRole) => void;
+    onUndoOverrideDowngrade: (email: string) => void;
 }) {
     const principals = node.effectivePolicy.principals;
+    const activeCount = principals.filter(p => p.overrideAction !== 'removed').length;
+    const removedCount = principals.filter(p => p.overrideAction === 'removed').length;
 
-    // Sort: explicit first, then inherited
+    // Sort: explicit first, then inherited active, then removed at bottom
     const sorted = [...principals].sort((a, b) => {
-        if (a.scope === "explicit" && b.scope === "inherited") return -1;
-        if (a.scope === "inherited" && b.scope === "explicit") return 1;
-        return 0;
+        const order = { explicit: 0, inherited: 1 };
+        const overrideOrder = { none: 0, downgraded: 1, removed: 2 };
+        const aOverride = overrideOrder[a.overrideAction || 'none'] ?? 0;
+        const bOverride = overrideOrder[b.overrideAction || 'none'] ?? 0;
+        if (aOverride !== bOverride) return aOverride - bOverride;
+        const aScope = a.scope === 'explicit' ? order.explicit : order.inherited;
+        const bScope = b.scope === 'explicit' ? order.explicit : order.inherited;
+        return aScope - bScope;
     });
 
     return (
@@ -471,26 +505,42 @@ function PrincipalsBreakdownTable({
                 <Users className="h-4 w-4 text-purple-500" />
                 <h3 className="font-semibold text-sm">Principals Breakdown</h3>
                 <Badge variant="outline" className="text-xs">
-                    {principals.length} total
+                    {activeCount} active
                 </Badge>
+                {removedCount > 0 && (
+                    <Badge variant="outline" className="text-xs text-red-500 border-red-500/30">
+                        {removedCount} removed
+                    </Badge>
+                )}
             </div>
             <Table>
                 <TableHeader>
                     <TableRow>
                         <TableHead className="w-[60px]">Type</TableHead>
                         <TableHead>Identifier</TableHead>
-                        <TableHead className="w-[90px]">Role</TableHead>
-                        <TableHead className="w-[90px]">Scope</TableHead>
-                        <TableHead className="w-[70px]">Action</TableHead>
+                        <TableHead className="w-[100px]">Inherited Role</TableHead>
+                        <TableHead className="w-[100px]">Effective Role</TableHead>
+                        <TableHead className="w-[120px]">Source</TableHead>
+                        <TableHead className="w-[150px]">Override</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {sorted.map((p, i) => {
                         const isInherited = p.scope === "inherited";
+                        const isRemoved = p.overrideAction === 'removed';
+                        const isDowngraded = p.overrideAction === 'downgraded';
+
                         return (
                             <TableRow
                                 key={`${p.email}-${i}`}
-                                className={isInherited ? "opacity-60" : ""}
+                                className={`${isRemoved
+                                        ? 'opacity-40 bg-red-500/5'
+                                        : isDowngraded
+                                            ? 'bg-orange-500/5'
+                                            : isInherited
+                                                ? 'opacity-70'
+                                                : ''
+                                    }`}
                             >
                                 <TableCell>
                                     {p.type === "group" ? (
@@ -505,14 +555,46 @@ function PrincipalsBreakdownTable({
                                         </Badge>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-xs font-mono truncate max-w-[200px]">
+                                <TableCell className={`text-xs font-mono truncate max-w-[200px] ${isRemoved ? 'line-through' : ''}`}>
                                     {p.email}
                                 </TableCell>
-                                <TableCell>
-                                    <Badge variant="outline" className="text-xs">{p.role}</Badge>
-                                </TableCell>
+                                {/* Inherited Role */}
                                 <TableCell>
                                     {isInherited ? (
+                                        <Badge variant="outline" className="text-xs">
+                                            {isDowngraded ? p.inheritedRole : p.role}
+                                        </Badge>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground">—</span>
+                                    )}
+                                </TableCell>
+                                {/* Effective Role */}
+                                <TableCell>
+                                    {isRemoved ? (
+                                        <Badge className="text-[10px] bg-red-500/10 text-red-500 border-red-500/30 line-through px-1.5">
+                                            {p.role}
+                                        </Badge>
+                                    ) : isDowngraded ? (
+                                        <Badge className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 px-1.5">
+                                            {p.role}
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="text-xs">{p.role}</Badge>
+                                    )}
+                                </TableCell>
+                                {/* Source */}
+                                <TableCell>
+                                    {isRemoved ? (
+                                        <Badge className="text-[10px] bg-red-500/10 text-red-500 border-red-500/30 px-1.5">
+                                            <Ban className="h-3 w-3 mr-1" />
+                                            Removed here
+                                        </Badge>
+                                    ) : isDowngraded ? (
+                                        <Badge className="text-[10px] bg-orange-500/10 text-orange-600 border-orange-500/30 px-1.5">
+                                            <ArrowDown className="h-3 w-3 mr-1" />
+                                            Max: {p.role}
+                                        </Badge>
+                                    ) : isInherited ? (
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger>
@@ -534,8 +616,47 @@ function PrincipalsBreakdownTable({
                                         </Badge>
                                     )}
                                 </TableCell>
+                                {/* Override Controls */}
                                 <TableCell>
-                                    {!isInherited ? (
+                                    {isRemoved ? (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 text-xs px-2"
+                                            onClick={() => onUndoOverrideRemove(p.email)}
+                                        >
+                                            <Undo2 className="h-3 w-3 mr-1" />
+                                            Undo
+                                        </Button>
+                                    ) : isDowngraded ? (
+                                        <div className="flex items-center gap-1">
+                                            <Select
+                                                value={p.role}
+                                                onValueChange={(v) =>
+                                                    onOverrideDowngrade(p.type, p.email, v as DriveRole)
+                                                }
+                                            >
+                                                <SelectTrigger className="h-6 text-xs w-[80px]">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {DOWNGRADE_ROLES.filter(
+                                                        r => ROLE_RANK[r] < ROLE_RANK[p.inheritedRole || p.role]
+                                                    ).map(r => (
+                                                        <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 w-6 p-0"
+                                                onClick={() => onUndoOverrideDowngrade(p.email)}
+                                            >
+                                                <Undo2 className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+                                    ) : !isInherited ? (
                                         <button
                                             onClick={() =>
                                                 onRemove(
@@ -544,21 +665,52 @@ function PrincipalsBreakdownTable({
                                                 )
                                             }
                                             className="text-muted-foreground hover:text-destructive transition-colors"
-                                            title="Remove"
+                                            title="Remove from explicit policy"
                                         >
                                             <X className="h-4 w-4" />
                                         </button>
                                     ) : (
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger>
-                                                    <Lock className="h-3.5 w-3.5 text-muted-foreground/40" />
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    Cannot remove inherited principal
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                        /* Inherited, no override — show override controls */
+                                        <div className="flex items-center gap-1">
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-6 text-xs px-1.5 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                                            onClick={() => onOverrideRemove(p.type, p.email)}
+                                                        >
+                                                            <Ban className="h-3 w-3" />
+                                                        </Button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>Remove here (deny locally)</TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                            <Select
+                                                onValueChange={(v) =>
+                                                    onOverrideDowngrade(p.type, p.email, v as DriveRole)
+                                                }
+                                            >
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <SelectTrigger className="h-6 text-xs w-[28px] px-1">
+                                                                <ArrowDown className="h-3 w-3" />
+                                                            </SelectTrigger>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Downgrade role (reduce locally)</TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                                <SelectContent>
+                                                    {DOWNGRADE_ROLES.filter(
+                                                        r => ROLE_RANK[r] < ROLE_RANK[p.role]
+                                                    ).map(r => (
+                                                        <SelectItem key={r} value={r} className="text-xs">{r}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     )}
                                 </TableCell>
                             </TableRow>
@@ -566,7 +718,7 @@ function PrincipalsBreakdownTable({
                     })}
                     {sorted.length === 0 && (
                         <TableRow>
-                            <TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-6">
+                            <TableCell colSpan={6} className="text-center text-muted-foreground text-sm py-6">
                                 No principals assigned to this folder
                             </TableCell>
                         </TableRow>
@@ -923,6 +1075,45 @@ export default function TemplateEditorV2() {
         [treeState, selectedNodeId, updateState]
     );
 
+    // ─── Override Handlers ──────────────────────────────
+    const handleOverrideRemove = useCallback(
+        (type: "group" | "user", email: string) => {
+            if (!treeState || !selectedNodeId) return;
+            const newState = addOverrideRemove(treeState, selectedNodeId, type, email);
+            updateState(newState);
+            toast.success(`Removed ${email} at this folder`);
+        },
+        [treeState, selectedNodeId, updateState]
+    );
+
+    const handleUndoOverrideRemove = useCallback(
+        (email: string) => {
+            if (!treeState || !selectedNodeId) return;
+            const newState = removeOverrideRemove(treeState, selectedNodeId, email);
+            updateState(newState);
+        },
+        [treeState, selectedNodeId, updateState]
+    );
+
+    const handleOverrideDowngrade = useCallback(
+        (type: "group" | "user", email: string, role: DriveRole) => {
+            if (!treeState || !selectedNodeId) return;
+            const newState = setOverrideDowngrade(treeState, selectedNodeId, type, email, role);
+            updateState(newState);
+            toast.success(`Set max role for ${email} to ${role}`);
+        },
+        [treeState, selectedNodeId, updateState]
+    );
+
+    const handleUndoOverrideDowngrade = useCallback(
+        (email: string) => {
+            if (!treeState || !selectedNodeId) return;
+            const newState = removeOverrideDowngrade(treeState, selectedNodeId, email);
+            updateState(newState);
+        },
+        [treeState, selectedNodeId, updateState]
+    );
+
     const handleToggleExpand = useCallback((nodeId: string) => {
         setExpandedIds((prev) => {
             const next = new Set(prev);
@@ -1063,6 +1254,10 @@ export default function TemplateEditorV2() {
                                             node={selectedNode}
                                             state={treeState}
                                             onRemove={handleRemovePrincipal}
+                                            onOverrideRemove={handleOverrideRemove}
+                                            onUndoOverrideRemove={handleUndoOverrideRemove}
+                                            onOverrideDowngrade={handleOverrideDowngrade}
+                                            onUndoOverrideDowngrade={handleUndoOverrideDowngrade}
                                         />
                                     </div>
                                 </ScrollArea>
