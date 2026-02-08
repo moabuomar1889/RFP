@@ -109,16 +109,25 @@ export type InheritedClassification =
  * @param driveId - The Shared Drive ID from files.get (optional, falls back to heuristic)
  */
 export function classifyInheritedPermission(perm: any, driveId?: string): InheritedClassification {
+    const details: any[] = perm.permissionDetails || [];
+
+    // DUAL-PERMISSION CHECK: if ANY permissionDetails entry has inherited:false,
+    // the permission has a direct component that IS removable → NOT_INHERITED
+    if (details.length > 0) {
+        const hasDirectComponent = details.some((d: any) => d.inherited === false);
+        if (hasDirectComponent) return 'NOT_INHERITED';
+    }
+
     // Check inherited from permissionDetails (most reliable) or top-level
     const isInherited =
         (perm.inherited === true) ||
-        (perm.permissionDetails?.some?.((d: any) => d.inherited) ?? false);
+        (details.some((d: any) => d.inherited) ?? false);
 
     if (!isInherited) return 'NOT_INHERITED';
 
     // Get inheritedFrom: prefer permissionDetails (API v3 detailed), fallback to top-level
     const inheritedFrom =
-        perm.permissionDetails?.find?.((d: any) => d.inherited)?.inheritedFrom ??
+        details.find((d: any) => d.inherited)?.inheritedFrom ??
         perm.inheritedFrom;
 
     if (!inheritedFrom) {

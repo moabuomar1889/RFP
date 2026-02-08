@@ -40,14 +40,17 @@ export async function GET(request: NextRequest) {
                 inheritedFrom: d.inheritedFrom,
             }));
 
-            // Top-level inherited detection
+            // DUAL-PERMISSION CHECK: if ANY entry has inherited:false → direct component exists
+            const hasDirectComponent = details.some((d: any) => d.inherited === false);
             const isInheritedFromDetails = details.some((d: any) => d.inherited);
             const inheritedFromValue = details.find((d: any) => d.inherited)?.inheritedFrom;
 
-            // Classification
+            // Classification using same logic as shared helper
             const driveId = fileRes.data.driveId;
             let classification = 'NOT_INHERITED';
-            if (isInheritedFromDetails) {
+            if (hasDirectComponent) {
+                classification = 'NOT_INHERITED';  // Direct component = removable
+            } else if (isInheritedFromDetails) {
                 if (inheritedFromValue === driveId) {
                     classification = 'NON_REMOVABLE_DRIVE_MEMBERSHIP';
                 } else {
