@@ -1,6 +1,13 @@
 import { inngest } from '@/lib/inngest';
 import { supabaseAdmin, getRawSupabaseAdmin } from '@/lib/supabase';
 import {
+    normalizeProject,
+    isValidProject,
+    classifyInheritedPermission,
+    buildFolderDebugPayload,
+    type NormalizedProject,
+} from '@/server/audit-helpers';
+import {
     getAllProjects,
     getAllFoldersRecursive,
     normalizeFolderPath,
@@ -327,29 +334,39 @@ export const enforcePermissions = inngest.createFunction(
             }
         });
 
-        // Get projects to enforce
-        const projects = await step.run('get-projects', async () => {
-            // Use getRawSupabaseAdmin to ensure proper client in Inngest context
+        // Get projects to enforce (using get_projects RPC — list_projects does not exist)
+        const projects: NormalizedProject[] = await step.run('get-projects', async () => {
             const client = getRawSupabaseAdmin();
-            const { data, error } = await client.rpc('list_projects', { p_limit: 100 });
+            const { data, error } = await client.rpc('get_projects', { p_status: null, p_phase: null });
 
-            console.log('list_projects result:', { data, error, count: data?.length });
+            console.log('get_projects result:', { error, count: data?.length });
 
             if (error) {
                 console.error('Error fetching projects:', error);
                 throw new Error(`Failed to fetch projects: ${error.message}`);
             }
 
+            // Normalize all projects and filter invalid ones
+            const normalized = (data || []).map((p: any) => normalizeProject(p)).filter((p: NormalizedProject) => {
+                if (!isValidProject(p)) {
+                    console.warn('[ENFORCE] Skipping project with missing data:', JSON.stringify(p));
+                    return false;
+                }
+                return true;
+            });
+
             // Filter by targetProjectIds if provided (single project enforcement)
             if (targetProjectIds.length > 0) {
-                return (data || []).filter((p: any) => targetProjectIds.includes(p.id));
+                return normalized.filter((p: NormalizedProject) => targetProjectIds.includes(p.id));
             }
-            // Otherwise return all (enforce all projects)
-            return data || [];
+            return normalized;
         });
 
         const totalProjects = projects.length;
-        await writeJobLog(jobId, null, null, null, 'projects_found', 'info', { count: totalProjects });
+        await writeJobLog(jobId, null, null, null, 'projects_found', 'info', {
+            count: totalProjects,
+            projectCodes: projects.map(p => p.prNumber)
+        });
         await updateJobProgress(jobId, 0, 0, totalProjects);
 
         let totalViolations = 0;
@@ -359,10 +376,10 @@ export const enforcePermissions = inngest.createFunction(
 
         // Process each project
         for (const project of projects) {
-            await step.run(`enforce-${project.pr_number}`, async () => {
+            await step.run(`enforce-${project.prNumber}`, async () => {
                 // Log project start
                 await writeJobLog(jobId, project.id, project.name, null, 'start_project', 'info', {
-                    pr_number: project.pr_number,
+                    pr_number: project.prNumber,
                     phase: project.phase
                 });
 
@@ -378,6 +395,7 @@ export const enforcePermissions = inngest.createFunction(
 
                 // Log project complete
                 await writeJobLog(jobId, project.id, project.name, null, 'complete_project', 'success', {
+                    pr_number: project.prNumber,
                     violations: result.violations,
                     reverted: result.reverted,
                     added: result.added
@@ -420,22 +438,24 @@ export const buildFolderIndex = inngest.createFunction(
 
 
 
-        // Get projects using RPC
+        // Get projects using RPC (using get_projects — list_projects does not exist)
         const projects = await step.run('get-projects', async () => {
             const client = getRawSupabaseAdmin();
-            const { data, error } = await client.rpc('list_projects', { p_limit: 100 });
+            const { data, error } = await client.rpc('get_projects', { p_status: null, p_phase: null });
 
-            console.log('list_projects result:', { data, error, count: data?.length });
+            console.log('get_projects result:', { error, count: data?.length });
 
             if (error) {
                 console.error('Error fetching projects:', error);
                 throw new Error(`Failed to fetch projects: ${error.message}`);
             }
 
+            const normalized = (data || []).map((p: any) => normalizeProject(p)).filter((p: NormalizedProject) => isValidProject(p));
+
             if (projectIds && projectIds.length > 0) {
-                return (data || []).filter((p: any) => projectIds.includes(p.id));
+                return normalized.filter((p: NormalizedProject) => projectIds.includes(p.id));
             }
-            return data || [];
+            return normalized;
         });
 
         // Update job to running with total projects count
@@ -684,177 +704,8 @@ async function applyChangeToProject(project: any, change: any): Promise<void> {
     }
 }
 
-async function enforceProjectPermissions(
-    project: any,
-    protectedPrincipals: string[]
-): Promise<{ violations: number; reverted: number; added: number }> {
-    let violations = 0;
-    let reverted = 0;
-    let added = 0;
-
-    console.log(`\n========== ENFORCING PERMISSIONS FOR ${project.pr_number} ==========`);
-
-    // Step 1: Get the active template
-    const { data: templateData } = await supabaseAdmin.rpc('get_active_template');
-    const template = Array.isArray(templateData) ? templateData[0] : templateData;
-
-    if (!template?.template_json) {
-        console.error('No active template found!');
-        return { violations: 0, reverted: 0, added: 0 };
-    }
-
-    // Parse template and build path-to-permissions map
-    const templateNodes = Array.isArray(template.template_json)
-        ? template.template_json
-        : template.template_json.template || [];
-
-    const permissionsMap = buildPermissionsMap(templateNodes);
-    console.log(`Template has ${Object.keys(permissionsMap).length} paths with permissions`);
-
-    // Step 2: Get all indexed folders for this project
-    const { data: folders } = await supabaseAdmin
-        .schema('rfp')
-        .from('folder_index')
-        .select('*')
-        .eq('project_id', project.id);
-
-    if (!folders || folders.length === 0) {
-        console.log('No folders indexed for this project');
-        return { violations: 0, reverted: 0, added: 0 };
-    }
-
-    console.log(`Processing ${folders.length} folders...`);
-
-    // Step 3: Process each folder
-    for (const folder of folders) {
-        const templatePath = folder.template_path;
-        const expectedPerms = permissionsMap[templatePath];
-
-        if (!expectedPerms) {
-            console.log(`No template match for path: ${templatePath}`);
-            continue;
-        }
-
-        console.log(`\n--- Processing: ${folder.drive_folder_name} (${templatePath}) ---`);
-        console.log(`Expected: ${expectedPerms.groups.length} groups, ${expectedPerms.users.length} users, limitedAccess=${expectedPerms.limitedAccess}`);
-
-        // Get actual permissions from Drive
-        let actualPerms;
-        try {
-            actualPerms = await listPermissions(folder.drive_folder_id);
-        } catch (err: any) {
-            console.error(`Failed to get permissions for ${folder.drive_folder_name}:`, err.message);
-            continue;
-        }
-
-        // Build set of expected emails (lowercase for comparison)
-        const expectedEmails = new Set<string>();
-        for (const g of expectedPerms.groups) {
-            if (g.email) expectedEmails.add(g.email.toLowerCase());
-        }
-        for (const u of expectedPerms.users) {
-            if (u.email) expectedEmails.add(u.email.toLowerCase());
-        }
-
-        // Build map of actual emails
-        const actualEmailsMap = new Map<string, any>();
-        for (const perm of actualPerms) {
-            if (perm.emailAddress) {
-                actualEmailsMap.set(perm.emailAddress.toLowerCase(), perm);
-            }
-        }
-
-        // Step 3a: ADD missing permissions
-        for (const group of expectedPerms.groups) {
-            if (!group.email) continue;
-            const emailLower = group.email.toLowerCase();
-            if (!actualEmailsMap.has(emailLower)) {
-                console.log(`[ADD] Missing group: ${group.email} (${group.role})`);
-                try {
-                    await addPermission(folder.drive_folder_id, 'group', group.role || 'reader', group.email);
-                    added++;
-                    console.log(`[SUCCESS] Added ${group.email}`);
-                } catch (err: any) {
-                    console.error(`[FAILED] Could not add ${group.email}:`, err.message);
-                }
-                await sleep(RATE_LIMIT_DELAY);
-            }
-        }
-
-        for (const user of expectedPerms.users) {
-            if (!user.email) continue;
-            const emailLower = user.email.toLowerCase();
-            if (!actualEmailsMap.has(emailLower)) {
-                console.log(`[ADD] Missing user: ${user.email} (${user.role})`);
-                try {
-                    await addPermission(folder.drive_folder_id, 'user', user.role || 'reader', user.email);
-                    added++;
-                    console.log(`[SUCCESS] Added ${user.email}`);
-                } catch (err: any) {
-                    console.error(`[FAILED] Could not add ${user.email}:`, err.message);
-                }
-                await sleep(RATE_LIMIT_DELAY);
-            }
-        }
-
-        // Step 3b: REMOVE unauthorized permissions
-        for (const actual of actualPerms) {
-            if (!actual.emailAddress) continue;
-            const emailLower = actual.emailAddress.toLowerCase();
-
-            // Skip protected principals
-            if (protectedPrincipals.some(p => p.toLowerCase() === emailLower)) {
-                continue;
-            }
-
-            // Robust inherited detection: check both top-level and permissionDetails
-            const isInherited = (actual.inherited === true) || (actual.permissionDetails?.some(d => d.inherited) ?? false);
-
-            // RULE 1: Skip inherited permissions when limitedAccess is false (inheritance allowed)
-            if (!expectedPerms.limitedAccess && isInherited) {
-                console.log(`[SKIP] Inherited permission (inheritance allowed): ${actual.emailAddress}`);
-                continue;
-            }
-
-            // RULE 2: Skip domain/anyone permissions when limitedAccess is false (no hard reset)
-            if (!expectedPerms.limitedAccess && (actual.type === 'domain' || actual.type === 'anyone')) {
-                console.log(`[SKIP] Domain/anyone permission (no hard reset on non-limited folder): ${actual.type}`);
-                continue;
-            }
-
-            // Check if this permission is expected
-            if (!expectedEmails.has(emailLower)) {
-                violations++;
-                console.log(`[REMOVE] Unauthorized: ${actual.emailAddress} (${actual.role})`);
-                try {
-                    await removePermission(folder.drive_folder_id, actual.id!);
-                    reverted++;
-                    console.log(`[SUCCESS] Removed ${actual.emailAddress}`);
-                } catch (err: any) {
-                    console.error(`[FAILED] Could not remove ${actual.emailAddress}:`, err.message);
-                }
-                await sleep(RATE_LIMIT_DELAY);
-            }
-        }
-
-        // Step 3c: Enable Limited Access if needed
-        if (expectedPerms.limitedAccess) {
-            console.log(`[LIMITED ACCESS] Ensuring limited access is enabled...`);
-            try {
-                await setLimitedAccess(folder.drive_folder_id, true);
-            } catch (err: any) {
-                console.error(`[FAILED] Could not enable limited access:`, err.message);
-            }
-        }
-
-        await sleep(RATE_LIMIT_DELAY);
-    }
-
-    console.log(`\n========== ENFORCEMENT COMPLETE ==========`);
-    console.log(`Added: ${added}, Violations: ${violations}, Reverted: ${reverted}`);
-
-    return { violations, reverted, added };
-}
+// NOTE: enforceProjectPermissions (non-logging version) was removed.
+// Only enforceProjectPermissionsWithLogging is used by the enforce-permissions job.
 
 /**
  * Enforce permissions with detailed job logging
@@ -868,7 +719,7 @@ async function enforceProjectPermissionsWithLogging(
     let reverted = 0;
     let added = 0;
 
-    console.log(`\n========== ENFORCING PERMISSIONS FOR ${project.pr_number} ==========`);
+    console.log(`\n========== ENFORCING PERMISSIONS FOR ${project.prNumber || project.pr_number} ==========`);
 
     // Step 1: Get the active template
     const { data: templateData } = await supabaseAdmin.rpc('get_active_template');
@@ -918,7 +769,7 @@ async function enforceProjectPermissionsWithLogging(
             continue;
         }
 
-        // Debug: Log matched folder
+        // Debug: Log matched folder with counts
         await writeJobLog(jobId, project.id, project.name, templatePath, 'matched_folder', 'info', {
             groupCount: expectedPerms.groups?.length || 0,
             userCount: expectedPerms.users?.length || 0,
@@ -1051,24 +902,38 @@ async function enforceProjectPermissionsWithLogging(
 
             // Check if this permission is expected
             if (!expectedEmails.has(emailLower)) {
-                violations++;
-
-                // Robust inherited detection: check both top-level and permissionDetails
-                const isInherited = (actual.inherited === true) || (actual.permissionDetails?.[0]?.inherited ?? false);
+                // Classify inherited permissions BEFORE counting as violation
+                const inheritedClassification = classifyInheritedPermission(actual);
+                const isInherited = inheritedClassification !== 'NOT_INHERITED';
                 const inheritedFrom = actual.inheritedFrom ?? actual.permissionDetails?.[0]?.inheritedFrom;
+
+                // RULE 0: NON-REMOVABLE Shared Drive membership — NEVER count as violation, NEVER attempt delete
+                if (inheritedClassification === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'drive_membership_skipped', 'info', {
+                        action: 'SKIPPED',
+                        reason: 'NON_REMOVABLE_DRIVE_MEMBERSHIP',
+                        classification: 'non-removable-drive',
+                        email: actual.emailAddress,
+                        role: actual.role,
+                        type: actual.type,
+                        inheritedFrom,
+                        message: 'Shared Drive membership permission — cannot be removed via file API.'
+                    });
+                    continue;
+                }
 
                 // RULE 1: Skip inherited permissions when limitedAccess=false (inheritance allowed)
                 if (!expectedPerms.limitedAccess && isInherited) {
                     await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_permission_allowed', 'info', {
                         action: 'SKIPPED',
                         reason: 'INHERITANCE_ALLOWED',
+                        classification: 'removable',
                         email: actual.emailAddress,
                         role: actual.role,
                         type: actual.type,
-                        sourceFolderId: inheritedFrom,
+                        inheritedFrom,
                         message: 'Permission is inherited and inheritance is allowed for this folder (limitedAccess=false).'
                     });
-                    await sleep(RATE_LIMIT_DELAY);
                     continue;
                 }
 
@@ -1081,26 +946,28 @@ async function enforceProjectPermissionsWithLogging(
                         domain: actual.domain,
                         message: 'Domain/anyone permission allowed on non-limited folder (no hard reset).'
                     });
-                    await sleep(RATE_LIMIT_DELAY);
                     continue;
                 }
 
-                // If limitedAccess=true and isInherited: log as violation (shouldn't happen if Ltd Access works)
+                // If limitedAccess=true and isInherited from parent folder: these should already be removed
                 if (isInherited) {
                     await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_permission_violation', 'warning', {
                         action: 'BLOCKED',
                         reason: 'INHERITED_ON_LIMITED_FOLDER',
+                        classification: 'removable',
                         email: actual.emailAddress,
                         role: actual.role,
                         type: actual.type,
                         permissionId: actual.id,
-                        sourceFolderId: inheritedFrom,
+                        inheritedFrom,
                         sourceLink: inheritedFrom ? `https://drive.google.com/drive/folders/${inheritedFrom}` : null,
-                        message: 'Permission is inherited on a Limited Access folder. This should not happen. Check inheritedPermissionsDisabled flag.'
+                        message: 'Permission is inherited from parent folder on a Limited Access folder.'
                     });
-                    await sleep(RATE_LIMIT_DELAY);
                     continue;
                 }
+
+                // This is a REAL unauthorized direct permission — count as violation
+                violations++;
 
                 try {
                     await removePermission(folder.drive_folder_id, actual.id!);
@@ -1160,6 +1027,29 @@ async function enforceProjectPermissionsWithLogging(
                     error: err.message
                 });
             }
+        }
+
+        // Step 4: POST-ENFORCEMENT RE-READ — verify final Drive state
+        try {
+            await sleep(RATE_LIMIT_DELAY);
+            const finalPerms = await listPermissions(folder.drive_folder_id);
+            const debugPayload = buildFolderDebugPayload(
+                templatePath,
+                expectedPerms.limitedAccess,
+                null, // actualLimitedAccess not re-read here (requires separate API call)
+                finalPerms
+            );
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'post_enforcement_state', 'info', {
+                ...debugPayload,
+                total_permissions: finalPerms.length,
+                emails: finalPerms
+                    .filter((p: any) => p.emailAddress)
+                    .map((p: any) => `${p.emailAddress} (${p.role}${p.inherited ? ' inherited' : ''})`),
+            });
+        } catch (err: any) {
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'post_enforcement_read_failed', 'warning', {
+                error: err.message
+            });
         }
 
         await sleep(RATE_LIMIT_DELAY);

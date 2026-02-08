@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { listPermissions, getDriveClient } from '@/server/google-drive';
+import {
+    normalizeRole,
+    classifyInheritedPermission,
+    buildPermissionsMap as sharedBuildPermissionsMap,
+    buildFolderDebugPayload,
+} from '@/server/audit-helpers';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -64,14 +70,9 @@ function buildPermissionsMap(nodes: any[], parentPath = ''): Record<string, any>
 
 /**
  * Normalize roles for comparison to reduce noise from Shared Drive role mapping.
+ * Delegates to shared normalizeRole from audit-helpers.
  * Google Shared Drives map "organizer" to "fileOrganizer" for groups.
  */
-function normalizeRole(role: string): string {
-    if (role === 'organizer' || role === 'fileOrganizer') {
-        return 'fileOrganizer';
-    }
-    return role;
-}
 
 // Compare expected vs actual permissions with enhanced status semantics
 function comparePermissions(
@@ -81,9 +82,13 @@ function comparePermissions(
     status: 'exact_match' | 'compliant' | 'non_compliant';
     statusLabel: 'Exact Match' | 'Compliant (Inheritance Allowed)' | 'Non-Compliant';
     discrepancies: string[];
+    missing: string[];
+    extraDirect: string[];
+    extraInherited: string[];
     expectedCount: number;
     directActualCount: number;
     inheritedActualCount: number;
+    inheritedNonRemovableCount: number;
     totalActualCount: number;
 } {
     const discrepancies: string[] = [];
@@ -109,17 +114,20 @@ function comparePermissions(
     // Protected principals to ignore
     const protectedEmails = ['mo.abuomar@dtgsa.com'];
 
-    // Categorize actual permissions
+    // Categorize actual permissions with Shared Drive classification
     const directActual: any[] = [];
     const inheritedActual: any[] = [];
+    let inheritedNonRemovableCount = 0;
 
     for (const p of actual) {
-        const isInherited = (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false);
-
-        if (isInherited) {
-            inheritedActual.push(p);
-        } else {
+        const cls = classifyInheritedPermission(p);
+        if (cls === 'NOT_INHERITED') {
             directActual.push(p);
+        } else if (cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') {
+            inheritedNonRemovableCount++;
+            // Do NOT push to inheritedActual — these are never violations
+        } else {
+            inheritedActual.push(p);
         }
     }
 
@@ -143,8 +151,11 @@ function comparePermissions(
         }
     }
 
+    // Structured diff arrays
+    const missing: string[] = [];
     for (const email of expectedEmails) {
         if (!actualEmails.has(email)) {
+            missing.push(email);
             discrepancies.push(`Missing: ${email}`);
         }
     }
@@ -155,7 +166,15 @@ function comparePermissions(
         if (!p.emailAddress && p.type !== 'domain' && p.type !== 'anyone') continue;
 
         const email = p.emailAddress?.toLowerCase();
-        if (email && expectedEmails.has(email)) continue;
+        if (email && expectedEmails.has(email)) {
+            // Check role match (normalizing organizer/fileOrganizer)
+            const expectedRole = expectedRoleMap.get(email);
+            const actualRole = normalizeRole(p.role);
+            if (expectedRole && expectedRole !== actualRole) {
+                discrepancies.push(`Role mismatch: ${email} (expected=${expectedRole}, actual=${actualRole})`);
+            }
+            continue;
+        }
         if (email && protectedEmails.includes(email)) continue;
 
         // RULE: Domain/anyone on non-limited folders are allowed (skip)
@@ -167,14 +186,14 @@ function comparePermissions(
         extraDirect.push(email || p.type);
     }
 
-    // Check for extra INHERITED permissions
+    // Check for extra INHERITED permissions (only from parent folders, not Shared Drive membership)
     const extraInherited: string[] = [];
     for (const p of inheritedActual) {
         const email = p.emailAddress?.toLowerCase();
         if (email && expectedEmails.has(email)) continue;
         if (email && protectedEmails.includes(email)) continue;
 
-        // RULE: If limitedAccess=true, inherited perms are violations
+        // RULE: If limitedAccess=true, inherited perms from parent folders are violations
         // RULE: If limitedAccess=false, inherited perms are allowed
         if (expected.limitedAccess) {
             extraInherited.push(email || p.type || 'inherited');
@@ -191,8 +210,8 @@ function comparePermissions(
         discrepancies.push(`Extra (inherited): ${item}`);
     }
 
-    // Determine status based on new semantics
-    const hasMissing = discrepancies.some(d => d.startsWith('Missing'));
+    // Determine status
+    const hasMissing = missing.length > 0;
     const hasExtraDirect = extraDirect.length > 0;
     const hasExtraInherited = extraInherited.length > 0;
 
@@ -200,15 +219,12 @@ function comparePermissions(
     let statusLabel: 'Exact Match' | 'Compliant (Inheritance Allowed)' | 'Non-Compliant';
 
     if (hasMissing || hasExtraDirect || hasExtraInherited) {
-        // Non-compliant: missing expected, extra direct, or extra inherited (when limitedAccess=true)
         status = 'non_compliant';
         statusLabel = 'Non-Compliant';
     } else if (inheritedActualCount > 0 && !expected.limitedAccess) {
-        // Compliant: all expected exist, no extra direct, but has inherited (allowed)
         status = 'compliant';
         statusLabel = 'Compliant (Inheritance Allowed)';
     } else {
-        // Exact match: all expected exist, no extras at all
         status = 'exact_match';
         statusLabel = 'Exact Match';
     }
@@ -217,9 +233,13 @@ function comparePermissions(
         status,
         statusLabel,
         discrepancies,
+        missing,
+        extraDirect,
+        extraInherited,
         expectedCount,
         directActualCount,
         inheritedActualCount,
+        inheritedNonRemovableCount,
         totalActualCount
     };
 }
@@ -331,13 +351,19 @@ export async function GET(request: NextRequest) {
             // Compare permissions
             const comparison = comparePermissions(expectedPerms, actualPerms);
 
-            // Count by status (updated for new statuses)
+            // Count by status using structured diff arrays
             if (comparison.status === 'exact_match') {
                 matchCount++;
             } else if (comparison.status === 'compliant') {
-                extraCount++; // Reuse extraCount for compliant (has extras but allowed)
+                extraCount++;
             } else if (comparison.status === 'non_compliant') {
-                mismatchCount++; // Map non_compliant to mismatchCount
+                // Separate missing from mismatch using structured arrays
+                if (comparison.missing.length > 0) {
+                    missingCount++;
+                }
+                if (comparison.extraDirect.length > 0 || comparison.extraInherited.length > 0) {
+                    mismatchCount++;
+                }
             }
 
             comparisons.push({
