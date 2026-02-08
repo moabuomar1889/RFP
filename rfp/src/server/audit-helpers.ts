@@ -222,20 +222,21 @@ export function buildEffectivePermissionsMap(
         const nodeUsers: any[] = node.users || [];
 
         // Dedup merge: node explicit principals override inherited (by email)
+        // Tag each with effectiveSource for debug/tooltips/export
         const mergedGroupMap = new Map<string, any>();
         for (const g of parentGroups) {
-            if (g?.email) mergedGroupMap.set(g.email.toLowerCase(), { ...g });
+            if (g?.email) mergedGroupMap.set(g.email.toLowerCase(), { ...g, effectiveSource: g.effectiveSource || 'inherited' });
         }
         for (const g of nodeGroups) {
-            if (g?.email) mergedGroupMap.set(g.email.toLowerCase(), { ...g });
+            if (g?.email) mergedGroupMap.set(g.email.toLowerCase(), { ...g, effectiveSource: 'explicit' });
         }
 
         const mergedUserMap = new Map<string, any>();
         for (const u of parentUsers) {
-            if (u?.email) mergedUserMap.set(u.email.toLowerCase(), { ...u });
+            if (u?.email) mergedUserMap.set(u.email.toLowerCase(), { ...u, effectiveSource: u.effectiveSource || 'inherited' });
         }
         for (const u of nodeUsers) {
-            if (u?.email) mergedUserMap.set(u.email.toLowerCase(), { ...u });
+            if (u?.email) mergedUserMap.set(u.email.toLowerCase(), { ...u, effectiveSource: 'explicit' });
         }
 
         let effectiveGroups = Array.from(mergedGroupMap.values());
@@ -255,7 +256,7 @@ export function buildEffectivePermissionsMap(
             effectiveGroups = effectiveGroups.filter(g => !removeSet.has(g.email.toLowerCase()));
             effectiveUsers = effectiveUsers.filter(u => !removeSet.has(u.email.toLowerCase()));
 
-            // Apply downgrades
+            // Apply downgrades — tag as 'override'
             for (const g of effectiveGroups) {
                 const d = downgradeMap.get(g.email.toLowerCase()) as any;
                 if (d) {
@@ -263,6 +264,7 @@ export function buildEffectivePermissionsMap(
                     const targetRank = ROLE_RANK[normalizeRole(d.role)] ?? 0;
                     if (targetRank < currentRank) {
                         g.role = d.role;
+                        g.effectiveSource = 'override';
                     }
                 }
             }
@@ -273,6 +275,7 @@ export function buildEffectivePermissionsMap(
                     const targetRank = ROLE_RANK[normalizeRole(d.role)] ?? 0;
                     if (targetRank < currentRank) {
                         u.role = d.role;
+                        u.effectiveSource = 'override';
                     }
                 }
             }
