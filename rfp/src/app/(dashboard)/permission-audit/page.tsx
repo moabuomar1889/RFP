@@ -58,6 +58,7 @@ interface PermissionComparison {
         role: string;
         type: string;
         inherited?: boolean;
+        classification?: 'NOT_INHERITED' | 'NON_REMOVABLE_DRIVE_MEMBERSHIP' | 'REMOVABLE_PARENT_FOLDER';
     }[];
     status: "exact_match" | "compliant" | "non_compliant";
     statusLabel:
@@ -68,6 +69,7 @@ interface PermissionComparison {
     expectedCount: number;
     directActualCount: number;
     inheritedActualCount: number;
+    inheritedNonRemovableCount?: number;
     totalActualCount: number;
     limitedAccessExpected: boolean;
 }
@@ -302,14 +304,14 @@ interface DiffRow {
     expectedRole: string | null;
     actualRole: string | null;
     inherited: boolean;
-    diffStatus: "match" | "missing" | "extra" | "role_mismatch";
+    diffStatus: "match" | "missing" | "extra" | "role_mismatch" | "drive_member";
 }
 
 function buildDiffRows(comp: PermissionComparison): DiffRow[] {
     const rows: DiffRow[] = [];
     const actualMap = new Map<
         string,
-        { role: string; type: string; inherited?: boolean }
+        { role: string; type: string; inherited?: boolean; classification?: string }
     >();
 
     for (const p of comp.actualPermissions) {
@@ -374,20 +376,21 @@ function buildDiffRows(comp: PermissionComparison): DiffRow[] {
         }
     }
 
-    // Remaining actual = extra
+    // Remaining actual = extra or drive_member
     for (const [emailKey, perm] of actualMap) {
+        const isDriveMember = perm.classification === 'NON_REMOVABLE_DRIVE_MEMBERSHIP';
         rows.push({
             type: perm.type === "group" ? "group" : "user",
             email: emailKey,
             expectedRole: null,
             actualRole: perm.role,
             inherited: !!perm.inherited,
-            diffStatus: "extra",
+            diffStatus: isDriveMember ? "drive_member" : "extra",
         });
     }
 
-    // Sort: issues first
-    const order = { missing: 0, role_mismatch: 1, extra: 2, match: 3 };
+    // Sort: issues first, drive_member at bottom
+    const order = { missing: 0, role_mismatch: 1, extra: 2, match: 3, drive_member: 4 };
     rows.sort((a, b) => order[a.diffStatus] - order[b.diffStatus]);
 
     return rows;
@@ -404,6 +407,8 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
                 return "bg-yellow-500/5";
             case "role_mismatch":
                 return "bg-orange-500/5";
+            case "drive_member":
+                return "bg-slate-500/5 opacity-60";
             default:
                 return "";
         }
@@ -461,6 +466,21 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
                             </TooltipTrigger>
                             <TooltipContent>
                                 Principal exists but with a different role than expected
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                );
+            case "drive_member":
+                return (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Badge variant="outline" className="text-xs bg-slate-500/10 text-slate-400 border-slate-500/20">
+                                    🔒 Drive Member
+                                </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Shared Drive membership — cannot be removed at folder level
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>

@@ -19,11 +19,12 @@ interface PermissionComparison {
     driveFolderId: string;
     expectedGroups: { email: string; role: string }[];
     expectedUsers: { email: string; role: string }[];
-    actualPermissions: { email: string; role: string; type: string; inherited?: boolean }[];
+    actualPermissions: { email: string; role: string; type: string; inherited?: boolean; classification?: string }[];
     // New detailed counters
     expectedCount: number;
     directActualCount: number;
     inheritedActualCount: number;
+    inheritedNonRemovableCount?: number;
     totalActualCount: number;
     // Enhanced status
     status: 'exact_match' | 'compliant' | 'non_compliant';
@@ -387,7 +388,8 @@ export async function GET(request: NextRequest) {
                         email: p.emailAddress,
                         role: p.role,
                         type: p.type,
-                        inherited: (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false)
+                        inherited: (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false),
+                        classification: classifyInheritedPermission(p, driveId),
                     })),
                 status: comparison.status,
                 statusLabel: comparison.statusLabel,
@@ -395,6 +397,7 @@ export async function GET(request: NextRequest) {
                 expectedCount: comparison.expectedCount,
                 directActualCount: comparison.directActualCount,
                 inheritedActualCount: comparison.inheritedActualCount,
+                inheritedNonRemovableCount: comparison.inheritedNonRemovableCount,
                 totalActualCount: comparison.totalActualCount,
                 limitedAccessExpected: expectedPerms.limitedAccess || false,
                 limitedAccessActual: actualLimitedAccess ?? false
