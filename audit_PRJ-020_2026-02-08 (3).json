@@ -1,0 +1,1155 @@
+{
+  "export_version": "v2",
+  "exported_at": "2026-02-08T22:03:45.310Z",
+  "policy": {
+    "protected_principals": [
+      "mo.abuomar@dtgsa.com"
+    ],
+    "inheritance_rules": "limitedAccess=true blocks inheritance; limitedAccess=false allows inheritance"
+  },
+  "projects": [
+    {
+      "project_code": "PRJ-020",
+      "project_name": "Cylinder Storage (O2 and CO2) and MTI Roof",
+      "folders": [
+        {
+          "folder_path": "Bidding",
+          "drive_folder_id": "1A-LFJlyhYrCgsDUnnnVis5fol0L78t1X",
+          "drive_url": "https://drive.google.com/drive/folders/1A-LFJlyhYrCgsDUnnnVis5fol0L78t1X",
+          "expected": {
+            "limitedAccess": false,
+            "principals": []
+          },
+          "actual": {
+            "limitedAccess": false,
+            "permissions": [
+              {
+                "permissionId": "14057521005906357090",
+                "type": "domain",
+                "identifier": "dtgsa.com",
+                "role": "reader",
+                "displayName": "Durrat Al-Tameer Copmany",
+                "isInherited": true,
+                "inheritedFrom": "1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W",
+                "deleted": false,
+                "allowFileDiscovery": false
+              },
+              {
+                "permissionId": "01116928160566339709",
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "reader",
+                "displayName": "Technical Team",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "05376391512616517003",
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "reader",
+                "displayName": "Projects Control",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "10869713439828366131",
+                "type": "group",
+                "identifier": "hse-team@dtgsa.com",
+                "role": "writer",
+                "displayName": "HSE",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 5,
+              "direct": 0,
+              "inherited": 5,
+              "domain": 1,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "compliant_inheritance_allowed",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "dtgsa.com(reader) from 1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W",
+              "technical-team@dtgsa.com(reader) from 19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+              "projects-control@dtgsa.com(reader) from 19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA",
+              "hse-team@dtgsa.com(writer) from 19UGh996wNxczZU-PRkLlL7mDNjF1phmO"
+            ]
+          },
+          "recommendedAction": "none",
+          "notes": []
+        },
+        {
+          "folder_path": "Bidding/SOW",
+          "drive_folder_id": "1bEOJNC3oQulPyn4s_46RBKpMx_IpRbkL",
+          "drive_url": "https://drive.google.com/drive/folders/1bEOJNC3oQulPyn4s_46RBKpMx_IpRbkL",
+          "expected": {
+            "limitedAccess": true,
+            "principals": [
+              {
+                "type": "group",
+                "identifier": "dc-team@dtgsa.com",
+                "role": "organizer"
+              },
+              {
+                "type": "group",
+                "identifier": "hse-team@dtgsa.com",
+                "role": "organizer"
+              },
+              {
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "organizer"
+              },
+              {
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "organizer"
+              },
+              {
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "organizer"
+              }
+            ]
+          },
+          "actual": {
+            "limitedAccess": true,
+            "permissions": [
+              {
+                "permissionId": "14057521005906357090",
+                "type": "domain",
+                "identifier": "dtgsa.com",
+                "role": "reader",
+                "displayName": "Durrat Al-Tameer Copmany",
+                "isInherited": true,
+                "inheritedFrom": "1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W",
+                "deleted": false,
+                "allowFileDiscovery": false
+              },
+              {
+                "permissionId": "01116928160566339709",
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Technical Team",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "01544843091579272164",
+                "type": "group",
+                "identifier": "dc-team@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Document Control",
+                "isInherited": false,
+                "deleted": false
+              },
+              {
+                "permissionId": "05376391512616517003",
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Projects Control",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "10869713439828366131",
+                "type": "group",
+                "identifier": "hse-team@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "HSE",
+                "isInherited": true,
+                "inheritedFrom": "1A-LFJlyhYrCgsDUnnnVis5fol0L78t1X",
+                "deleted": false
+              },
+              {
+                "permissionId": "11658563610721166819",
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Projects Managers",
+                "isInherited": false,
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 7,
+              "direct": 2,
+              "inherited": 5,
+              "domain": 1,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "non_compliant",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "dtgsa.com(reader) from 1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W",
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA"
+            ]
+          },
+          "recommendedAction": "remove_extras",
+          "notes": []
+        },
+        {
+          "folder_path": "Bidding/Technical Proposal",
+          "drive_folder_id": "1b5kMHD0gKYC5qK5poqTf4A7FWuGfhXM2",
+          "drive_url": "https://drive.google.com/drive/folders/1b5kMHD0gKYC5qK5poqTf4A7FWuGfhXM2",
+          "expected": {
+            "limitedAccess": false,
+            "principals": []
+          },
+          "actual": {
+            "limitedAccess": true,
+            "permissions": [
+              {
+                "permissionId": "14057521005906357090",
+                "type": "domain",
+                "identifier": "dtgsa.com",
+                "role": "reader",
+                "displayName": "Durrat Al-Tameer Copmany",
+                "isInherited": true,
+                "inheritedFrom": "1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W",
+                "deleted": false,
+                "allowFileDiscovery": false
+              },
+              {
+                "permissionId": "01116928160566339709",
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "writer",
+                "displayName": "Technical Team",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "05376391512616517003",
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "reader",
+                "displayName": "Projects Control",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "10869713439828366131",
+                "type": "group",
+                "identifier": "hse-team@dtgsa.com",
+                "role": "reader",
+                "displayName": "HSE",
+                "isInherited": true,
+                "inheritedFrom": "1A-LFJlyhYrCgsDUnnnVis5fol0L78t1X",
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 5,
+              "direct": 0,
+              "inherited": 5,
+              "domain": 1,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "compliant_inheritance_allowed",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "dtgsa.com(reader) from 1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W",
+              "technical-team@dtgsa.com(writer) from 19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+              "projects-control@dtgsa.com(reader) from 19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA",
+              "hse-team@dtgsa.com(reader) from 1A-LFJlyhYrCgsDUnnnVis5fol0L78t1X"
+            ]
+          },
+          "recommendedAction": "fix_template",
+          "notes": []
+        },
+        {
+          "folder_path": "Bidding/Technical Proposal/TBE",
+          "drive_folder_id": "139pj0Sr7kQY2OWHmjL0wfrm3GDCeay8R",
+          "drive_url": "https://drive.google.com/drive/folders/139pj0Sr7kQY2OWHmjL0wfrm3GDCeay8R",
+          "expected": {
+            "limitedAccess": true,
+            "principals": [
+              {
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "organizer"
+              },
+              {
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "organizer"
+              },
+              {
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "organizer"
+              },
+              {
+                "type": "user",
+                "identifier": "marwan@dtgsa.com",
+                "role": "organizer"
+              }
+            ]
+          },
+          "actual": {
+            "limitedAccess": true,
+            "permissions": [
+              {
+                "permissionId": "01116928160566339709",
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Technical Team",
+                "isInherited": true,
+                "inheritedFrom": "1b5kMHD0gKYC5qK5poqTf4A7FWuGfhXM2",
+                "deleted": false
+              },
+              {
+                "permissionId": "05376391512616517003",
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Projects Control",
+                "isInherited": false,
+                "deleted": false
+              },
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "11658563610721166819",
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Projects Managers",
+                "isInherited": false,
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "18219751680865398609",
+                "type": "user",
+                "identifier": "marwan@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Marwan Ahmad (Al-Dawaymeh)",
+                "isInherited": false,
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 5,
+              "direct": 3,
+              "inherited": 2,
+              "domain": 0,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "non_compliant",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA"
+            ]
+          },
+          "recommendedAction": "remove_extras",
+          "notes": []
+        },
+        {
+          "folder_path": "Bidding/Vendors Quotations",
+          "drive_folder_id": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+          "drive_url": "https://drive.google.com/drive/folders/1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+          "expected": {
+            "limitedAccess": true,
+            "principals": [
+              {
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "organizer"
+              },
+              {
+                "type": "user",
+                "identifier": "a.albaz@dtgsa.com",
+                "role": "organizer"
+              }
+            ]
+          },
+          "actual": {
+            "limitedAccess": true,
+            "permissions": [
+              {
+                "permissionId": "14057521005906357090",
+                "type": "domain",
+                "identifier": "dtgsa.com",
+                "role": "reader",
+                "displayName": "Durrat Al-Tameer Copmany",
+                "isInherited": true,
+                "inheritedFrom": "1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W",
+                "deleted": false,
+                "allowFileDiscovery": false
+              },
+              {
+                "permissionId": "01116928160566339709",
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "reader",
+                "displayName": "Technical Team",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "05376391512616517003",
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "reader",
+                "displayName": "Projects Control",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "07121844842664488019",
+                "type": "user",
+                "identifier": "a.albaz@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Abdelfatah Albaz",
+                "isInherited": false,
+                "deleted": false
+              },
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "10869713439828366131",
+                "type": "group",
+                "identifier": "hse-team@dtgsa.com",
+                "role": "reader",
+                "displayName": "HSE",
+                "isInherited": true,
+                "inheritedFrom": "1A-LFJlyhYrCgsDUnnnVis5fol0L78t1X",
+                "deleted": false
+              },
+              {
+                "permissionId": "11658563610721166819",
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Projects Managers",
+                "isInherited": false,
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 7,
+              "direct": 2,
+              "inherited": 5,
+              "domain": 1,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "non_compliant",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "dtgsa.com(reader) from 1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W",
+              "technical-team@dtgsa.com(reader) from 19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+              "projects-control@dtgsa.com(reader) from 19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA",
+              "hse-team@dtgsa.com(reader) from 1A-LFJlyhYrCgsDUnnnVis5fol0L78t1X"
+            ]
+          },
+          "recommendedAction": "remove_extras",
+          "notes": []
+        },
+        {
+          "folder_path": "Bidding/Vendors Quotations/Civil and Finishes",
+          "drive_folder_id": "18EsQEosydAEWMGuscyWtV5GDhf92B1ZI",
+          "drive_url": "https://drive.google.com/drive/folders/18EsQEosydAEWMGuscyWtV5GDhf92B1ZI",
+          "expected": {
+            "limitedAccess": false,
+            "principals": []
+          },
+          "actual": {
+            "limitedAccess": true,
+            "permissions": [
+              {
+                "permissionId": "01116928160566339709",
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "reader",
+                "displayName": "Technical Team",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "05376391512616517003",
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "reader",
+                "displayName": "Projects Control",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "07121844842664488019",
+                "type": "user",
+                "identifier": "a.albaz@dtgsa.com",
+                "role": "writer",
+                "displayName": "Abdelfatah Albaz",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "11658563610721166819",
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Projects Managers",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 5,
+              "direct": 0,
+              "inherited": 5,
+              "domain": 0,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "compliant_inheritance_allowed",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "technical-team@dtgsa.com(reader) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "projects-control@dtgsa.com(reader) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "a.albaz@dtgsa.com(writer) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA",
+              "projects-managers@dtgsa.com(fileOrganizer) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN"
+            ]
+          },
+          "recommendedAction": "fix_template",
+          "notes": []
+        },
+        {
+          "folder_path": "Bidding/Vendors Quotations/Mechanical",
+          "drive_folder_id": "1xnVBsj5TLVqdrc3NfSImerTrZ1a2Iuhx",
+          "drive_url": "https://drive.google.com/drive/folders/1xnVBsj5TLVqdrc3NfSImerTrZ1a2Iuhx",
+          "expected": {
+            "limitedAccess": false,
+            "principals": []
+          },
+          "actual": {
+            "limitedAccess": true,
+            "permissions": [
+              {
+                "permissionId": "01116928160566339709",
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "reader",
+                "displayName": "Technical Team",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "05376391512616517003",
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "reader",
+                "displayName": "Projects Control",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "07121844842664488019",
+                "type": "user",
+                "identifier": "a.albaz@dtgsa.com",
+                "role": "writer",
+                "displayName": "Abdelfatah Albaz",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "11658563610721166819",
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Projects Managers",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 5,
+              "direct": 0,
+              "inherited": 5,
+              "domain": 0,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "compliant_inheritance_allowed",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "technical-team@dtgsa.com(reader) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "projects-control@dtgsa.com(reader) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "a.albaz@dtgsa.com(writer) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA",
+              "projects-managers@dtgsa.com(fileOrganizer) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN"
+            ]
+          },
+          "recommendedAction": "fix_template",
+          "notes": []
+        },
+        {
+          "folder_path": "Bidding/Vendors Quotations/E&I",
+          "drive_folder_id": "1Cvb3KgRC6KBf8RD_MTUdHdRdTOQpPUGP",
+          "drive_url": "https://drive.google.com/drive/folders/1Cvb3KgRC6KBf8RD_MTUdHdRdTOQpPUGP",
+          "expected": {
+            "limitedAccess": false,
+            "principals": []
+          },
+          "actual": {
+            "limitedAccess": true,
+            "permissions": [
+              {
+                "permissionId": "01116928160566339709",
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "reader",
+                "displayName": "Technical Team",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "05376391512616517003",
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "reader",
+                "displayName": "Projects Control",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "07121844842664488019",
+                "type": "user",
+                "identifier": "a.albaz@dtgsa.com",
+                "role": "writer",
+                "displayName": "Abdelfatah Albaz",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "11658563610721166819",
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Projects Managers",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 5,
+              "direct": 0,
+              "inherited": 5,
+              "domain": 0,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "compliant_inheritance_allowed",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "technical-team@dtgsa.com(reader) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "projects-control@dtgsa.com(reader) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "a.albaz@dtgsa.com(writer) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA",
+              "projects-managers@dtgsa.com(fileOrganizer) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN"
+            ]
+          },
+          "recommendedAction": "fix_template",
+          "notes": []
+        },
+        {
+          "folder_path": "Bidding/Vendors Quotations/IT",
+          "drive_folder_id": "1jsTvPyHu3uhJrdMvAj7Obw0fAUmlNjtj",
+          "drive_url": "https://drive.google.com/drive/folders/1jsTvPyHu3uhJrdMvAj7Obw0fAUmlNjtj",
+          "expected": {
+            "limitedAccess": false,
+            "principals": []
+          },
+          "actual": {
+            "limitedAccess": true,
+            "permissions": [
+              {
+                "permissionId": "01116928160566339709",
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "reader",
+                "displayName": "Technical Team",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "05376391512616517003",
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "reader",
+                "displayName": "Projects Control",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "07121844842664488019",
+                "type": "user",
+                "identifier": "a.albaz@dtgsa.com",
+                "role": "writer",
+                "displayName": "Abdelfatah Albaz",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "11658563610721166819",
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "fileOrganizer",
+                "displayName": "Projects Managers",
+                "isInherited": true,
+                "inheritedFrom": "1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 5,
+              "direct": 0,
+              "inherited": 5,
+              "domain": 0,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "compliant_inheritance_allowed",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "technical-team@dtgsa.com(reader) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "projects-control@dtgsa.com(reader) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "a.albaz@dtgsa.com(writer) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN",
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA",
+              "projects-managers@dtgsa.com(fileOrganizer) from 1_W30XeBmrJFI6xslYDuSByZNwQK2JRBN"
+            ]
+          },
+          "recommendedAction": "fix_template",
+          "notes": []
+        },
+        {
+          "folder_path": "Bidding/Commercial Proposal",
+          "drive_folder_id": "1QeX74lCtNUM9fOnEA9UK-ziDElpwVczS",
+          "drive_url": "https://drive.google.com/drive/folders/1QeX74lCtNUM9fOnEA9UK-ziDElpwVczS",
+          "expected": {
+            "limitedAccess": true,
+            "principals": [
+              {
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "writer"
+              }
+            ]
+          },
+          "actual": {
+            "limitedAccess": true,
+            "permissions": [
+              {
+                "permissionId": "14057521005906357090",
+                "type": "domain",
+                "identifier": "dtgsa.com",
+                "role": "reader",
+                "displayName": "Durrat Al-Tameer Copmany",
+                "isInherited": true,
+                "inheritedFrom": "1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W",
+                "deleted": false,
+                "allowFileDiscovery": false
+              },
+              {
+                "permissionId": "01116928160566339709",
+                "type": "group",
+                "identifier": "technical-team@dtgsa.com",
+                "role": "reader",
+                "displayName": "Technical Team",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "05376391512616517003",
+                "type": "group",
+                "identifier": "projects-control@dtgsa.com",
+                "role": "reader",
+                "displayName": "Projects Control",
+                "isInherited": true,
+                "inheritedFrom": "19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+                "deleted": false
+              },
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "10869713439828366131",
+                "type": "group",
+                "identifier": "hse-team@dtgsa.com",
+                "role": "reader",
+                "displayName": "HSE",
+                "isInherited": true,
+                "inheritedFrom": "1A-LFJlyhYrCgsDUnnnVis5fol0L78t1X",
+                "deleted": false
+              },
+              {
+                "permissionId": "11658563610721166819",
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "writer",
+                "displayName": "Projects Managers",
+                "isInherited": false,
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 6,
+              "direct": 1,
+              "inherited": 5,
+              "domain": 1,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "non_compliant",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "dtgsa.com(reader) from 1dTLJTMRfRJ-hwYtC6JwLcJ5BXibSjz9W",
+              "technical-team@dtgsa.com(reader) from 19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+              "projects-control@dtgsa.com(reader) from 19UGh996wNxczZU-PRkLlL7mDNjF1phmO",
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA",
+              "hse-team@dtgsa.com(reader) from 1A-LFJlyhYrCgsDUnnnVis5fol0L78t1X"
+            ]
+          },
+          "recommendedAction": "remove_extras",
+          "notes": []
+        },
+        {
+          "folder_path": "Bidding/Commercial Proposal/Admin Only",
+          "drive_folder_id": "1NhZHGzvYXYvGedhHJCP3u5xv86TnkqUD",
+          "drive_url": "https://drive.google.com/drive/folders/1NhZHGzvYXYvGedhHJCP3u5xv86TnkqUD",
+          "expected": {
+            "limitedAccess": true,
+            "principals": []
+          },
+          "actual": {
+            "limitedAccess": true,
+            "permissions": [
+              {
+                "permissionId": "07400164126184254836",
+                "type": "group",
+                "identifier": "admin@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Admins",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              },
+              {
+                "permissionId": "11658563610721166819",
+                "type": "group",
+                "identifier": "projects-managers@dtgsa.com",
+                "role": "reader",
+                "displayName": "Projects Managers",
+                "isInherited": true,
+                "inheritedFrom": "1QeX74lCtNUM9fOnEA9UK-ziDElpwVczS",
+                "deleted": false
+              },
+              {
+                "permissionId": "13141108027434468417",
+                "type": "user",
+                "identifier": "mo.abuomar@dtgsa.com",
+                "role": "organizer",
+                "displayName": "Mohammad Abu Omar",
+                "isInherited": true,
+                "inheritedFrom": "0AKH9msTC0h2sUk9PVA",
+                "deleted": false
+              }
+            ],
+            "counts": {
+              "total": 2,
+              "direct": 0,
+              "inherited": 2,
+              "domain": 0,
+              "anyone": 0
+            }
+          },
+          "diff": {
+            "status": "non_compliant",
+            "missing": [],
+            "roleMismatches": [],
+            "extraDirect": [],
+            "extraInherited": [
+              "admin@dtgsa.com(organizer) from 0AKH9msTC0h2sUk9PVA",
+              "projects-managers@dtgsa.com(reader) from 1QeX74lCtNUM9fOnEA9UK-ziDElpwVczS"
+            ]
+          },
+          "recommendedAction": "remove_extras",
+          "notes": []
+        }
+      ],
+      "summary": {
+        "totalFolders": 11,
+        "exactMatch": 0,
+        "compliant": 6,
+        "nonCompliant": 5
+      }
+    }
+  ],
+  "summary": {
+    "totalProjects": 1,
+    "totalFolders": 11
+  }
+}
