@@ -696,7 +696,7 @@ function PrincipalsBreakdownTable({
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <SelectTrigger className="h-7 text-xs w-auto min-w-[90px] px-2">
+                                                            <SelectTrigger className="h-7 text-xs w-auto min-w-[90px] px-2 border-orange-400/50 text-orange-600 hover:bg-orange-500/10">
                                                                 <ArrowDown className="h-3 w-3 mr-1" />
                                                                 Downgrade
                                                             </SelectTrigger>

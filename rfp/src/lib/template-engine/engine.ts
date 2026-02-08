@@ -762,11 +762,6 @@ export function addPrincipal(
     const node = state.nodes[nodeId];
     if (!node) return state;
 
-    // Adjustment #3: Only root nodes can add new principals.
-    // Child nodes may only use subtractive overrides (remove/downgrade).
-    if (node.parentId !== null) {
-        return state;
-    }
 
     // Dedup check: skip if already exists on this node
     const existing = node.explicitPolicy[type];
