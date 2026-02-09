@@ -361,14 +361,14 @@ export const enforcePermissions = inngest.createFunction(
                 return true;
             });
 
-            // Filter to target projects
-            const projectsToEnforce = targetProjectIds.length > 0
-                ? projects.filter((p: NormalizedProject) => targetProjectIds.includes(p.id))
-                : projects;
-            return projectsToEnforce;
+            // Filter to target projects if provided
+            if (targetProjectIds.length > 0) {
+                return normalized.filter((p: NormalizedProject) => targetProjectIds.includes(p.id));
+            }
+            return normalized;
         });
 
-        const totalProjects = projectsToEnforce.length;
+        const totalProjects = projects.length;
         await writeJobLog(jobId, null, null, null, 'projects_found', 'info', { count: totalProjects });
 
         if (totalProjects === 0) {
@@ -383,8 +383,8 @@ export const enforcePermissions = inngest.createFunction(
         let completedProjects = 0;
 
         // Enforce permissions for each project using RESET-THEN-APPLY approach
-        for (let i = 0; i < projectsToEnforce.length; i++) {
-            const project = projectsToEnforce[i];
+        for (let i = 0; i < projects.length; i++) {
+            const project = projects[i];
 
             await step.run(`enforce-project-${project.id}`, async () => {
                 await writeJobLog(jobId, project.id, project.name, null, 'enforce_start', 'info', {
@@ -406,9 +406,9 @@ export const enforcePermissions = inngest.createFunction(
                     const client = getRawSupabaseAdmin();
                     await client.rpc('update_job_progress', {
                         p_job_id: jobId,
-                        p_progress: Math.round(((i + 1) / projectsToEnforce.length) * 100),
+                        p_progress: Math.round(((i + 1) / projects.length) * 100),
                         p_completed_tasks: i + 1,
-                        p_total_tasks: projectsToEnforce.length,
+                        p_total_tasks: projects.length,
                         p_status: JOB_STATUS.RUNNING
                     });
                 } catch (err: any) {
