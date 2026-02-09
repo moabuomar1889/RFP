@@ -798,14 +798,26 @@ async function enforceProjectPermissionsWithLogging(
     // Also store the project's root Drive folder ID for top-level children
     const projectDriveFolderId = project.drive_folder_id || project.driveFolderId;
 
-    // Helper: Get Drive folder name based on phase
+
+    // Helper: Get Drive folder name based on phase and folder type
     function getDriveFolderName(templatePath: string, folderBaseName: string): string {
         const projectCode = project.prNumber || project.pr_number;
+
+        // Special case: Phase containers themselves
+        if (templatePath === 'Bidding') {
+            return `${projectCode}-RFP`;
+        }
+        if (templatePath === 'Project Delivery') {
+            return `${projectCode}-PD`;
+        }
+
+        // Regular folders: check which phase they belong to
         const isInBiddingPhase = templatePath.startsWith('Bidding/');
         return isInBiddingPhase
             ? `${projectCode}-RFP-${folderBaseName}`
             : `${projectCode}-${folderBaseName}`;
     }
+
 
     // Step 2: Create missing folders
     // Sort template paths by depth so parents are created before children
