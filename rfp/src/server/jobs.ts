@@ -886,6 +886,9 @@ async function enforceProjectPermissionsWithLogging(
             continue;
         }
 
+        // DISABLED: Folder rename feature - was creating duplicates
+        // TODO: Fix rename logic to properly rename in-place instead of creating duplicates
+        /*
         // Check if Drive folder name matches expected name and rename if needed
         try {
             const actualFolder = await getFolder(folder.drive_folder_id);
@@ -928,6 +931,8 @@ async function enforceProjectPermissionsWithLogging(
                 error: err.message
             });
         }
+        */
+
 
         // Debug: Log matched folder with counts
         await writeJobLog(jobId, project.id, project.name, templatePath, 'matched_folder', 'info', {
