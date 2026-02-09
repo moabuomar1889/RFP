@@ -1468,11 +1468,17 @@ async function enforceProjectPermissionsWithReset(
         buildTemplateMap(child, '');
     }
 
-    // Step 2: Fetch job metadata for scope filtering
-    const job = await supabaseAdmin.from('jobs').select('metadata').eq('id', jobId).single();
-    const metadata = job.data?.metadata || {};
-    const scope = metadata.scope || 'full';
-    const targetPath = metadata.targetPath;
+    // Step 2: Fetch job details for scope filtering (metadata is in job_details)
+    const job = await supabaseAdmin.from('jobs').select('job_details').eq('id', jobId).single();
+    const jobDetails = job.data?.job_details || {};
+    const scope = jobDetails.scope || 'full';
+    const targetPath = jobDetails.targetPath;
+
+    await writeJobLog(jobId, project.id, project.name, null, 'scope_parsed', 'info', {
+        scope,
+        targetPath,
+        jobDetails
+    });
 
     // Step 3: Get folders to process (with scope filtering)
     let folders = await supabaseAdmin

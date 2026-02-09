@@ -25,15 +25,17 @@ export async function POST(request: NextRequest) {
         const supabase = getSupabaseAdmin();
         const jobId = uuidv4();
 
-        // Create job record using RPC with metadata
+        // Create job record using RPC with metadata in job_details
+        const jobDetails = projectId
+            ? { action: 'enforce_single', projectId, ...metadata } // Spread metadata into job_details
+            : { action: 'enforce_all' };
+
         const { error: jobError } = await supabase.rpc('create_sync_job', {
             p_id: jobId,
             p_job_type: 'enforce_permissions',
             p_status: 'pending',
             p_triggered_by: 'admin',
-            p_job_details: projectId
-                ? { action: 'enforce_single', projectId, metadata } // Include metadata
-                : { action: 'enforce_all' },
+            p_job_details: jobDetails,
         });
 
         if (jobError) {
