@@ -775,7 +775,7 @@ async function enforceProjectPermissionsWithLogging(
     });
 
     // Step 2: Get all indexed folders for this project
-    const { data: folders } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
+    let { data: folders } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
 
     if (!folders || folders.length === 0) {
         await writeJobLog(jobId, project.id, project.name, null, 'warning', 'warning', { message: 'No folders indexed' });
@@ -783,6 +783,51 @@ async function enforceProjectPermissionsWithLogging(
     }
 
     await writeJobLog(jobId, project.id, project.name, null, 'folders_found', 'info', { count: folders.length });
+
+    // Step 2a: Apply scope filtering if specified in job metadata
+    // Fetch job metadata from database
+    const { data: jobData } = await client
+        .from('jobs')
+        .select('metadata')
+        .eq('id', jobId)
+        .single();
+
+    const scope = jobData?.metadata?.scope || 'full';
+    const targetPath = jobData?.metadata?.targetPath;
+
+    if (scope === 'single' && targetPath) {
+        // Only process the specific folder
+        folders = folders.filter((f: any) =>
+            (f.normalized_template_path || f.template_path) === targetPath
+        );
+        await writeJobLog(jobId, project.id, project.name, null, 'scope_applied', 'info', {
+            scope: 'single',
+            targetPath,
+            filteredCount: folders.length
+        });
+    } else if (scope === 'branch' && targetPath) {
+        // Process folder and all children
+        folders = folders.filter((f: any) => {
+            const path = f.normalized_template_path || f.template_path;
+            return path === targetPath || path.startsWith(targetPath + '/');
+        });
+        await writeJobLog(jobId, project.id, project.name, null, 'scope_applied', 'info', {
+            scope: 'branch',
+            targetPath,
+            filteredCount: folders.length
+        });
+    }
+    // else: full enforcement (default - no filtering)
+
+    if (folders.length === 0) {
+        await writeJobLog(jobId, project.id, project.name, null, 'warning', 'warning', {
+            message: scope !== 'full'
+                ? `No folders matched scope filter (${scope}: ${targetPath})`
+                : 'No folders indexed'
+        });
+        return { violations: 0, reverted: 0, added: 0 };
+    }
+
 
     // Step 2b: Auto-create missing folders that exist in template but not in Drive
     const indexedTemplatePaths = new Set(
