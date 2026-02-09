@@ -155,7 +155,9 @@ function getLogIcon(action: string, status: string) {
 }
 
 function getLogMessage(log: JobLog): string {
-    const details = log.details as Record<string, string>;
+    // RPC wraps our data in a nested 'details' object: {details: {our_data}, message, log_status}
+    const raw = log.details as Record<string, unknown>;
+    const details = ((raw?.details as Record<string, string>) || raw) as Record<string, string>;
     switch (log.action) {
         case "job_started":
             return `Job started by ${details.triggeredBy || "admin"}`;
