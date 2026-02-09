@@ -17,6 +17,7 @@ import {
     getAllFoldersRecursive,
     normalizeFolderPath,
     createFolder,
+    getFolder,
     renameFolder,
     listPermissions,
     addPermission,
@@ -879,12 +880,45 @@ async function enforceProjectPermissionsWithLogging(
         const expectedPerms = permissionsMap[templatePath];
 
         if (!expectedPerms) {
-            // Debug: Log skipped folder
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'skipped_no_match', 'info', {
-                normalizedPath: folder.normalized_template_path,
-                originalPath: folder.template_path
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'template_not_found', 'warning', {
+                message: `No template found for path: ${templatePath}`
             });
             continue;
+        }
+
+        // Check if Drive folder name matches expected name and rename if needed
+        try {
+            const actualFolder = await getFolder(folder.drive_folder_id);
+            const actualFolderName = actualFolder?.name;
+
+            if (actualFolderName) {
+                // Calculate expected Drive folder name based on template path
+                const pathParts = templatePath.split('/');
+                const expectedBaseName = pathParts[pathParts.length - 1];
+                const expectedDriveName = `${project.prNumber || project.pr_number}-RFP-${expectedBaseName}`;
+
+                if (actualFolderName !== expectedDriveName) {
+                    try {
+                        await renameFolder(folder.drive_folder_id, expectedDriveName);
+                        await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_renamed', 'success', {
+                            oldName: actualFolderName,
+                            newName: expectedDriveName
+                        });
+                        await sleep(RATE_LIMIT_DELAY);
+                    } catch (err: any) {
+                        await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_rename_failed', 'warning', {
+                            actualName: actualFolderName,
+                            expectedName: expectedDriveName,
+                            error: err.message
+                        });
+                    }
+                }
+            }
+        } catch (err: any) {
+            // Continue even if rename check fails - not critical
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_check_failed', 'warning', {
+                error: err.message
+            });
         }
 
         // Debug: Log matched folder with counts
