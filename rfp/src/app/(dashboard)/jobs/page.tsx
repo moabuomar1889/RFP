@@ -162,23 +162,38 @@ function getLogMessage(log: JobLog): string {
         case "projects_found":
             return `Found ${details.count} projects to process`;
         case "start_project":
-            return `Processing: ${log.project_name} (${details.pr_number})`;
+        case "enforce_start":
+            return `Processing: ${log.project_name || "project"} (${details.pr_number || ""})`;
         case "folders_found":
             return `Found ${details.count} folders in ${log.project_name}`;
         case "add_permission":
-            return `Added ${details.type} permission for ${details.email} as ${details.role}`;
+        case "added_group":
+        case "added_user":
+            return `Added ${details.type || "permission"} for ${details.email} as ${details.role}`;
         case "add_permission_failed":
             return `Failed to add ${details.email}: ${details.error}`;
         case "remove_permission":
-            return `Removed unauthorized permission: ${details.email}`;
+        case "removed_permission":
+            return `Removed permission: ${details.email} (${details.role || ""})`;
         case "remove_permission_failed":
             return `Failed to remove ${details.email}: ${details.error}`;
         case "limited_access":
-            return `Enabled Limited Access on folder`;
+        case "set_limited_access":
+            return `Set Limited Access: ${details.enabled === "true" ? "enabled" : "disabled"}`;
+        case "cleared_limited_access":
+            return `Cleared Limited Access`;
+        case "scope_parsed":
+            return `Scope: ${details.scope || "full"}${details.targetPath ? ` → ${details.targetPath}` : ""}`;
         case "complete_project":
-            return `Completed ${log.project_name}: ${details.added} added, ${details.reverted} removed`;
-        case "job_completed":
-            return `Job completed: ${details.totalProjects} projects, ${details.totalAdded} added, ${details.totalReverted} removed`;
+        case "enforce_complete":
+            return `Completed ${log.project_name || "project"}: ${details.added || 0} added, ${details.removed || details.reverted || 0} removed`;
+        case "job_completed": {
+            const projects = details.totalProjects || "0";
+            const added = details.added ?? details.totalAdded ?? "0";
+            const removed = details.removed ?? details.totalReverted ?? "0";
+            const errors = details.errors || "0";
+            return `Job completed: ${projects} projects, ${added} added, ${removed} removed${errors !== "0" ? `, ${errors} errors` : ""}`;
+        }
         case "error":
             return `Error: ${details.message}`;
         case "warning":
@@ -254,12 +269,12 @@ function JobLogViewer({ jobId, isActive }: { jobId: string; isActive: boolean })
                 <div
                     key={log.id}
                     className={`flex items-start gap-2 px-2 py-1 rounded ${log.status === "error"
-                            ? "bg-red-950/50 text-red-300"
-                            : log.status === "warning"
-                                ? "bg-yellow-950/50 text-yellow-300"
-                                : log.status === "success"
-                                    ? "bg-green-950/30 text-green-300"
-                                    : "text-gray-300"
+                        ? "bg-red-950/50 text-red-300"
+                        : log.status === "warning"
+                            ? "bg-yellow-950/50 text-yellow-300"
+                            : log.status === "success"
+                                ? "bg-green-950/30 text-green-300"
+                                : "text-gray-300"
                         }`}
                 >
                     <div className="mt-0.5 flex-shrink-0">
@@ -296,8 +311,8 @@ function JobListItem({
     return (
         <div
             className={`flex items-center gap-3 py-2.5 px-3 rounded-md cursor-pointer text-sm transition-all ${isSelected
-                    ? "bg-primary/10 border border-primary/30"
-                    : "hover:bg-muted/50 border border-transparent"
+                ? "bg-primary/10 border border-primary/30"
+                : "hover:bg-muted/50 border border-transparent"
                 } ${isRunning ? "animate-pulse-subtle" : ""}`}
             onClick={onSelect}
         >
