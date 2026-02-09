@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { projectId } = body;
+        const { projectId, metadata } = body; // Extract metadata from request
 
         // Validate projectId if provided
         if (projectId && typeof projectId !== 'string') {
@@ -25,14 +25,14 @@ export async function POST(request: NextRequest) {
         const supabase = getSupabaseAdmin();
         const jobId = uuidv4();
 
-        // Create job record using RPC
+        // Create job record using RPC with metadata
         const { error: jobError } = await supabase.rpc('create_sync_job', {
             p_id: jobId,
             p_job_type: 'enforce_permissions',
             p_status: 'pending',
             p_triggered_by: 'admin',
             p_job_details: projectId
-                ? { action: 'enforce_single', projectId }
+                ? { action: 'enforce_single', projectId, metadata } // Include metadata
                 : { action: 'enforce_all' },
         });
 
@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
             data: {
                 jobId,
                 projectId: projectId || null,
+                metadata: metadata || {}, // Pass metadata to worker
                 triggeredBy: 'admin',
             },
         });

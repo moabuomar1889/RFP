@@ -1398,6 +1398,275 @@ async function enforceProjectPermissionsWithLogging(
     return { violations, reverted, added };
 }
 
+/**
+ * NEW: Enforce permissions using RESET-THEN-APPLY approach
+ * This eliminates conflicts with Limited Access and role modifications
+ * 
+ * PHASE 1: Remove all permissions (except protected)
+ * PHASE 2: Clear Limited Access  
+ * PHASE 3: Apply template from scratch
+ */
+async function enforceProjectPermissionsWithReset(
+    project: any,
+    protectedPrincipals: string[],
+    jobId: string
+): Promise<{ removed: number; added: number; errors: number }> {
+    let removed = 0;
+    let added = 0;
+    let errors = 0;
+
+    console.log(`\n========== RESET-THEN-APPLY ENFORCEMENT FOR ${project.prNumber || project.pr_number} ==========`);
+
+    // Step 1: Get the active template
+    const { data: templateData } = await supabaseAdmin.rpc('get_active_template');
+    const template = Array.isArray(templateData) ? templateData[0] : templateData;
+
+    if (!template?.template_json) {
+        await writeJobLog(jobId, project.id, project.name, null, 'error', 'error', { message: 'No active template found' });
+        return { removed: 0, added: 0, errors: 1 };
+    }
+
+    // Parse template
+    const templateNodes = Array.isArray(template.template_json)
+        ? template.template_json
+        : template.template_json.template || [];
+
+    // Phase-aware filtering (bidding vs execution)
+    const projectPhase = project.phase || 'bidding';
+    const phaseNode = templateNodes.find((n: any) => {
+        const nodeName = (n.text || n.name || '').trim();
+        if (projectPhase === 'bidding') return nodeName === 'Bidding';
+        return nodeName === 'Project Delivery';
+    });
+
+    if (!phaseNode?.children) {
+        await writeJobLog(jobId, project.id, project.name, null, 'error', 'error', {
+            message: `No ${projectPhase} phase node in template`
+        });
+        return { removed: 0, added: 0, errors: 1 };
+    }
+
+    // Build template map
+    const templateMap = new Map<string, any>();
+    function buildTemplateMap(node: any, parentPath = '') {
+        const nodeName = node.text || node.name || '';
+        const currentPath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
+        templateMap.set(currentPath, node);
+        if (node.children) {
+            for (const child of node.children) {
+                buildTemplateMap(child, currentPath);
+            }
+        }
+    }
+    for (const child of phaseNode.children) {
+        buildTemplateMap(child, '');
+    }
+
+    // Step 2: Fetch job metadata for scope filtering
+    const job = await supabaseAdmin.from('jobs').select('metadata').eq('id', jobId).single();
+    const metadata = job.data?.metadata || {};
+    const scope = metadata.scope || 'full';
+    const targetPath = metadata.targetPath;
+
+    // Step 3: Get folders to process (with scope filtering)
+    let folders = await supabaseAdmin
+        .from('folders')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('template_path');
+
+    if (!folders.data || folders.data.length === 0) {
+        await writeJobLog(jobId, project.id, project.name, null, 'warning', 'warning', {
+            message: 'No folders found in index'
+        });
+        return { removed: 0, added: 0, errors: 0 };
+    }
+
+    // Apply scope filtering
+    if (scope === 'single' && targetPath) {
+        folders.data = folders.data.filter(f => f.template_path === targetPath);
+    } else if (scope === 'branch' && targetPath) {
+        folders.data = folders.data.filter(f =>
+            f.template_path === targetPath ||
+            f.template_path?.startsWith(`${targetPath}/`)
+        );
+    }
+
+    await writeJobLog(jobId, project.id, project.name, null, 'scope_info', 'info', {
+        scope,
+        targetPath,
+        totalFolders: folders.data.length
+    });
+
+    // Step 4: Process each folder with RESET-THEN-APPLY
+    for (const folder of folders.data) {
+        const templatePath = folder.template_path;
+        if (!templatePath) continue;
+
+        const expectedPerms = templateMap.get(templatePath);
+        if (!expectedPerms) {
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'no_template', 'warning', {
+                message: 'Folder not in template'
+            });
+            continue;
+        }
+
+        await writeJobLog(jobId, project.id, project.name, templatePath, 'start_reset_apply', 'info', {
+            folderId: folder.drive_folder_id
+        });
+
+        // === PHASE 1: RESET - Remove all non-protected permissions ===
+        try {
+            const currentPerms = await listPermissions(folder.drive_folder_id);
+
+            for (const perm of currentPerms) {
+                if (!perm.emailAddress) continue;
+
+                // Skip protected principals
+                if (protectedPrincipals.some(p => p.toLowerCase() === perm.emailAddress?.toLowerCase())) {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'skip_protected', 'info', {
+                        email: perm.emailAddress
+                    });
+                    continue;
+                }
+
+                // Skip inherited permissions (cannot be removed at folder level)
+                if (perm.inherited || perm.permissionDetails?.[0]?.inherited) {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'skip_inherited', 'info', {
+                        email: perm.emailAddress,
+                        role: perm.role
+                    });
+                    continue;
+                }
+
+                // Remove permission
+                try {
+                    await removePermission(folder.drive_folder_id, perm.id!);
+                    removed++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'removed_permission', 'success', {
+                        email: perm.emailAddress,
+                        role: perm.role
+                    });
+                    await sleep(RATE_LIMIT_DELAY);
+                } catch (err: any) {
+                    // Permission not found = already removed (success)
+                    if (err.message?.includes('Permission not found') || err.message?.includes('not found')) {
+                        removed++;
+                        await writeJobLog(jobId, project.id, project.name, templatePath, 'already_removed', 'info', {
+                            email: perm.emailAddress
+                        });
+                    } else {
+                        errors++;
+                        await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_failed', 'error', {
+                            email: perm.emailAddress,
+                            error: err.message
+                        });
+                    }
+                }
+            }
+
+            // === PHASE 2: Clear Limited Access ===
+            try {
+                const wasLimited = await setLimitedAccess(folder.drive_folder_id, false);
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'cleared_limited_access', 'success', {
+                    previousState: wasLimited
+                });
+                await sleep(RATE_LIMIT_DELAY);
+            } catch (err: any) {
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'clear_limited_failed', 'warning', {
+                    error: err.message
+                });
+            }
+
+        } catch (err: any) {
+            errors++;
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_phase_failed', 'error', {
+                error: err.message
+            });
+            continue; // Skip to next folder
+        }
+
+        // === PHASE 3: APPLY TEMPLATE ===
+        try {
+            // 3a. Set Limited Access if required
+            if (expectedPerms.limitedAccess) {
+                try {
+                    await setLimitedAccess(folder.drive_folder_id, true);
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'set_limited_access', 'success', {
+                        enabled: true
+                    });
+                    await sleep(RATE_LIMIT_DELAY);
+                } catch (err: any) {
+                    errors++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'set_limited_failed', 'error', {
+                        error: err.message
+                    });
+                }
+            }
+
+            // 3b. Add groups from template
+            const groups = expectedPerms.groups || [];
+            for (const group of groups) {
+                if (!group.email) continue;
+
+                try {
+                    await addPermission(folder.drive_folder_id, 'group', group.role || 'reader', group.email);
+                    added++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'added_group', 'success', {
+                        email: group.email,
+                        role: group.role
+                    });
+                    await sleep(RATE_LIMIT_DELAY);
+                } catch (err: any) {
+                    errors++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_group_failed', 'error', {
+                        email: group.email,
+                        error: err.message
+                    });
+                }
+            }
+
+            // 3c. Add users from template
+            const users = expectedPerms.users || [];
+            for (const user of users) {
+                if (!user.email) continue;
+
+                try {
+                    await addPermission(folder.drive_folder_id, 'user', user.role || 'reader', user.email);
+                    added++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'added_user', 'success', {
+                        email: user.email,
+                        role: user.role
+                    });
+                    await sleep(RATE_LIMIT_DELAY);
+                } catch (err: any) {
+                    errors++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_user_failed', 'error', {
+                        email: user.email,
+                        error: err.message
+                    });
+                }
+            }
+
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_complete', 'success', {
+                groupsAdded: groups.length,
+                usersAdded: users.length,
+                limitedAccess: !!expectedPerms.limitedAccess
+            });
+
+        } catch (err: any) {
+            errors++;
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'apply_phase_failed', 'error', {
+                error: err.message
+            });
+        }
+
+        await sleep(RATE_LIMIT_DELAY);
+    }
+
+    return { removed, added, errors };
+}
+
 // NOTE: buildPermissionsMap has been moved to @/server/audit-helpers (shared module).
 
 async function reconcileProjectIndex(project: any): Promise<number> {
