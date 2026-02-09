@@ -797,7 +797,12 @@ async function enforceProjectPermissionsWithLogging(
 
     // Also store the project's root Drive folder ID for top-level children
     const projectDriveFolderId = project.drive_folder_id || project.driveFolderId;
-
+    // DISABLED: Auto-create missing folders - was creating folders with wrong names and in wrong locations
+    // TODO: Fix auto-create logic to:
+    // 1. Use correct naming convention per phase (Bidding: PRJ-XXX-RFP-Name, Execution: PRJ-XXX-Name)
+    // 2. Create folders in correct parent hierarchy
+    // 3. Not create duplicates at project root
+    /*
     // Sort template paths by depth so parents are created before children
     const allTemplatePaths = Object.keys(permissionsMap).sort(
         (a, b) => a.split('/').length - b.split('/').length
@@ -824,7 +829,7 @@ async function enforceProjectPermissionsWithLogging(
             await writeJobLog(jobId, project.id, project.name, templatePath, 'create_folder_skipped', 'warning', {
                 reason: 'PARENT_NOT_FOUND',
                 parentPath,
-                message: `Cannot create folder "${folderName}" — parent folder not found in index.`
+                message: `Cannot create folder \"${folderName}\" — parent folder not found in index.`
             });
             continue;
         }
@@ -872,6 +877,8 @@ async function enforceProjectPermissionsWithLogging(
             });
         }
     }
+    */
+
 
     // Step 3: Process each folder
     for (const folder of folders) {
