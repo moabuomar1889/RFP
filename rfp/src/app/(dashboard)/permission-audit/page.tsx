@@ -227,6 +227,7 @@ function AuditTreeNode({
     expandedPaths,
     onSelect,
     onToggleExpand,
+    onContextMenu,
     level = 0,
 }: {
     node: TreeNode;
