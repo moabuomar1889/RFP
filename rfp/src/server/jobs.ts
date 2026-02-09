@@ -361,19 +361,21 @@ export const enforcePermissions = inngest.createFunction(
                 return true;
             });
 
-            // Filter by targetProjectIds if provided (single project enforcement)
-            if (targetProjectIds.length > 0) {
-                return normalized.filter((p: NormalizedProject) => targetProjectIds.includes(p.id));
-            }
-            return normalized;
+            // Filter to target projects
+            const projectsToEnforce = targetProjectIds.length > 0
+                ? projects.filter((p: NormalizedProject) => targetProjectIds.includes(p.id))
+                : projects;
+            return projectsToEnforce;
         });
 
-        const totalProjects = projects.length;
-        await writeJobLog(jobId, null, null, null, 'projects_found', 'info', {
-            count: totalProjects,
-            projectCodes: projects.map(p => p.prNumber)
-        });
-        await updateJobProgress(jobId, 0, 0, totalProjects);
+        const totalProjects = projectsToEnforce.length;
+        await writeJobLog(jobId, null, null, null, 'projects_found', 'info', { count: totalProjects });
+
+        if (totalProjects === 0) {
+            await writeJobLog(jobId, null, null, null, 'no_projects', 'warning', {});
+            await updateJobProgress(jobId, 100, 0, 0, JOB_STATUS.COMPLETED);
+            return { success: true, totalViolations: 0, totalReverted: 0, totalAdded: 0 };
+        }
 
         let totalViolations = 0;
         let totalReverted = 0;
