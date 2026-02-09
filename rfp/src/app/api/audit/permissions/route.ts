@@ -355,7 +355,29 @@ export async function GET(request: NextRequest) {
         const templateNodes = Array.isArray(template.template_json)
             ? template.template_json
             : template.template_json.template || [];
-        const permissionsMap = buildEffectivePermissionsMap(templateNodes);
+
+        // PHASE-AWARE FILTERING: Only audit folders matching the project's current phase
+        // Template has 2 top-level nodes: "Bidding" and "Project Delivery"
+        const projectPhase = project.phase || 'bidding';
+        const phaseNode = templateNodes.find((n: any) => {
+            const nodeName = (n.text || n.name || '').trim();
+            if (projectPhase === 'execution') {
+                return nodeName === 'Project Delivery';
+            } else {
+                return nodeName === 'Bidding';
+            }
+        });
+
+        if (!phaseNode) {
+            return NextResponse.json({
+                error: `No template node found for phase: ${projectPhase}`,
+                availableNodes: templateNodes.map((n: any) => n.text || n.name)
+            }, { status: 400 });
+        }
+
+        // Build permissions map from ONLY the phase-matching node's children
+        const phaseTemplateNodes = phaseNode.children || phaseNode.nodes || [];
+        const permissionsMap = buildEffectivePermissionsMap(phaseTemplateNodes);
 
         // Get indexed folders for this project
         const { data: folders } = await supabaseAdmin.rpc('list_project_folders', {

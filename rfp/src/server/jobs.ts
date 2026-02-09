@@ -740,7 +740,31 @@ async function enforceProjectPermissionsWithLogging(
         ? template.template_json
         : template.template_json.template || [];
 
-    const permissionsMap = buildPermissionsMap(templateNodes);
+    // PHASE-AWARE FILTERING: Only process folders matching the project's current phase
+    // Template has 2 top-level nodes: "Bidding" and "Project Delivery"
+    // - bidding phase → use "Bidding" node's children
+    // - execution phase → use "Project Delivery" node's children
+    const projectPhase = project.phase || 'bidding';
+    const phaseNode = templateNodes.find((n: any) => {
+        const nodeName = (n.text || n.name || '').trim();
+        if (projectPhase === 'execution') {
+            return nodeName === 'Project Delivery';
+        } else {
+            return nodeName === 'Bidding';
+        }
+    });
+
+    if (!phaseNode) {
+        await writeJobLog(jobId, project.id, project.name, null, 'error', 'error', {
+            message: `No template node found for phase: ${projectPhase}`,
+            availableNodes: templateNodes.map((n: any) => n.text || n.name)
+        });
+        return { violations: 0, reverted: 0, added: 0 };
+    }
+
+    // Build permissions map from ONLY the phase-matching node's children
+    const phaseTemplateNodes = phaseNode.children || phaseNode.nodes || [];
+    const permissionsMap = buildPermissionsMap(phaseTemplateNodes);
 
     // Debug: Log permissions map keys
     await writeJobLog(jobId, project.id, project.name, null, 'debug_map', 'info', {
