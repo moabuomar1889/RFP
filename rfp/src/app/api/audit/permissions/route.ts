@@ -406,10 +406,15 @@ export async function GET(request: NextRequest) {
 
         for (const folder of folders) {
             const templatePath = folder.normalized_template_path || folder.template_path;
-            const expectedPerms = permissionsMap[templatePath];
+
+            // Strip phase prefix since permissionsMap keys don't include it
+            // E.g. "Bidding/SOW" -> "SOW", "Project Delivery/Document Control" -> "Document Control"
+            const pathWithoutPhase = templatePath.replace(/^(Bidding|Project Delivery)\//, '');
+            const expectedPerms = permissionsMap[pathWithoutPhase];
 
             console.log('[AUDIT DEBUG]', {
                 templatePath,
+                pathWithoutPhase,
                 hasMatch: !!expectedPerms,
                 availableKeys: Object.keys(permissionsMap).slice(0, 5)
             });
