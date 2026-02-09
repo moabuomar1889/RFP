@@ -797,12 +797,17 @@ async function enforceProjectPermissionsWithLogging(
 
     // Also store the project's root Drive folder ID for top-level children
     const projectDriveFolderId = project.drive_folder_id || project.driveFolderId;
-    // DISABLED: Auto-create missing folders - was creating folders with wrong names and in wrong locations
-    // TODO: Fix auto-create logic to:
-    // 1. Use correct naming convention per phase (Bidding: PRJ-XXX-RFP-Name, Execution: PRJ-XXX-Name)
-    // 2. Create folders in correct parent hierarchy
-    // 3. Not create duplicates at project root
-    /*
+
+    // Helper: Get Drive folder name based on phase
+    function getDriveFolderName(templatePath: string, folderBaseName: string): string {
+        const projectCode = project.prNumber || project.pr_number;
+        const isInBiddingPhase = templatePath.startsWith('Bidding/');
+        return isInBiddingPhase
+            ? `${projectCode}-RFP-${folderBaseName}`
+            : `${projectCode}-${folderBaseName}`;
+    }
+
+    // Step 2: Create missing folders
     // Sort template paths by depth so parents are created before children
     const allTemplatePaths = Object.keys(permissionsMap).sort(
         (a, b) => a.split('/').length - b.split('/').length
@@ -816,12 +821,17 @@ async function enforceProjectPermissionsWithLogging(
         const folderName = parts[parts.length - 1];
         const parentPath = parts.slice(0, -1).join('/');
 
-        // Find parent's Drive folder ID
+        // Find parent's Drive folder ID from indexed folders
         let parentDriveId: string | undefined;
         if (parentPath) {
-            parentDriveId = pathToDriveId.get(parentPath);
+            // Look up parent in indexed folders
+            const parentFolder = folders.find((f: any) =>
+                (f.normalized_template_path || f.template_path) === parentPath
+            );
+            parentDriveId = parentFolder?.drive_folder_id;
         } else {
-            // Top-level template folder — parent is the project root folder
+            // Top-level folder (e.g., "SOW" in "Bidding/SOW" becomes top-level after stripping)
+            // Parent is the project root folder
             parentDriveId = projectDriveFolderId;
         }
 
@@ -829,14 +839,14 @@ async function enforceProjectPermissionsWithLogging(
             await writeJobLog(jobId, project.id, project.name, templatePath, 'create_folder_skipped', 'warning', {
                 reason: 'PARENT_NOT_FOUND',
                 parentPath,
-                message: `Cannot create folder \"${folderName}\" — parent folder not found in index.`
+                message: `Cannot create folder "${folderName}" — parent folder not found in index.`
             });
             continue;
         }
 
         try {
-            // Prefix folder name with project code for Drive naming
-            const driveFolderName = `${project.prNumber || project.pr_number}-RFP-${folderName}`;
+            // Get correct Drive folder name based on phase
+            const driveFolderName = getDriveFolderName(templatePath, folderName);
             const newFolder = await createFolder(driveFolderName, parentDriveId);
             const newFolderId = newFolder.id!;
 
@@ -877,7 +887,6 @@ async function enforceProjectPermissionsWithLogging(
             });
         }
     }
-    */
 
 
     // Step 3: Process each folder
