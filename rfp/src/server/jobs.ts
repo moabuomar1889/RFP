@@ -380,6 +380,8 @@ export const enforcePermissions = inngest.createFunction(
         let totalViolations = 0;
         let totalReverted = 0;
         let totalAdded = 0;
+        let totalRemoved = 0;
+        let totalErrors = 0;
         let completedProjects = 0;
 
         // Enforce permissions for each project using RESET-THEN-APPLY approach
@@ -395,6 +397,10 @@ export const enforcePermissions = inngest.createFunction(
                 try {
                     // Use NEW reset-then-apply enforcement function
                     const result = await enforceProjectPermissionsWithReset(project, protectedPrincipals, jobId);
+
+                    totalRemoved += result.removed;
+                    totalAdded += result.added;
+                    totalErrors += result.errors;
 
                     await writeJobLog(jobId, project.id, project.name, null, 'enforce_complete', 'success', {
                         removed: result.removed,
@@ -423,14 +429,14 @@ export const enforcePermissions = inngest.createFunction(
         await step.run('complete-job', async () => {
             await writeJobLog(jobId, null, null, null, 'job_completed', 'success', {
                 totalProjects,
-                totalViolations,
-                totalReverted,
-                totalAdded
+                removed: totalRemoved,
+                added: totalAdded,
+                errors: totalErrors
             });
             await updateJobProgress(jobId, 100, totalProjects, totalProjects, JOB_STATUS.COMPLETED);
         });
 
-        return { success: true, totalViolations, totalReverted, totalAdded };
+        return { success: true, removed: totalRemoved, added: totalAdded, errors: totalErrors };
     }
 );
 
