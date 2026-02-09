@@ -759,6 +759,95 @@ async function enforceProjectPermissionsWithLogging(
 
     await writeJobLog(jobId, project.id, project.name, null, 'folders_found', 'info', { count: folders.length });
 
+    // Step 2b: Auto-create missing folders that exist in template but not in Drive
+    const indexedTemplatePaths = new Set(
+        folders.map((f: any) => f.normalized_template_path || f.template_path)
+    );
+    // Build a map of template paths → Drive folder IDs for parent lookup
+    const pathToDriveId = new Map<string, string>();
+    for (const f of folders) {
+        const tp = f.normalized_template_path || f.template_path;
+        pathToDriveId.set(tp, f.drive_folder_id);
+    }
+
+    // Also store the project's root Drive folder ID for top-level children
+    const projectDriveFolderId = project.drive_folder_id || project.driveFolderId;
+
+    // Sort template paths by depth so parents are created before children
+    const allTemplatePaths = Object.keys(permissionsMap).sort(
+        (a, b) => a.split('/').length - b.split('/').length
+    );
+
+    for (const templatePath of allTemplatePaths) {
+        if (indexedTemplatePaths.has(templatePath)) continue;
+
+        // Determine parent path and folder name
+        const parts = templatePath.split('/');
+        const folderName = parts[parts.length - 1];
+        const parentPath = parts.slice(0, -1).join('/');
+
+        // Find parent's Drive folder ID
+        let parentDriveId: string | undefined;
+        if (parentPath) {
+            parentDriveId = pathToDriveId.get(parentPath);
+        } else {
+            // Top-level template folder — parent is the project root folder
+            parentDriveId = projectDriveFolderId;
+        }
+
+        if (!parentDriveId) {
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'create_folder_skipped', 'warning', {
+                reason: 'PARENT_NOT_FOUND',
+                parentPath,
+                message: `Cannot create folder "${folderName}" — parent folder not found in index.`
+            });
+            continue;
+        }
+
+        try {
+            // Prefix folder name with project code for Drive naming
+            const driveFolderName = `${project.prNumber || project.pr_number}-RFP-${folderName}`;
+            const newFolder = await createFolder(driveFolderName, parentDriveId);
+            const newFolderId = newFolder.id!;
+
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'create_folder', 'success', {
+                folderName: driveFolderName,
+                driveFolderId: newFolderId,
+                parentDriveId,
+            });
+
+            // Register in DB via upsert_folder_index
+            const client = getRawSupabaseAdmin();
+            const expectedPerms = permissionsMap[templatePath];
+            await client.rpc('upsert_folder_index', {
+                p_project_id: project.id,
+                p_template_path: templatePath,
+                p_drive_folder_id: newFolderId,
+                p_expected_limited_access: expectedPerms?.limitedAccess || false,
+                p_expected_groups: expectedPerms?.groups || [],
+                p_expected_users: expectedPerms?.users || [],
+            });
+
+            // Add to processing arrays so permissions get applied
+            const newFolderEntry = {
+                drive_folder_id: newFolderId,
+                template_path: templatePath,
+                normalized_template_path: templatePath,
+            };
+            folders.push(newFolderEntry);
+            indexedTemplatePaths.add(templatePath);
+            pathToDriveId.set(templatePath, newFolderId);
+
+            await sleep(RATE_LIMIT_DELAY);
+        } catch (err: any) {
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'create_folder_failed', 'error', {
+                folderName,
+                parentDriveId,
+                error: err.message,
+            });
+        }
+    }
+
     // Step 3: Process each folder
     for (const folder of folders) {
         // Use normalized path for matching against template
@@ -826,12 +915,14 @@ async function enforceProjectPermissionsWithLogging(
             expectedEmails.delete(email);
         }
 
-        // Build map of actual ACTIVE emails (exclude deleted permissions from Limited Access)
+        // Build map of actual ACTIVE emails (exclude deleted and "Access removed" permissions)
         const actualEmailsMap = new Map<string, any>();
         for (const perm of actualPerms) {
             // Skip permissions that were removed due to Limited Access
             // These have "deleted" set to true
             if (perm.deleted === true) continue;
+            // Skip "Access removed" permissions (view=metadata) — phantom perms on limited-access folders
+            if (perm.view === 'metadata') continue;
             if (perm.emailAddress) {
                 actualEmailsMap.set(perm.emailAddress.toLowerCase(), perm);
             }

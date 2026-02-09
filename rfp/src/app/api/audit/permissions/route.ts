@@ -130,6 +130,10 @@ function comparePermissions(
     let inheritedNonRemovableCount = 0;
 
     for (const p of actual) {
+        // Skip "Access removed" permissions (view=metadata) — these are phantom permissions
+        // on limited-access folders that can only see folder name, NOT contents. Never count them.
+        if (p.view === 'metadata') continue;
+
         const cls = classifyInheritedPermission(p, driveId);
         if (cls === 'NOT_INHERITED') {
             directActual.push(p);

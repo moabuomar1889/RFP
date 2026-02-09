@@ -1,354 +1,566 @@
 [
   {
     "name": "Project Delivery",
-    "users": [],
-    "groups": [],
+    "limitedAccess": false,
     "children": [
       {
         "name": "Quantity Survey",
-        "users": [],
-        "groups": [],
-        "limitedAccess": false
+        "limitedAccess": true,
+        "groups": [
+          {
+            "role": "writer",
+            "email": "operation-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-managers@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "quality-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "survey-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "technical-team@dtgsa.com"
+          }
+        ]
       },
       {
         "name": "Engineering (EPC ONLY)",
-        "users": [],
-        "groups": [],
-        "limitedAccess": false
+        "limitedAccess": true,
+        "groups": [
+          {
+            "role": "writer",
+            "email": "dc-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "operation-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-managers@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "quality-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "survey-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "technical-team@dtgsa.com"
+          }
+        ]
       },
       {
         "name": "Project Control",
-        "users": [],
-        "groups": [],
+        "limitedAccess": true,
+        "groups": [
+          {
+            "role": "writer",
+            "email": "projects-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-managers@dtgsa.com"
+          }
+        ],
         "children": [
           {
             "name": "Commercial",
-            "users": [],
-            "groups": [],
             "children": [
               {
-                "name": "Invoices",
-                "users": [],
-                "groups": [],
-                "limitedAccess": false
+                "name": "Invoices"
               },
               {
                 "name": "Agreements",
-                "users": [],
-                "groups": [],
-                "children": [
+                "users": [
                   {
-                    "name": "Change Orders",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "role": "writer",
+                    "email": "muath@dtgsa.com"
                   },
                   {
-                    "name": "Contract & PO",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "role": "writer",
+                    "email": "qandil@dtgsa.com"
                   }
                 ],
-                "limitedAccess": false
+                "children": [
+                  {
+                    "name": "Change Orders"
+                  },
+                  {
+                    "name": "Contract & PO"
+                  }
+                ]
               }
-            ],
-            "limitedAccess": false
+            ]
           },
           {
             "name": "Planning",
-            "users": [],
-            "groups": [],
             "children": [
               {
-                "name": "Planning Deliverables",
-                "users": [],
-                "groups": [],
-                "limitedAccess": false
+                "name": "Planning Deliverables"
               },
               {
-                "name": "Reports",
-                "users": [],
-                "groups": [],
-                "limitedAccess": false
+                "name": "Reports"
               }
-            ],
-            "limitedAccess": false
+            ]
           }
-        ],
-        "limitedAccess": false
+        ]
       },
       {
         "name": "Quality Control",
-        "users": [],
-        "groups": [],
-        "limitedAccess": false
+        "limitedAccess": true,
+        "groups": [
+          {
+            "role": "writer",
+            "email": "dc-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-managers@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "quality-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "technical-team@dtgsa.com"
+          }
+        ]
       },
       {
         "name": "Document Control",
-        "users": [],
-        "groups": [],
-        "children": [
+        "limitedAccess": true,
+        "groups": [
           {
-            "name": "MDR",
-            "users": [],
-            "groups": [],
-            "limitedAccess": false
+            "role": "writer",
+            "email": "projects-control@dtgsa.com"
           },
           {
-            "name": "Forms",
-            "users": [],
-            "groups": [],
-            "limitedAccess": false
+            "role": "writer",
+            "email": "projects-managers@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "quality-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "dc-team@dtgsa.com"
+          }
+        ],
+        "children": [
+          {
+            "name": "MDR"
+          },
+          {
+            "name": "Forms"
           },
           {
             "name": "Transmittals",
-            "users": [],
-            "groups": [],
             "children": [
               {
-                "name": "Sent",
-                "users": [],
-                "groups": [],
-                "limitedAccess": false
+                "name": "Sent"
               },
               {
-                "name": "Received",
-                "users": [],
-                "groups": [],
-                "limitedAccess": false
+                "name": "Received"
               }
-            ],
-            "limitedAccess": false
+            ]
           },
           {
             "name": "Submittals",
-            "users": [],
-            "groups": [],
             "children": [
               {
                 "name": "Received",
-                "users": [],
-                "groups": [],
                 "children": [
                   {
                     "name": "SI & CCCOR",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "overrides": {
+                      "remove": [
+                        {
+                          "type": "group",
+                          "identifier": "quality-control@dtgsa.com"
+                        }
+                      ],
+                      "downgrade": []
+                    }
                   },
                   {
                     "name": "Letters",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "overrides": {
+                      "remove": [
+                        {
+                          "type": "group",
+                          "identifier": "quality-control@dtgsa.com"
+                        }
+                      ],
+                      "downgrade": []
+                    }
                   },
                   {
-                    "name": "Quality Control",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "Quality Control"
                   },
                   {
                     "name": "Project Control",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "overrides": {
+                      "remove": [
+                        {
+                          "type": "group",
+                          "identifier": "quality-control@dtgsa.com"
+                        }
+                      ],
+                      "downgrade": []
+                    }
                   },
                   {
-                    "name": "Procurement",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "Procurement"
                   },
                   {
-                    "name": "Minutes of Meetings",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "Minutes of Meetings"
                   },
                   {
                     "name": "EHS",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "overrides": {
+                      "remove": [
+                        {
+                          "type": "group",
+                          "identifier": "quality-control@dtgsa.com"
+                        }
+                      ],
+                      "downgrade": []
+                    }
                   },
                   {
-                    "name": "Construction",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "Construction"
                   }
-                ],
-                "limitedAccess": false
+                ]
               },
               {
                 "name": "Ongoing",
-                "users": [],
-                "groups": [],
                 "children": [
                   {
-                    "name": "SI & CCCOR",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "SI & CCCOR"
                   },
                   {
-                    "name": "Letters",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "Letters"
                   },
                   {
-                    "name": "Quality Control",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "Quality Control"
                   },
                   {
-                    "name": "Project Control",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "Project Control"
                   },
                   {
-                    "name": "Procurement",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "Procurement"
                   },
                   {
-                    "name": "Minutes of Meetings",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "Minutes of Meetings"
                   },
                   {
                     "name": "EHS",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "groups": [
+                      {
+                        "role": "writer",
+                        "email": "hse-team@dtgsa.com"
+                      }
+                    ],
+                    "overrides": {
+                      "remove": [
+                        {
+                          "type": "group",
+                          "identifier": "quality-control@dtgsa.com"
+                        }
+                      ],
+                      "downgrade": []
+                    }
                   },
                   {
-                    "name": "Construction",
-                    "users": [],
-                    "groups": [],
-                    "limitedAccess": false
+                    "name": "Construction"
                   }
-                ],
-                "limitedAccess": false
+                ]
               }
-            ],
-            "limitedAccess": false
+            ]
           }
-        ],
-        "limitedAccess": false
+        ]
       },
       {
         "name": "Survey",
-        "users": [],
-        "groups": [],
-        "limitedAccess": false
+        "limitedAccess": true,
+        "groups": [
+          {
+            "role": "writer",
+            "email": "dc-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "operation-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-managers@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "quality-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "survey-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "technical-team@dtgsa.com"
+          }
+        ]
       },
       {
         "name": "Operation",
-        "users": [],
-        "groups": [],
-        "limitedAccess": false
+        "limitedAccess": true,
+        "groups": [
+          {
+            "role": "writer",
+            "email": "projects-managers@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "operation-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "hse-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "quality-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "survey-team@dtgsa.com"
+          }
+        ]
       },
       {
         "name": "IFC Drawings",
-        "users": [],
-        "groups": [],
-        "limitedAccess": false
+        "limitedAccess": true,
+        "groups": [
+          {
+            "role": "writer",
+            "email": "operation-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-managers@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "quality-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "survey-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "technical-team@dtgsa.com"
+          }
+        ]
       },
       {
         "name": "HSE",
-        "users": [],
-        "groups": [],
-        "limitedAccess": false
+        "limitedAccess": true,
+        "groups": [
+          {
+            "role": "writer",
+            "email": "technical-team@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-control@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "projects-managers@dtgsa.com"
+          },
+          {
+            "role": "writer",
+            "email": "hse-team@dtgsa.com"
+          }
+        ]
       }
-    ],
-    "limitedAccess": false
+    ]
   },
   {
     "name": "Bidding",
-    "users": [],
-    "groups": [],
+    "limitedAccess": false,
     "children": [
       {
         "name": "Commercial Proposal",
-        "users": [],
-        "groups": [],
+        "limitedAccess": true,
+        "groups": [
+          {
+            "role": "writer",
+            "email": "projects-managers@dtgsa.com"
+          }
+        ],
         "children": [
           {
             "name": "Admin Only",
-            "users": [],
-            "groups": [],
-            "limitedAccess": false
+            "limitedAccess": true,
+            "overrides": {
+              "remove": [
+                {
+                  "type": "group",
+                  "identifier": "projects-managers@dtgsa.com"
+                }
+              ],
+              "downgrade": []
+            }
           }
-        ],
-        "limitedAccess": false
+        ]
       },
       {
         "name": "Vendors Quotations",
-        "users": [],
-        "groups": [],
-        "children": [
+        "limitedAccess": true,
+        "groups": [
           {
-            "name": "Civil and Finishes",
-            "users": [],
-            "groups": [],
-            "limitedAccess": false
-          },
-          {
-            "name": "IT",
-            "users": [],
-            "groups": [],
-            "limitedAccess": false
-          },
-          {
-            "name": "E&I",
-            "users": [],
-            "groups": [],
-            "limitedAccess": false
-          },
-          {
-            "name": "Mechanical",
-            "users": [],
-            "groups": [],
-            "limitedAccess": false
+            "role": "organizer",
+            "email": "projects-managers@dtgsa.com"
           }
         ],
-        "limitedAccess": false
+        "users": [
+          {
+            "role": "organizer",
+            "email": "a.albaz@dtgsa.com"
+          }
+        ],
+        "children": [
+          {
+            "name": "Civil and Finishes"
+          },
+          {
+            "name": "IT"
+          },
+          {
+            "name": "E&I"
+          },
+          {
+            "name": "Mechanical"
+          }
+        ]
       },
       {
         "name": "Technical Proposal",
-        "users": [],
-        "groups": [],
+        "limitedAccess": false,
         "children": [
           {
             "name": "TBE",
-            "users": [],
-            "groups": [],
-            "limitedAccess": false
+            "limitedAccess": true,
+            "groups": [
+              {
+                "role": "organizer",
+                "email": "technical-team@dtgsa.com"
+              },
+              {
+                "role": "organizer",
+                "email": "projects-managers@dtgsa.com"
+              },
+              {
+                "role": "organizer",
+                "email": "projects-control@dtgsa.com"
+              }
+            ],
+            "users": [
+              {
+                "role": "organizer",
+                "email": "Marwan@dtgsa.com"
+              }
+            ]
           },
           {
             "name": "Technical Submittal",
-            "users": [],
-            "groups": [],
-            "limitedAccess": false
+            "limitedAccess": true,
+            "groups": [
+              {
+                "role": "organizer",
+                "email": "technical-team@dtgsa.com"
+              },
+              {
+                "role": "organizer",
+                "email": "projects-managers@dtgsa.com"
+              }
+            ],
+            "users": [
+              {
+                "role": "organizer",
+                "email": "a.albaz@dtgsa.com"
+              },
+              {
+                "role": "organizer",
+                "email": "abed.ahmad@dtgsa.com"
+              },
+              {
+                "role": "organizer",
+                "email": "Waseem@dtgsa.com"
+              }
+            ]
           }
-        ],
-        "limitedAccess": false
+        ]
       },
       {
         "name": "SOW",
-        "users": [],
-        "groups": [],
-        "limitedAccess": false
+        "limitedAccess": true,
+        "groups": [
+          {
+            "role": "organizer",
+            "email": "dc-team@dtgsa.com"
+          },
+          {
+            "role": "organizer",
+            "email": "hse-team@dtgsa.com"
+          },
+          {
+            "role": "organizer",
+            "email": "projects-control@dtgsa.com"
+          },
+          {
+            "role": "organizer",
+            "email": "projects-managers@dtgsa.com"
+          },
+          {
+            "role": "organizer",
+            "email": "technical-team@dtgsa.com"
+          }
+        ]
       }
-    ],
-    "limitedAccess": false
+    ]
   }
 ]

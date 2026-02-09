@@ -15,6 +15,8 @@ export interface PermissionDetails {
     permissionDetails?: any[];
     inherited: boolean;
     inheritedFrom?: string;
+    /** When 'metadata', this is an "Access removed" permission on a limited-access folder */
+    view?: string;
 }
 
 export interface VerificationReport {
@@ -293,7 +295,7 @@ export async function listPermissions(
     const response = await drive.permissions.list({
         fileId: folderId,
         supportsAllDrives: true,
-        fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,permissionDetails)',
+        fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,view,permissionDetails)',
     });
 
     const permissions = response.data.permissions || [];
@@ -310,7 +312,9 @@ export async function listPermissions(
         // Robust inherited detection: check top-level field first (via type assertion), then permissionDetails
         // Note: TypeScript definitions don't include inherited at top level, but it exists in the API response
         inherited: ((p as any).inherited === true) || (p.permissionDetails?.some(d => d.inherited) ?? false),
-        inheritedFrom: (p as any).inheritedFrom ?? p.permissionDetails?.find(d => d.inherited)?.inheritedFrom
+        inheritedFrom: (p as any).inheritedFrom ?? p.permissionDetails?.find(d => d.inherited)?.inheritedFrom,
+        // 'metadata' = "Access removed" on limited-access folder (can see name, not contents)
+        view: p.view ?? undefined,
     }));
 }
 
