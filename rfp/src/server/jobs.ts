@@ -892,10 +892,18 @@ async function enforceProjectPermissionsWithLogging(
             const actualFolderName = actualFolder?.name;
 
             if (actualFolderName) {
-                // Calculate expected Drive folder name based on template path
+                // Calculate expected Drive folder name based on template path and phase
                 const pathParts = templatePath.split('/');
                 const expectedBaseName = pathParts[pathParts.length - 1];
-                const expectedDriveName = `${project.prNumber || project.pr_number}-RFP-${expectedBaseName}`;
+                const phasePrefix = pathParts[0]; // "Bidding" or "Project Delivery"
+
+                // Different naming convention per phase:
+                // Bidding: PRJ-XXX-RFP-{basename}
+                // Project Delivery: PRJ-XXX-{basename}
+                const projectCode = project.prNumber || project.pr_number;
+                const expectedDriveName = phasePrefix === 'Bidding'
+                    ? `${projectCode}-RFP-${expectedBaseName}`
+                    : `${projectCode}-${expectedBaseName}`;
 
                 if (actualFolderName !== expectedDriveName) {
                     try {
