@@ -786,7 +786,7 @@ async function enforceProjectPermissionsWithLogging(
 
     // Step 2a: Apply scope filtering if specified in job metadata
     // Fetch job metadata from database
-    const { data: jobData } = await client
+    const { data: jobData } = await supabaseAdmin
         .from('jobs')
         .select('metadata')
         .eq('id', jobId)
