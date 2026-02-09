@@ -883,11 +883,10 @@ export default function PermissionAuditPage() {
         if (!selectedProjectId) return;
         setEnforcing(true);
         try {
-            const res = await fetch('/api/jobs', {
+            const res = await fetch('/api/jobs/enforce-permissions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    type: 'enforce_permissions',
                     projectId: selectedProjectId,
                     metadata: { scope: 'single', targetPath: folderPath }
                 })
@@ -911,11 +910,10 @@ export default function PermissionAuditPage() {
         if (!selectedProjectId) return;
         setEnforcing(true);
         try {
-            const res = await fetch('/api/jobs', {
+            const res = await fetch('/api/jobs/enforce-permissions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    type: 'enforce_permissions',
                     projectId: selectedProjectId,
                     metadata: { scope: 'branch', targetPath: folderPath }
                 })
