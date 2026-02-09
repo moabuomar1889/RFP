@@ -1,10 +1,5 @@
 -- Check if project PRJ-020 has folders in folder_index
-SELECT 
-  fi.id,
-  fi.project_id,
-  fi.template_path,
-  fi.drive_id,
-  fi.drive_name
+SELECT *
 FROM rfp.folder_index fi
 JOIN rfp.projects p ON fi.project_id = p.id
 WHERE p.pr_number = 'PRJ-020'
