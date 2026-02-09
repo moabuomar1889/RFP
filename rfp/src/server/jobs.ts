@@ -380,39 +380,43 @@ export const enforcePermissions = inngest.createFunction(
         let totalAdded = 0;
         let completedProjects = 0;
 
-        // Process each project
-        for (const project of projects) {
-            await step.run(`enforce-${project.prNumber}`, async () => {
-                // Log project start
-                await writeJobLog(jobId, project.id, project.name, null, 'start_project', 'info', {
-                    pr_number: project.prNumber,
+        // Enforce permissions for each project using RESET-THEN-APPLY approach
+        for (let i = 0; i < projectsToEnforce.length; i++) {
+            const project = projectsToEnforce[i];
+
+            await step.run(`enforce-project-${project.id}`, async () => {
+                await writeJobLog(jobId, project.id, project.name, null, 'enforce_start', 'info', {
+                    pr_number: project.pr_number || project.prNumber,
                     phase: project.phase
                 });
 
-                const result = await enforceProjectPermissionsWithLogging(
-                    project,
-                    protectedPrincipals,
-                    jobId
-                );
+                try {
+                    // Use NEW reset-then-apply enforcement function
+                    const result = await enforceProjectPermissionsWithReset(project, protectedPrincipals, jobId);
 
-                totalViolations += result.violations;
-                totalReverted += result.reverted;
-                totalAdded += result.added;
+                    await writeJobLog(jobId, project.id, project.name, null, 'enforce_complete', 'success', {
+                        removed: result.removed,
+                        added: result.added,
+                        errors: result.errors
+                    });
 
-                // Log project complete
-                await writeJobLog(jobId, project.id, project.name, null, 'complete_project', 'success', {
-                    pr_number: project.prNumber,
-                    violations: result.violations,
-                    reverted: result.reverted,
-                    added: result.added
-                });
-
-                completedProjects++;
-                const progress = Math.round((completedProjects / totalProjects) * 100);
-                await updateJobProgress(jobId, progress, completedProjects, totalProjects);
+                    // Update progress
+                    const client = getRawSupabaseAdmin();
+                    await client.rpc('update_job_progress', {
+                        p_job_id: jobId,
+                        p_progress: Math.round(((i + 1) / projectsToEnforce.length) * 100),
+                        p_completed_tasks: i + 1,
+                        p_total_tasks: projectsToEnforce.length,
+                        p_status: JOB_STATUS.RUNNING
+                    });
+                } catch (err: any) {
+                    await writeJobLog(jobId, project.id, project.name, null, 'enforce_failed', 'error', {
+                        error: err.message,
+                        stack: err.stack
+                    });
+                }
             });
         }
-
         // Mark job complete
         await step.run('complete-job', async () => {
             await writeJobLog(jobId, null, null, null, 'job_completed', 'success', {
