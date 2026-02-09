@@ -388,7 +388,7 @@ export const enforcePermissions = inngest.createFunction(
 
             await step.run(`enforce-project-${project.id}`, async () => {
                 await writeJobLog(jobId, project.id, project.name, null, 'enforce_start', 'info', {
-                    pr_number: project.pr_number || project.prNumber,
+                    pr_number: project.prNumber,
                     phase: project.phase
                 });
 
