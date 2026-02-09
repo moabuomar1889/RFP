@@ -45,6 +45,7 @@ import {
     Info,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ContextMenu } from "@/components/ui/context-menu";
 
 // ─── Types (unchanged) ──────────────────────────────────────
 // Backend ComparisonRow — pre-computed by API
@@ -234,6 +235,7 @@ function AuditTreeNode({
     onSelect: (path: string) => void;
     onToggleExpand: (path: string) => void;
     level?: number;
+    onContextMenu?: (e: React.MouseEvent, path: string) => void;
 }) {
     const isSelected = selectedPath === node.path;
     const isExpanded = expandedPaths.has(node.path);
@@ -249,6 +251,10 @@ function AuditTreeNode({
                     }`}
                 style={{ paddingLeft: `${level * 16 + 8}px` }}
                 onClick={() => onSelect(node.path)}
+                onContextMenu={(e) => {
+                    e.preventDefault();
+                    onContextMenu?.(e, node.path);
+                }}
             >
                 {hasChildren ? (
                     <button
@@ -291,6 +297,7 @@ function AuditTreeNode({
                         expandedPaths={expandedPaths}
                         onSelect={onSelect}
                         onToggleExpand={onToggleExpand}
+                        onContextMenu={onContextMenu}
                         level={level + 1}
                     />
                 ))}
@@ -762,6 +769,13 @@ export default function PermissionAuditPage() {
     const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
     const [filter, setFilter] = useState<"all" | "issues">("all");
 
+    // Context menu state
+    const [contextMenu, setContextMenu] = useState<{
+        folderPath: string;
+        x: number;
+        y: number;
+    } | null>(null);
+
     // Fetch projects
     useEffect(() => {
         const fetchProjects = async () => {
@@ -862,6 +876,62 @@ export default function PermissionAuditPage() {
             setEnforcing(false);
         }
     }, []);
+
+    // Enforce single folder
+    const enforceSingleFolder = useCallback(async (folderPath: string) => {
+        if (!selectedProjectId) return;
+        setEnforcing(true);
+        try {
+            const res = await fetch('/api/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'enforce_permissions',
+                    projectId: selectedProjectId,
+                    metadata: { scope: 'single', targetPath: folderPath }
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(`Enforcing: ${folderPath.split('/').pop()}`);
+                window.location.href = '/jobs';
+            } else {
+                toast.error('Failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            toast.error('Error starting enforcement job');
+        } finally {
+            setEnforcing(false);
+        }
+    }, [selectedProjectId]);
+
+    // Enforce folder + children
+    const enforceFolderBranch = useCallback(async (folderPath: string) => {
+        if (!selectedProjectId) return;
+        setEnforcing(true);
+        try {
+            const res = await fetch('/api/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'enforce_permissions',
+                    projectId: selectedProjectId,
+                    metadata: { scope: 'branch', targetPath: folderPath }
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success(`Enforcing: ${folderPath.split('/').pop()} + children`);
+                window.location.href = '/jobs';
+            } else {
+                toast.error('Failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (error) {
+            toast.error('Error starting enforcement');
+        } finally {
+            setEnforcing(false);
+        }
+    }, [selectedProjectId]);
 
     // Export
     const exportAudit = async (format: "csv" | "json") => {
@@ -1032,6 +1102,14 @@ export default function PermissionAuditPage() {
                                         expandedPaths={expandedPaths}
                                         onSelect={setSelectedPath}
                                         onToggleExpand={handleToggleExpand}
+                                        onContextMenu={(e, path) => {
+                                            e.preventDefault();
+                                            setContextMenu({
+                                                folderPath: path,
+                                                x: e.clientX,
+                                                y: e.clientY
+                                            });
+                                        }}
                                     />
                                 ))}
                                 {filteredTree.length === 0 && (
@@ -1129,6 +1207,27 @@ export default function PermissionAuditPage() {
                         </div>
                     </CardContent>
                 </Card>
+            )}
+
+            {/* Context Menu */}
+            {contextMenu && (
+                <ContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    onClose={() => setContextMenu(null)}
+                    options={[
+                        {
+                            label: "Enforce This Folder Only",
+                            icon: Shield,
+                            onClick: () => enforceSingleFolder(contextMenu.folderPath)
+                        },
+                        {
+                            label: "Enforce Folder + Children",
+                            icon: FolderOpen,
+                            onClick: () => enforceFolderBranch(contextMenu.folderPath)
+                        }
+                    ]}
+                />
             )}
         </div>
     );

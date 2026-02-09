@@ -1,0 +1,108 @@
+// Complete context menu implementation for permission-audit page
+// This needs to be manually integrated due to file editing complexity
+
+/**
+ * STEP 1: Add import after line 47
+ */
+// ADD THIS LINE AFTER: import { toast } from "sonner";
+// import { ContextMenu } from "@/components/ui/context-menu";
+
+/**
+ * STEP 2: Add onContextMenu prop to AuditTreeNode (after line 236)
+ */
+// IN AuditTreeNode props interface, ADD:
+// onContextMenu?: (e: React.MouseEvent, path: string) => void;
+
+/**
+ * STEP 3: Add context menu handler to folder div (around line 250)
+ */
+// IN THE FOLDER DIV with onClick={() => onSelect(node.path)}, ADD:
+// onContextMenu={(e) => {
+//     e.preventDefault();
+//     onContextMenu?.(e, node.path);
+// }}
+
+/**
+ * STEP 4: Pass onContextMenu to child AuditTreeNode (around line 293)
+ */
+// IN THE child AuditTreeNode component, ADD prop:
+// onContextMenu={onContextMenu}
+
+/**
+ * STEP 5: Add context menu state in main component (after line 763)
+ */
+// After: const [filter, setFilter] = useState<"all" | "issues">("all");
+// ADD:
+// const [contextMenu, setContextMenu] = useState<{
+//     folderPath: string;
+//     x: number;
+//     y: number;
+// } | null>(null);
+
+/**
+ * STEP 6: Add enforcement functions (after line 864, after enforceAll
+
+ function)
+ */
+const enforceSingleFolder = async (folderPath: string) => {
+    if (!selectedProjectId) return;
+    setEnforcing(true);
+    try {
+        const res = await fetch('/api/jobs', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                type: 'enforce_permissions',
+                projectId: selectedProjectId,
+                metadata: { scope: 'single', targetPath: folderPath }
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            toast.success(`Started enforcement for: ${folderPath.split('/').pop()}`);
+window.location.href = '/jobs';
+        } else {
+            toast.error('Failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        toast.error('Error starting enforcement job');
+    } finally {
+        setEnforcing(false);
+    }
+};
+
+const enforceFolderBranch = async (folderPath: string) => {
+    // Same as above but metadata.scope = 'branch'
+};
+
+/**
+ * STEP 7: Add onContextMenu handler when rendering tree (around line 1035)
+ */
+// IN filteredTree.map where AuditTreeNode is rendered, ADD:
+// onContextMenu={(e, path) => {
+//     e.preventDefault();
+//     setContextMenu({ folderPath: path, x: e.clientX, y: e.clientY });
+// }}
+
+/**
+ * STEP 8: Render ContextMenu at end of JSX (before closing </div>)
+ */
+// {contextMenu && (
+//     <ContextMenu
+//         x={contextMenu.x}
+//         y={contextMenu.y}
+//         onClose={() => setContextMenu(null)}
+//         options={[
+//             {
+//                 label: "Enforce This Folder Only",
+//                 icon: Shield,
+//                 onClick: () => enforceSingleFolder(contextMenu.folderPath)
+//             },
+//             {
+//                 label: "Enforce Folder + Children",
+//                 icon: FolderOpen,
+//                 onClick: () => enforceFolderBranch(contextMenu.folderPath)
+//             }
+//         ]}
+//     />
+// )}
