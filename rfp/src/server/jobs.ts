@@ -513,16 +513,14 @@ export const buildFolderIndex = inngest.createFunction(
                     return { foldersFound: 0, foldersUpserted: 0, error: driveError.message };
                 }
 
-                // Upsert to folder_index using direct table insert
-                // (upsert_folder_index RPC references columns that don't exist in the actual table)
+                // Upsert to folder_index using RPC (rfp schema not exposed in PostgREST)
                 let upsertedCount = 0;
                 for (const folder of folders) {
-                    const { error } = await client.schema('rfp').from('folder_index')
-                        .upsert({
-                            project_id: project.id,
-                            template_path: folder.path,
-                            drive_folder_id: folder.id,
-                        }, { onConflict: 'drive_folder_id' });
+                    const { error } = await client.rpc('upsert_folder_index', {
+                        p_project_id: project.id,
+                        p_template_path: folder.path,
+                        p_drive_folder_id: folder.id,
+                    });
 
                     if (error) {
                         console.error(`Failed to upsert folder ${folder.path}:`, error);
