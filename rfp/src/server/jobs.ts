@@ -1488,7 +1488,7 @@ async function enforceProjectPermissionsWithReset(
 
     // Step 3: Get folders to process (with scope filtering)
     let folders = await supabaseAdmin
-        .from('folder_index')
+        .schema('rfp').from('folder_index')
         .select('*')
         .eq('project_id', project.id)
         .order('template_path');

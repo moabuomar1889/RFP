@@ -235,9 +235,12 @@ function JobLogViewer({ jobId, isActive }: { jobId: string; isActive: boolean })
 
     useEffect(() => {
         fetchLogs();
-        const interval = setInterval(fetchLogs, 2000);
-        return () => clearInterval(interval);
-    }, [fetchLogs]);
+        // Only poll while job is still running
+        if (isActive) {
+            const interval = setInterval(fetchLogs, 2000);
+            return () => clearInterval(interval);
+        }
+    }, [fetchLogs, isActive]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -544,11 +547,13 @@ export default function JobsPage() {
         fetchJobs();
     }, [fetchJobs]);
 
-    // Auto-refresh every 5 seconds
+    // Auto-refresh only when there are running jobs
     useEffect(() => {
+        const hasRunning = jobs.some(j => j.status === 'running');
+        if (!hasRunning) return;
         const interval = setInterval(fetchJobs, 5000);
         return () => clearInterval(interval);
-    }, [fetchJobs]);
+    }, [fetchJobs, jobs]);
 
     // FIX: Stop Job — POST /api/jobs/stop with { jobId }
     const stopJob = async (jobId: string) => {
