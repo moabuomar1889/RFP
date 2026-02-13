@@ -380,11 +380,11 @@ export async function GET(request: NextRequest) {
         const permissionsMap = buildEffectivePermissionsMap(phaseTemplateNodes);
 
         // Get indexed folders for this project
-        const { data: folders } = await supabaseAdmin.rpc('list_project_folders', {
+        const { data: rawFolders } = await supabaseAdmin.rpc('list_project_folders', {
             p_project_id: projectId
         });
 
-        if (!folders || folders.length === 0) {
+        if (!rawFolders || rawFolders.length === 0) {
             return NextResponse.json({
                 success: true,
                 result: {
@@ -401,16 +401,74 @@ export async function GET(request: NextRequest) {
             });
         }
 
+        // Deduplicate folders by drive_folder_id
+        // folder_index can have two entries for same folder: one from enforce (template-style path)
+        // and one from rebuild (Drive-style path). Prefer template-style paths.
+        const folderMap = new Map<string, any>();
+        for (const folder of rawFolders) {
+            const existing = folderMap.get(folder.drive_folder_id);
+            if (!existing) {
+                folderMap.set(folder.drive_folder_id, folder);
+            } else {
+                // Prefer the path that matches a permissionsMap key (template-style)
+                const existingPath = (existing.normalized_template_path || existing.template_path || '')
+                    .replace(/^(Bidding|Project Delivery)\//, '');
+                const newPath = (folder.normalized_template_path || folder.template_path || '')
+                    .replace(/^(Bidding|Project Delivery)\//, '');
+                if (!permissionsMap[existingPath] && permissionsMap[newPath]) {
+                    folderMap.set(folder.drive_folder_id, folder);
+                }
+            }
+        }
+        const folders = Array.from(folderMap.values());
+
+        // Helper: Normalize Drive-style paths to template-matching paths
+        // "PRJ-017-RFP/3-PRJ-017-RFP-Vendors Quotations" → "Vendors Quotations"
+        const projectCode = project.pr_number || '';
+        function normalizeDrivePathToTemplate(drivePath: string): string {
+            const segments = drivePath.split('/');
+            // First segment is project root (e.g., "PRJ-017-RFP") — skip it
+            const remaining = segments.slice(1);
+            const cleaned = remaining.map(seg => {
+                // Strip "{number}-{project_code}-{suffix}-" prefix
+                const prefixPattern = new RegExp(
+                    `^\\d+-${projectCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(RFP|PD)-`, 'i'
+                );
+                let result = seg.replace(prefixPattern, '');
+                if (result === seg) {
+                    // Try without number
+                    const altPattern = new RegExp(
+                        `^${projectCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(RFP|PD)-`, 'i'
+                    );
+                    result = seg.replace(altPattern, '');
+                }
+                return result;
+            });
+            return cleaned.filter(s => s).join('/');
+        }
+
         const comparisons: PermissionComparison[] = [];
         let totalMatch = 0, totalExtra = 0, totalMissing = 0, totalMismatch = 0;
 
         for (const folder of folders) {
-            const templatePath = folder.normalized_template_path || folder.template_path;
+            let templatePath = folder.normalized_template_path || folder.template_path;
 
             // Strip phase prefix since permissionsMap keys don't include it
             // E.g. "Bidding/SOW" -> "SOW", "Project Delivery/Document Control" -> "Document Control"
-            const pathWithoutPhase = templatePath.replace(/^(Bidding|Project Delivery)\//, '');
-            const expectedPerms = permissionsMap[pathWithoutPhase];
+            let pathWithoutPhase = templatePath.replace(/^(Bidding|Project Delivery)\//, '');
+            let expectedPerms = permissionsMap[pathWithoutPhase];
+
+            // If no match, try normalizing as a Drive-style path
+            if (!expectedPerms) {
+                const normalizedPath = normalizeDrivePathToTemplate(templatePath);
+                if (normalizedPath) {
+                    expectedPerms = permissionsMap[normalizedPath];
+                    if (expectedPerms) {
+                        pathWithoutPhase = normalizedPath;
+                        templatePath = normalizedPath;
+                    }
+                }
+            }
 
             console.log('[AUDIT DEBUG]', {
                 templatePath,
