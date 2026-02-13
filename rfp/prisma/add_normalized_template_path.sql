@@ -11,7 +11,12 @@ CREATE INDEX IF NOT EXISTS idx_folder_index_normalized_path
 ON rfp.folder_index(normalized_template_path);
 
 -- Step 3: Update upsert_folder_index RPC to accept normalized path
+-- Drop ALL existing overloads to avoid ambiguity
+DROP FUNCTION IF EXISTS public.upsert_folder_index(UUID, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.upsert_folder_index(UUID, TEXT, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.upsert_folder_index(UUID, TEXT, TEXT, TEXT, TEXT);
 DROP FUNCTION IF EXISTS public.upsert_folder_index(UUID, TEXT, TEXT, BOOLEAN, JSONB, JSONB);
+DROP FUNCTION IF EXISTS public.upsert_folder_index(UUID, TEXT, TEXT, BOOLEAN, JSONB, JSONB, TEXT);
 
 CREATE OR REPLACE FUNCTION public.upsert_folder_index(
     p_project_id UUID,
