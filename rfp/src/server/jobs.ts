@@ -1422,22 +1422,8 @@ async function enforceProjectPermissionsWithReset(
         ? template.template_json
         : template.template_json.template || [];
 
-    // Phase-aware filtering (bidding vs execution)
-    const projectPhase = project.phase || 'bidding';
-    const phaseNode = templateNodes.find((n: any) => {
-        const nodeName = (n.text || n.name || '').trim();
-        if (projectPhase === 'bidding') return nodeName === 'Bidding';
-        return nodeName === 'Project Delivery';
-    });
-
-    if (!phaseNode?.children) {
-        await writeJobLog(jobId, project.id, project.name, null, 'error', 'error', {
-            message: `No ${projectPhase} phase node in template`
-        });
-        return { removed: 0, added: 0, errors: 1 };
-    }
-
-    // Build template map
+    // Include ALL template folders (both Bidding and Project Delivery)
+    // so enforce can match folders from any phase.
     const templateMap = new Map<string, any>();
     function buildTemplateMap(node: any, parentPath = '') {
         const nodeName = node.text || node.name || '';
@@ -1449,8 +1435,11 @@ async function enforceProjectPermissionsWithReset(
             }
         }
     }
-    for (const child of phaseNode.children) {
-        buildTemplateMap(child, '');
+    for (const topNode of templateNodes) {
+        const children = topNode.children || topNode.nodes || [];
+        for (const child of children) {
+            buildTemplateMap(child, '');
+        }
     }
 
     // Step 2: Get scope from event metadata directly (no DB query needed)
