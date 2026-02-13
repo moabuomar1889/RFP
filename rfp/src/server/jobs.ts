@@ -496,14 +496,17 @@ export const buildFolderIndex = inngest.createFunction(
             const stepResult = await step.run(`index-${project.prNumber}`, async () => {
                 const client = getRawSupabaseAdmin();
 
-                console.log(`Indexing project ${project.prNumber} with drive_folder_id: ${project.driveFolderId}`);
+                console.log(`Indexing project ${project.prNumber} (phase: ${project.phase}) with drive_folder_id: ${project.driveFolderId}`);
 
                 if (!project.driveFolderId) {
                     console.error(`Project ${project.prNumber} has no drive_folder_id`);
                     return { foldersFound: 0, foldersUpserted: 0, error: 'No drive_folder_id' };
                 }
 
-                // ── Step A: Load template and build set of valid paths ──
+                // ── Step A: DELETE stale entries before re-indexing ──
+                await client.rpc('delete_project_folder_index', { p_project_id: project.id });
+
+                // ── Step B: Load template and build phase-filtered paths ──
                 const { data: templateData } = await client.rpc('get_active_template');
                 const template = Array.isArray(templateData) ? templateData[0] : templateData;
                 const templatePaths = new Set<string>();
@@ -513,22 +516,38 @@ export const buildFolderIndex = inngest.createFunction(
                         ? template.template_json
                         : template.template_json.template || [];
 
+                    // Phase-aware: only collect paths for the project's current phase
+                    const projectPhase = project.phase || 'bidding';
+                    const phaseNodeName = projectPhase === 'bidding' ? 'Bidding' : 'Project Delivery';
+
                     function collectPaths(node: any, parentPath = '') {
-                        const name = node.text || node.name || '';
+                        const name = node.name || node.text || '';
                         const current = parentPath ? `${parentPath}/${name}` : name;
-                        templatePaths.add(current);
-                        if (node.children) {
-                            for (const child of node.children) collectPaths(child, current);
+                        if (name) templatePaths.add(current);
+                        const children = node.children || node.nodes || [];
+                        for (const child of children) collectPaths(child, current);
+                    }
+
+                    // Find the matching phase node
+                    const phaseNode = templateNodes.find((n: any) => {
+                        const nodeName = (n.name || n.text || '').trim();
+                        return nodeName === phaseNodeName;
+                    });
+
+                    if (phaseNode?.children) {
+                        for (const child of phaseNode.children) collectPaths(child, '');
+                    } else {
+                        // Fallback: collect from all nodes if phase matching fails
+                        console.warn(`Phase node '${phaseNodeName}' not found, collecting from all`);
+                        for (const topNode of templateNodes) {
+                            const children = topNode.children || topNode.nodes || [];
+                            for (const child of children) collectPaths(child, '');
                         }
                     }
-                    for (const topNode of templateNodes) {
-                        const children = topNode.children || topNode.nodes || [];
-                        for (const child of children) collectPaths(child, '');
-                    }
                 }
-                console.log(`Template has ${templatePaths.size} paths for matching`);
+                console.log(`Template has ${templatePaths.size} paths for phase '${project.phase}'`);
 
-                // ── Step B: Get all folders from Drive ──
+                // ── Step C: Get all folders from Drive ──
                 let folders: Array<{ id: string; name: string; path: string; parentId: string }> = [];
                 try {
                     folders = await getAllFoldersRecursive(project.driveFolderId);
@@ -538,18 +557,15 @@ export const buildFolderIndex = inngest.createFunction(
                     return { foldersFound: 0, foldersUpserted: 0, error: driveError.message };
                 }
 
-                // ── Step C: Normalize paths and match to template ──
+                // ── Step D: Path normalization ──
                 const projectCode = project.prNumber || '';
                 function normalizeDrivePath(drivePath: string): string {
                     const segments = drivePath.split('/');
-                    // First segment is project root (e.g. "PRJ-017-RFP") — skip it
-                    const remaining = segments.slice(1);
+                    const remaining = segments.slice(1); // Skip project root
                     const cleaned = remaining.map(seg => {
-                        // Strip: "{number}-{projectCode}-(RFP|PD)-"
                         const escaped = projectCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                         const prefixPattern = new RegExp(`^\\d+-${escaped}-(RFP|PD)-`, 'i');
                         let c = seg.replace(prefixPattern, '');
-                        // Fallback: "{projectCode}-(RFP|PD)-" without number
                         if (c === seg) {
                             const alt = new RegExp(`^${escaped}-(RFP|PD)-`, 'i');
                             c = seg.replace(alt, '');
@@ -559,7 +575,50 @@ export const buildFolderIndex = inngest.createFunction(
                     return cleaned.filter(s => s).join('/');
                 }
 
-                // ── Step D: Upsert only template-matched folders (dedup by normalized path) ──
+                // ── Step E: Fuzzy matching helper (Levenshtein distance) ──
+                function editDistance(a: string, b: string): number {
+                    const la = a.length, lb = b.length;
+                    if (la === 0) return lb;
+                    if (lb === 0) return la;
+                    const dp: number[][] = Array.from({ length: la + 1 }, () => Array(lb + 1).fill(0));
+                    for (let i = 0; i <= la; i++) dp[i][0] = i;
+                    for (let j = 0; j <= lb; j++) dp[0][j] = j;
+                    for (let i = 1; i <= la; i++) {
+                        for (let j = 1; j <= lb; j++) {
+                            dp[i][j] = Math.min(
+                                dp[i - 1][j] + 1,
+                                dp[i][j - 1] + 1,
+                                dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+                            );
+                        }
+                    }
+                    return dp[la][lb];
+                }
+
+                function findClosestTemplatePath(normalized: string): string | null {
+                    // Exact match first
+                    if (templatePaths.has(normalized)) return normalized;
+                    // Case-insensitive match
+                    for (const tp of templatePaths) {
+                        if (tp.toLowerCase() === normalized.toLowerCase()) return tp;
+                    }
+                    // Fuzzy match: tolerate small edit distance (typos like Propsal→Proposal)
+                    let bestMatch: string | null = null;
+                    let bestDist = Infinity;
+                    for (const tp of templatePaths) {
+                        const dist = editDistance(normalized.toLowerCase(), tp.toLowerCase());
+                        if (dist < bestDist && dist <= 2) {
+                            bestDist = dist;
+                            bestMatch = tp;
+                        }
+                    }
+                    if (bestMatch) {
+                        console.log(`Fuzzy match: '${normalized}' → '${bestMatch}' (distance: ${bestDist})`);
+                    }
+                    return bestMatch;
+                }
+
+                // ── Step F: Upsert matched folders (dedup by matched path) ──
                 let upsertedCount = 0;
                 let skippedCount = 0;
                 const seenNormalized = new Set<string>();
@@ -568,27 +627,28 @@ export const buildFolderIndex = inngest.createFunction(
                     const normalized = normalizeDrivePath(folder.path);
                     if (!normalized) { skippedCount++; continue; }
 
-                    // Skip if this normalized path was already indexed (dedup)
-                    if (seenNormalized.has(normalized)) {
-                        console.log(`Dedup skip: ${folder.path} → ${normalized}`);
+                    // Find matching template path (exact, case-insensitive, or fuzzy)
+                    const matchedPath = templatePaths.size > 0 ? findClosestTemplatePath(normalized) : normalized;
+
+                    if (!matchedPath) {
                         skippedCount++;
                         continue;
                     }
 
-                    // Only index folders that match a template path
-                    if (templatePaths.size > 0 && !templatePaths.has(normalized)) {
-                        // Not a template folder — skip
+                    // Dedup by matched template path
+                    if (seenNormalized.has(matchedPath)) {
+                        console.log(`Dedup skip: ${folder.path} → ${matchedPath}`);
                         skippedCount++;
                         continue;
                     }
 
-                    seenNormalized.add(normalized);
+                    seenNormalized.add(matchedPath);
 
                     const { error } = await client.rpc('upsert_folder_index', {
                         p_project_id: project.id,
                         p_template_path: folder.path,
                         p_drive_folder_id: folder.id,
-                        p_normalized_template_path: normalized,
+                        p_normalized_template_path: matchedPath,
                     });
 
                     if (error) {
@@ -598,7 +658,7 @@ export const buildFolderIndex = inngest.createFunction(
                     }
                 }
 
-                console.log(`Indexed ${upsertedCount}, skipped ${skippedCount} (non-template/dedup) for ${project.prNumber}`);
+                console.log(`Indexed ${upsertedCount}, skipped ${skippedCount} for ${project.prNumber} (phase: ${project.phase})`);
                 await sleep(RATE_LIMIT_DELAY);
                 return { foldersFound: folders.length, foldersUpserted: upsertedCount };
             });
@@ -1492,23 +1552,39 @@ async function enforceProjectPermissionsWithReset(
         ? template.template_json
         : template.template_json.template || [];
 
-    // Include ALL template folders (both Bidding and Project Delivery)
-    // so enforce can match folders from any phase.
+    // Phase-filtered template map: only match folders for the project's phase
+    const projectPhase = project.phase || 'bidding';
+    const phaseNodeName = projectPhase === 'bidding' ? 'Bidding' : 'Project Delivery';
+
     const templateMap = new Map<string, any>();
     function buildTemplateMap(node: any, parentPath = '') {
-        const nodeName = node.text || node.name || '';
+        const nodeName = node.name || node.text || '';
         const currentPath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
         templateMap.set(currentPath, node);
-        if (node.children) {
-            for (const child of node.children) {
-                buildTemplateMap(child, currentPath);
-            }
+        const children = node.children || node.nodes || [];
+        for (const child of children) {
+            buildTemplateMap(child, currentPath);
         }
     }
-    for (const topNode of templateNodes) {
-        const children = topNode.children || topNode.nodes || [];
-        for (const child of children) {
+
+    // Find the matching phase node
+    const phaseNode = templateNodes.find((n: any) => {
+        const nodeName = (n.name || n.text || '').trim();
+        return nodeName === phaseNodeName;
+    });
+
+    if (phaseNode?.children) {
+        for (const child of phaseNode.children) {
             buildTemplateMap(child, '');
+        }
+    } else {
+        // Fallback: collect from all nodes if phase matching fails
+        console.warn(`[ENFORCE] Phase node '${phaseNodeName}' not found, using all`);
+        for (const topNode of templateNodes) {
+            const children = topNode.children || topNode.nodes || [];
+            for (const child of children) {
+                buildTemplateMap(child, '');
+            }
         }
     }
 

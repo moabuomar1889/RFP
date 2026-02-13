@@ -351,19 +351,32 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'No active template found' }, { status: 404 });
         }
 
-        // Build effective permissions map from template
+        // Build effective permissions map from template — PHASE FILTERED
         const templateNodes = Array.isArray(template.template_json)
             ? template.template_json
             : template.template_json.template || [];
 
-        // Include ALL template folders (both Bidding and Project Delivery)
-        // so the audit shows the complete template tree, not just one phase.
-        const allTemplateChildren: any[] = [];
-        for (const topNode of templateNodes) {
-            const children = topNode.children || topNode.nodes || [];
-            allTemplateChildren.push(...children);
+        // Only show folders for the project's current phase
+        const projectPhase = project.phase || 'bidding';
+        const phaseNodeName = projectPhase === 'bidding' ? 'Bidding' : 'Project Delivery';
+
+        const phaseNode = templateNodes.find((n: any) => {
+            const nodeName = (n.name || n.text || '').trim();
+            return nodeName === phaseNodeName;
+        });
+
+        let phaseChildren: any[] = [];
+        if (phaseNode?.children) {
+            phaseChildren = phaseNode.children;
+        } else {
+            // Fallback: collect from all nodes if phase matching fails
+            console.warn(`[AUDIT] Phase node '${phaseNodeName}' not found, using all`);
+            for (const topNode of templateNodes) {
+                const children = topNode.children || topNode.nodes || [];
+                phaseChildren.push(...children);
+            }
         }
-        const permissionsMap = buildEffectivePermissionsMap(allTemplateChildren);
+        const permissionsMap = buildEffectivePermissionsMap(phaseChildren);
 
         // Get indexed folders for this project
         const { data: rawFolders } = await supabaseAdmin.rpc('list_project_folders', {
