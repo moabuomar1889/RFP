@@ -11,6 +11,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
     try {
+        const body = await request.json().catch(() => ({}));
+        const { projectId } = body;
+
         const supabase = getSupabaseAdmin();
         const jobId = uuidv4();
 
@@ -20,7 +23,9 @@ export async function POST(request: NextRequest) {
             p_job_type: 'build_folder_index',
             p_status: 'pending',
             p_triggered_by: 'admin',
-            p_job_details: { action: 'rebuild_all' },
+            p_job_details: projectId
+                ? { action: 'rebuild_single', projectId }
+                : { action: 'rebuild_all' },
         });
 
         if (jobError) {
@@ -31,13 +36,14 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Trigger Inngest job
+        // Trigger Inngest job (pass projectIds array if single project)
         await inngest.send({
             name: 'folder-index/build',
             data: {
                 jobId,
                 triggeredBy: 'admin',
-                rebuildAll: true,
+                rebuildAll: !projectId,
+                ...(projectId ? { projectIds: [projectId] } : {}),
             },
         });
 

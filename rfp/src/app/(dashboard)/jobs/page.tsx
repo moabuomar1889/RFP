@@ -11,6 +11,8 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -186,6 +188,20 @@ function getLogMessage(log: JobLog): string {
             return `Cleared Limited Access`;
         case "scope_parsed":
             return `Scope: ${details.scope || "full"}${details.targetPath ? ` → ${details.targetPath}` : ""}`;
+        case "scope_info":
+            return `Scope: ${details.scope || "full"} — ${details.totalFolders || 0} folders to process`;
+        case "folder_index":
+            return `${details.pr_number || log.project_name || "project"}: Indexed ${details.foldersUpserted || 0} of ${details.foldersFound || 0} folders`;
+        case "start_reset_apply":
+            return `Reset & Apply: ${log.folder_path || "folder"}`;
+        case "skip_protected":
+            return `Skipped protected: ${details.email}`;
+        case "skip_inherited":
+            return `Skipped inherited: ${details.email} (${details.role || ""})`;
+        case "no_template":
+            return `No template match: ${log.folder_path || "folder"}`;
+        case "already_removed":
+            return `Already removed: ${details.email}`;
         case "complete_project":
         case "enforce_complete":
             return `Completed ${log.project_name || "project"}: ${details.added || 0} added, ${details.removed || details.reverted || 0} removed`;
@@ -268,18 +284,18 @@ function JobLogViewer({ jobId, isActive }: { jobId: string; isActive: boolean })
     return (
         <div
             ref={scrollRef}
-            className="max-h-[calc(100vh-680px)] min-h-[200px] overflow-y-auto font-mono text-xs bg-gray-950 rounded-lg p-2 space-y-0.5"
+            className="max-h-[calc(100vh-680px)] min-h-[200px] overflow-y-auto font-mono text-xs bg-muted/30 border rounded-lg p-2 space-y-0.5"
         >
             {logs.map((log) => (
                 <div
                     key={log.id}
                     className={`flex items-start gap-2 px-2 py-1 rounded ${log.status === "error"
-                        ? "bg-red-950/50 text-red-300"
+                        ? "bg-red-100/50 dark:bg-red-950/50 text-red-700 dark:text-red-300"
                         : log.status === "warning"
-                            ? "bg-yellow-950/50 text-yellow-300"
+                            ? "bg-yellow-100/50 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-300"
                             : log.status === "success"
-                                ? "bg-green-950/30 text-green-300"
-                                : "text-gray-300"
+                                ? "bg-green-100/30 dark:bg-green-950/30 text-green-700 dark:text-green-300"
+                                : "text-foreground/80"
                         }`}
                 >
                     <div className="mt-0.5 flex-shrink-0">
@@ -512,6 +528,7 @@ function StatsRow({
 export default function JobsPage() {
     const [loading, setLoading] = useState(true);
     const [jobs, setJobs] = useState<Job[]>([]);
+    const [projects, setProjects] = useState<{ id: string; name: string; pr_number: string }[]>([]);
     const [stats, setStats] = useState({
         running: 0,
         completedToday: 0,
@@ -546,6 +563,13 @@ export default function JobsPage() {
     useEffect(() => {
         fetchJobs();
     }, [fetchJobs]);
+
+    // Fetch projects for per-project rebuild
+    useEffect(() => {
+        fetch('/api/projects').then(r => r.json()).then(data => {
+            if (data.projects) setProjects(data.projects);
+        }).catch(() => { });
+    }, []);
 
     // Auto-refresh only when there are running jobs
     useEffect(() => {
@@ -607,7 +631,8 @@ export default function JobsPage() {
     };
 
     const triggerJob = async (
-        jobType: "rebuild_index" | "enforce_permissions"
+        jobType: "rebuild_index" | "enforce_permissions",
+        body: Record<string, unknown> = {}
     ) => {
         try {
             const endpoint =
@@ -617,7 +642,7 @@ export default function JobsPage() {
             const res = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({}),
+                body: JSON.stringify(body),
             });
             const data = await res.json();
             if (data.success) {
@@ -687,13 +712,34 @@ export default function JobsPage() {
                                 <ChevronDown className="ml-2 h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="w-56">
                             <DropdownMenuItem
                                 onClick={() => triggerJob("rebuild_index")}
                             >
                                 <FolderSync className="mr-2 h-4 w-4" />
-                                Rebuild Index
+                                Rebuild Index (All)
                             </DropdownMenuItem>
+                            {projects.length > 0 && (
+                                <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                                        Rebuild Single Project
+                                    </DropdownMenuLabel>
+                                    <div className="max-h-48 overflow-y-auto">
+                                        {projects.map((p) => (
+                                            <DropdownMenuItem
+                                                key={p.id}
+                                                onClick={() => triggerJob("rebuild_index", { projectId: p.id })}
+                                                className="text-xs"
+                                            >
+                                                <FolderSync className="mr-2 h-3 w-3" />
+                                                {p.pr_number} — {p.name}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </div>
+                                    <DropdownMenuSeparator />
+                                </>
+                            )}
                             <DropdownMenuItem
                                 onClick={() => triggerJob("enforce_permissions")}
                             >
