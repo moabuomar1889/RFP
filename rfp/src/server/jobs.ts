@@ -493,23 +493,23 @@ export const buildFolderIndex = inngest.createFunction(
         let indexedCount = 0;
         let completedProjects = 0;
         for (const project of projects) {
-            const stepResult = await step.run(`index-${project.pr_number}`, async () => {
+            const stepResult = await step.run(`index-${project.prNumber}`, async () => {
                 const client = getRawSupabaseAdmin();
 
-                console.log(`Indexing project ${project.pr_number} with drive_folder_id: ${project.drive_folder_id}`);
+                console.log(`Indexing project ${project.prNumber} with drive_folder_id: ${project.driveFolderId}`);
 
-                if (!project.drive_folder_id) {
-                    console.error(`Project ${project.pr_number} has no drive_folder_id`);
+                if (!project.driveFolderId) {
+                    console.error(`Project ${project.prNumber} has no drive_folder_id`);
                     return { foldersIndexed: 0, error: 'No drive_folder_id' };
                 }
 
                 // Get all folders from Drive
                 let folders: Array<{ id: string; name: string; path: string; parentId: string }> = [];
                 try {
-                    folders = await getAllFoldersRecursive(project.drive_folder_id);
-                    console.log(`Found ${folders.length} folders for ${project.pr_number}`);
+                    folders = await getAllFoldersRecursive(project.driveFolderId);
+                    console.log(`Found ${folders.length} folders for ${project.prNumber}`);
                 } catch (driveError: any) {
-                    console.error(`Drive API error for ${project.pr_number} (drive_folder_id: ${project.drive_folder_id}):`, driveError.message);
+                    console.error(`Drive API error for ${project.prNumber} (drive_folder_id: ${project.driveFolderId}):`, driveError.message);
                     return { foldersFound: 0, foldersUpserted: 0, error: driveError.message };
                 }
 
@@ -538,7 +538,7 @@ export const buildFolderIndex = inngest.createFunction(
             completedProjects++;
 
             // Update progress after each project
-            await step.run(`progress-${project.pr_number}`, async () => {
+            await step.run(`progress-${project.prNumber}`, async () => {
                 const client = getRawSupabaseAdmin();
                 const progress = Math.round((completedProjects / totalProjects) * 100);
                 await client.rpc('update_job_progress', {
