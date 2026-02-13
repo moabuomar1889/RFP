@@ -1485,45 +1485,91 @@ async function enforceProjectPermissionsWithReset(
         source: eventMetadata ? 'event_data' : 'default'
     });
 
-    // Step 3: Get folders to process (with scope filtering)
-    let folders = await supabaseAdmin
-        .schema('rfp').from('folder_index')
-        .select('*')
-        .eq('project_id', project.id)
-        .order('template_path');
+    // Step 3: Get folders to process using RPC (includes normalized_template_path)
+    const { data: rawFolders } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
 
-    if (!folders.data || folders.data.length === 0) {
+    if (!rawFolders || rawFolders.length === 0) {
         await writeJobLog(jobId, project.id, project.name, null, 'warning', 'warning', {
             message: 'No folders found in index'
         });
         return { removed: 0, added: 0, errors: 0 };
     }
 
-    // Apply scope filtering
+    // Apply scope filtering using normalized_template_path
+    let folders = rawFolders;
     if (scope === 'single' && targetPath) {
-        folders.data = folders.data.filter(f => f.template_path === targetPath);
+        folders = rawFolders.filter((f: any) => {
+            const path = f.normalized_template_path || f.template_path;
+            return path === targetPath;
+        });
     } else if (scope === 'branch' && targetPath) {
-        folders.data = folders.data.filter(f =>
-            f.template_path === targetPath ||
-            f.template_path?.startsWith(`${targetPath}/`)
-        );
+        folders = rawFolders.filter((f: any) => {
+            const path = f.normalized_template_path || f.template_path;
+            return path === targetPath || path.startsWith(`${targetPath}/`);
+        });
     }
 
     await writeJobLog(jobId, project.id, project.name, null, 'scope_info', 'info', {
         scope,
         targetPath,
-        totalFolders: folders.data.length
+        totalFolders: folders.length,
+        rawFolderCount: rawFolders.length
+    });
+
+    // Helper: Normalize a Drive folder path to a template-matching path
+    // Drive paths: "PRJ-017-RFP/3-PRJ-017-RFP-Vendors Quotations/3-PRJ-017-RFP-E&I"
+    // Template paths: "Vendors Quotations/E&I"
+    // Strip: project root prefix, number prefix, and project code prefix from each segment
+    const projectCode = project.prNumber || project.pr_number || '';
+    function normalizeDrivePathToTemplate(drivePath: string): string {
+        const segments = drivePath.split('/');
+
+        // First segment is typically the project root (e.g., "PRJ-017-RFP" or "PRJ-017-PD")
+        // Skip it and process remaining segments
+        const remaining = segments.slice(1);
+
+        const cleaned = remaining.map(seg => {
+            // Strip patterns like "3-PRJ-017-RFP-" or "1-PRJ-017-PD-" from start
+            // Pattern: {number}-{project_code}-{suffix}-{template_name}
+            const prefixPattern = new RegExp(`^\\d+-${projectCode.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}-(RFP|PD)-`, 'i');
+            let cleaned = seg.replace(prefixPattern, '');
+
+            // Also try without the number prefix: "{project_code}-RFP-{name}"
+            if (cleaned === seg) {
+                const altPattern = new RegExp(`^${projectCode.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}-(RFP|PD)-`, 'i');
+                cleaned = seg.replace(altPattern, '');
+            }
+
+            return cleaned;
+        });
+
+        return cleaned.filter(s => s).join('/');
+    }
+
+    // Debug: Log template map keys and first few folder paths for comparison
+    const mapKeys = Array.from(templateMap.keys()).slice(0, 5);
+    const samplePaths = folders.slice(0, 3).map((f: any) => ({
+        raw: f.template_path,
+        normalized: normalizeDrivePathToTemplate(f.template_path)
+    }));
+    await writeJobLog(jobId, project.id, project.name, null, 'debug_paths', 'info', {
+        templateMapKeys: mapKeys,
+        sampleFolderPaths: samplePaths,
+        projectCode
     });
 
     // Step 4: Process each folder with RESET-THEN-APPLY
-    for (const folder of folders.data) {
-        const templatePath = folder.template_path;
+    for (const folder of folders) {
+        // Normalize Drive path to template-matching path
+        const rawPath = folder.template_path;
+        const templatePath = normalizeDrivePathToTemplate(rawPath);
         if (!templatePath) continue;
 
         const expectedPerms = templateMap.get(templatePath);
         if (!expectedPerms) {
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'no_template', 'warning', {
-                message: 'Folder not in template'
+            await writeJobLog(jobId, project.id, project.name, rawPath, 'no_template', 'warning', {
+                message: 'Folder not in template',
+                normalizedPath: templatePath
             });
             continue;
         }
