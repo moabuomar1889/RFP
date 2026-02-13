@@ -504,47 +504,23 @@ export const buildFolderIndex = inngest.createFunction(
                 }
 
                 // Get all folders from Drive
-                const folders = await getAllFoldersRecursive(project.drive_folder_id);
-                console.log(`Found ${folders.length} folders for ${project.pr_number}`);
-
-                // Load template to get expected permissions
-                const { data: templateData } = await client
-                    .from('folder_templates')
-                    .select('template')
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .single();
-
-                const template = templateData?.template || [];
-
-                // Helper to find template node by path
-                function findTemplateNode(path: string, nodes: any[]): any {
-                    for (const node of nodes) {
-                        const nodePath = `/${node.name}`;
-                        if (path === nodePath || path.startsWith(nodePath + '/')) {
-                            if (path === nodePath) return node;
-                            if (node.children) {
-                                const found = findTemplateNode(path.replace(nodePath, ''), node.children);
-                                if (found) return found;
-                            }
-                        }
-                    }
-                    return null;
+                let folders: Array<{ id: string; name: string; path: string; parentId: string }> = [];
+                try {
+                    folders = await getAllFoldersRecursive(project.drive_folder_id);
+                    console.log(`Found ${folders.length} folders for ${project.pr_number}`);
+                } catch (driveError: any) {
+                    console.error(`Drive API error for ${project.pr_number} (drive_folder_id: ${project.drive_folder_id}):`, driveError.message);
+                    return { foldersFound: 0, foldersUpserted: 0, error: driveError.message };
                 }
 
-                // Upsert to folder_index using new RPC
+                // Upsert to folder_index
                 let upsertedCount = 0;
                 for (const folder of folders) {
-                    // Find matching template node
-                    const templateNode = findTemplateNode(folder.path, template);
-
                     const { error } = await client.rpc('upsert_folder_index', {
                         p_project_id: project.id,
                         p_template_path: folder.path,
                         p_drive_folder_id: folder.id,
-                        p_expected_limited_access: templateNode?.limitedAccess || false,
-                        p_expected_groups: templateNode?.groups || [],
-                        p_expected_users: templateNode?.users || [],
+                        p_drive_folder_name: folder.name,
                     });
 
                     if (error) {
