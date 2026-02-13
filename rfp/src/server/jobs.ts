@@ -500,26 +500,95 @@ export const buildFolderIndex = inngest.createFunction(
 
                 if (!project.driveFolderId) {
                     console.error(`Project ${project.prNumber} has no drive_folder_id`);
-                    return { foldersIndexed: 0, error: 'No drive_folder_id' };
+                    return { foldersFound: 0, foldersUpserted: 0, error: 'No drive_folder_id' };
                 }
 
-                // Get all folders from Drive
+                // ── Step A: Load template and build set of valid paths ──
+                const { data: templateData } = await client.rpc('get_active_template');
+                const template = Array.isArray(templateData) ? templateData[0] : templateData;
+                const templatePaths = new Set<string>();
+
+                if (template?.template_json) {
+                    const templateNodes = Array.isArray(template.template_json)
+                        ? template.template_json
+                        : template.template_json.template || [];
+
+                    function collectPaths(node: any, parentPath = '') {
+                        const name = node.text || node.name || '';
+                        const current = parentPath ? `${parentPath}/${name}` : name;
+                        templatePaths.add(current);
+                        if (node.children) {
+                            for (const child of node.children) collectPaths(child, current);
+                        }
+                    }
+                    for (const topNode of templateNodes) {
+                        const children = topNode.children || topNode.nodes || [];
+                        for (const child of children) collectPaths(child, '');
+                    }
+                }
+                console.log(`Template has ${templatePaths.size} paths for matching`);
+
+                // ── Step B: Get all folders from Drive ──
                 let folders: Array<{ id: string; name: string; path: string; parentId: string }> = [];
                 try {
                     folders = await getAllFoldersRecursive(project.driveFolderId);
-                    console.log(`Found ${folders.length} folders for ${project.prNumber}`);
+                    console.log(`Found ${folders.length} Drive folders for ${project.prNumber}`);
                 } catch (driveError: any) {
-                    console.error(`Drive API error for ${project.prNumber} (drive_folder_id: ${project.driveFolderId}):`, driveError.message);
+                    console.error(`Drive API error for ${project.prNumber}:`, driveError.message);
                     return { foldersFound: 0, foldersUpserted: 0, error: driveError.message };
                 }
 
-                // Upsert to folder_index using RPC (rfp schema not exposed in PostgREST)
+                // ── Step C: Normalize paths and match to template ──
+                const projectCode = project.prNumber || '';
+                function normalizeDrivePath(drivePath: string): string {
+                    const segments = drivePath.split('/');
+                    // First segment is project root (e.g. "PRJ-017-RFP") — skip it
+                    const remaining = segments.slice(1);
+                    const cleaned = remaining.map(seg => {
+                        // Strip: "{number}-{projectCode}-(RFP|PD)-"
+                        const escaped = projectCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const prefixPattern = new RegExp(`^\\d+-${escaped}-(RFP|PD)-`, 'i');
+                        let c = seg.replace(prefixPattern, '');
+                        // Fallback: "{projectCode}-(RFP|PD)-" without number
+                        if (c === seg) {
+                            const alt = new RegExp(`^${escaped}-(RFP|PD)-`, 'i');
+                            c = seg.replace(alt, '');
+                        }
+                        return c;
+                    });
+                    return cleaned.filter(s => s).join('/');
+                }
+
+                // ── Step D: Upsert only template-matched folders (dedup by normalized path) ──
                 let upsertedCount = 0;
+                let skippedCount = 0;
+                const seenNormalized = new Set<string>();
+
                 for (const folder of folders) {
+                    const normalized = normalizeDrivePath(folder.path);
+                    if (!normalized) { skippedCount++; continue; }
+
+                    // Skip if this normalized path was already indexed (dedup)
+                    if (seenNormalized.has(normalized)) {
+                        console.log(`Dedup skip: ${folder.path} → ${normalized}`);
+                        skippedCount++;
+                        continue;
+                    }
+
+                    // Only index folders that match a template path
+                    if (templatePaths.size > 0 && !templatePaths.has(normalized)) {
+                        // Not a template folder — skip
+                        skippedCount++;
+                        continue;
+                    }
+
+                    seenNormalized.add(normalized);
+
                     const { error } = await client.rpc('upsert_folder_index', {
                         p_project_id: project.id,
                         p_template_path: folder.path,
                         p_drive_folder_id: folder.id,
+                        p_normalized_template_path: normalized,
                     });
 
                     if (error) {
@@ -529,6 +598,7 @@ export const buildFolderIndex = inngest.createFunction(
                     }
                 }
 
+                console.log(`Indexed ${upsertedCount}, skipped ${skippedCount} (non-template/dedup) for ${project.prNumber}`);
                 await sleep(RATE_LIMIT_DELAY);
                 return { foldersFound: folders.length, foldersUpserted: upsertedCount };
             });
