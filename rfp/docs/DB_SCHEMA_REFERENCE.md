@@ -351,3 +351,32 @@ graph TD
     TC[template_changes] -->|from_version| TV[template_versions]
     TC -->|to_version| TV
 ```
+
+---
+
+## ⚠️ CRITICAL: Schema Exposure Fix (PGRST106)
+
+> **If API returns `PGRST106: Invalid schema: rfp`**, run this SQL in Supabase SQL Editor:
+
+```sql
+-- Reset PostgREST config to sync with Dashboard
+ALTER ROLE authenticator RESET pgrst.db_schemas;
+NOTIFY pgrst, 'reload config';
+
+-- Grant full access to rfp schema
+GRANT ALL PRIVILEGES ON SCHEMA rfp TO anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA rfp TO anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA rfp TO anon, authenticated, service_role;
+
+-- Default privileges for future tables
+ALTER DEFAULT PRIVILEGES IN SCHEMA rfp 
+GRANT ALL PRIVILEGES ON TABLES TO anon, authenticated, service_role;
+
+-- Update search path
+ALTER ROLE authenticator SET search_path TO rfp, public;
+ALTER ROLE anon SET search_path TO rfp, public;
+```
+
+**Root Causes:** Case sensitivity (Dashboard=`RFP`, DB=`rfp`), manual `pgrst.db_schemas` overrides, missing search_path.
+
+**Full details:** See [SUPABASE_SCHEMA_FIX.md](file:///c:/Users/Mo.abuomar/Desktop/RFP3/rfp/docs/SUPABASE_SCHEMA_FIX.md)

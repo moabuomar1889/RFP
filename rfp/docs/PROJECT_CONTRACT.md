@@ -114,6 +114,33 @@ This system does **NOT**:
 | Google config | `config.ts` (`GOOGLE_CONFIG`) + `auth/login/route.ts` + `auth/callback/route.ts` (inline) | Config defined in 3 places |
 | DB access | `supabase.ts` (RPC) + `prisma.ts` (ORM) | Two patterns used in same module (`jobs.ts`) |
 
+### ⚠️ RECURRING ISSUE: Supabase PGRST106 "Invalid schema: rfp"
+
+> **This issue has occurred multiple times.** If API calls to `.schema('rfp')` fail with PGRST106, run this SQL in the Supabase SQL Editor:
+
+```sql
+-- A. Reset PostgREST config (Dashboard overrides get blocked by manual config)
+ALTER ROLE authenticator RESET pgrst.db_schemas;
+NOTIFY pgrst, 'reload config';
+
+-- B. Grant full access to rfp schema
+GRANT ALL PRIVILEGES ON SCHEMA rfp TO anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA rfp TO anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA rfp TO anon, authenticated, service_role;
+
+-- C. Default privileges for future tables
+ALTER DEFAULT PRIVILEGES IN SCHEMA rfp 
+GRANT ALL PRIVILEGES ON TABLES TO anon, authenticated, service_role;
+
+-- D. Update search path
+ALTER ROLE authenticator SET search_path TO rfp, public;
+ALTER ROLE anon SET search_path TO rfp, public;
+```
+
+**Root Causes:** (1) Dashboard forces uppercase `RFP`, DB uses lowercase `rfp`. (2) Manual `ALTER ROLE authenticator SET pgrst.db_schemas` overrides Dashboard config. (3) Missing search_path for `anon`/`authenticated` roles.
+
+**Prevention:** NEVER manually set `pgrst.db_schemas` on the `authenticator` role. See `docs/SUPABASE_SCHEMA_FIX.md` for full details.
+
 ---
 
 ## 6. FOLDER & NAMING CONVENTIONS
