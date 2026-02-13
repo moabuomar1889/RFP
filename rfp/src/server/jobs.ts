@@ -1474,9 +1474,9 @@ async function enforceProjectPermissionsWithReset(
         buildTemplateMap(child, '');
     }
 
-    // Step 2: Fetch job details for scope filtering (metadata is in job_details)
-    const job = await supabaseAdmin.from('jobs').select('job_details').eq('id', jobId).single();
-    const jobDetails = job.data?.job_details || {};
+    // Step 2: Fetch job details for scope filtering (stored in rfp.sync_jobs.metadata)
+    const job = await supabaseAdmin.schema('rfp').from('sync_jobs').select('metadata').eq('id', jobId).single();
+    const jobDetails = job.data?.metadata || {};
     const scope = jobDetails.scope || 'full';
     const targetPath = jobDetails.targetPath;
 

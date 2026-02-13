@@ -105,7 +105,7 @@ interface AuditResult {
 interface Project {
     id: string;
     name: string;
-    project_code: string;
+    pr_number: string;
 }
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -770,6 +770,28 @@ export default function PermissionAuditPage() {
     const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
     const [filter, setFilter] = useState<"all" | "issues">("all");
 
+    // Restore cached audit results on mount
+    useEffect(() => {
+        try {
+            const cached = sessionStorage.getItem('rfp_audit_cache');
+            if (cached) {
+                const { projectId, result } = JSON.parse(cached);
+                if (projectId && result) {
+                    setSelectedProjectId(projectId);
+                    setAuditResult(result);
+                    if (result.comparisons?.length > 0) {
+                        const tree = buildFolderTree(result.comparisons);
+                        const allPaths = new Set(tree.map((n: TreeNode) => n.path));
+                        setExpandedPaths(allPaths);
+                        setSelectedPath(result.comparisons[0].normalizedPath);
+                    }
+                }
+            }
+        } catch {
+            // Ignore parse errors
+        }
+    }, []);
+
     // Context menu state
     const [contextMenu, setContextMenu] = useState<{
         folderPath: string;
@@ -804,6 +826,13 @@ export default function PermissionAuditPage() {
             const data = await res.json();
             if (data.success) {
                 setAuditResult(data.result);
+                // Cache results in sessionStorage for persistence across navigation
+                try {
+                    sessionStorage.setItem('rfp_audit_cache', JSON.stringify({
+                        projectId: selectedProjectId,
+                        result: data.result
+                    }));
+                } catch { /* quota exceeded — ignore */ }
                 // Auto-expand and select first
                 if (data.result.comparisons.length > 0) {
                     const tree = buildFolderTree(data.result.comparisons);
@@ -1037,7 +1066,7 @@ export default function PermissionAuditPage() {
                                 <SelectContent>
                                     {projects.map((p) => (
                                         <SelectItem key={p.id} value={p.id}>
-                                            {p.project_code} — {p.name}
+                                            {p.pr_number} — {p.name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
