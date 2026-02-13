@@ -513,15 +513,16 @@ export const buildFolderIndex = inngest.createFunction(
                     return { foldersFound: 0, foldersUpserted: 0, error: driveError.message };
                 }
 
-                // Upsert to folder_index
+                // Upsert to folder_index using direct table insert
+                // (upsert_folder_index RPC references columns that don't exist in the actual table)
                 let upsertedCount = 0;
                 for (const folder of folders) {
-                    const { error } = await client.rpc('upsert_folder_index', {
-                        p_project_id: project.id,
-                        p_template_path: folder.path,
-                        p_drive_folder_id: folder.id,
-                        p_drive_folder_name: folder.name,
-                    });
+                    const { error } = await client.schema('rfp').from('folder_index')
+                        .upsert({
+                            project_id: project.id,
+                            template_path: folder.path,
+                            drive_folder_id: folder.id,
+                        }, { onConflict: 'drive_folder_id' });
 
                     if (error) {
                         console.error(`Failed to upsert folder ${folder.path}:`, error);
@@ -541,6 +542,10 @@ export const buildFolderIndex = inngest.createFunction(
             await step.run(`progress-${project.prNumber}`, async () => {
                 const client = getRawSupabaseAdmin();
                 const progress = Math.round((completedProjects / totalProjects) * 100);
+                const result = stepResult as any;
+                const foldersFound = result?.foldersFound || 0;
+                const foldersUpserted = result?.foldersUpserted || 0;
+
                 await client.rpc('update_job_progress', {
                     p_job_id: jobId,
                     p_progress: progress,
@@ -550,16 +555,15 @@ export const buildFolderIndex = inngest.createFunction(
                 });
 
                 // Insert detailed log
-                const result = stepResult as any;
                 await client.rpc('insert_sync_task', {
                     p_job_id: jobId,
                     p_project_id: project.id,
                     p_task_type: 'folder_index',
                     p_task_details: {
-                        pr_number: project.pr_number,
-                        foldersFound: result?.foldersFound || 0,
-                        foldersUpserted: result?.foldersUpserted || 0,
-                        message: `Indexed ${result?.foldersUpserted || 0} of ${result?.foldersFound || 0} folders`
+                        pr_number: project.prNumber,
+                        foldersFound,
+                        foldersUpserted,
+                        message: `Indexed ${foldersUpserted} of ${foldersFound} folders`
                     },
                     p_status: 'completed'
                 });
