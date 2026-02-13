@@ -313,7 +313,7 @@ export const enforcePermissions = inngest.createFunction(
     },
     { event: 'permissions/enforce' },
     async ({ event, step }) => {
-        const { jobId, projectId, projectIds, all, triggeredBy } = event.data;
+        const { jobId, projectId, projectIds, all, triggeredBy, metadata } = event.data;
 
         // Convert single projectId to array for uniform handling
         const targetProjectIds = projectId ? [projectId] : (projectIds || []);
@@ -396,7 +396,7 @@ export const enforcePermissions = inngest.createFunction(
 
                 try {
                     // Use NEW reset-then-apply enforcement function
-                    const result = await enforceProjectPermissionsWithReset(project, protectedPrincipals, jobId);
+                    const result = await enforceProjectPermissionsWithReset(project, protectedPrincipals, jobId, metadata);
 
                     totalRemoved += result.removed;
                     totalAdded += result.added;
@@ -1421,7 +1421,8 @@ async function enforceProjectPermissionsWithLogging(
 async function enforceProjectPermissionsWithReset(
     project: any,
     protectedPrincipals: string[],
-    jobId: string
+    jobId: string,
+    eventMetadata?: { scope?: string; targetPath?: string } | null
 ): Promise<{ removed: number; added: number; errors: number }> {
     let removed = 0;
     let added = 0;
@@ -1474,16 +1475,14 @@ async function enforceProjectPermissionsWithReset(
         buildTemplateMap(child, '');
     }
 
-    // Step 2: Fetch job details for scope filtering (stored in rfp.sync_jobs.metadata)
-    const job = await supabaseAdmin.schema('rfp').from('sync_jobs').select('metadata').eq('id', jobId).single();
-    const jobDetails = job.data?.metadata || {};
-    const scope = jobDetails.scope || 'full';
-    const targetPath = jobDetails.targetPath;
+    // Step 2: Get scope from event metadata directly (no DB query needed)
+    const scope = eventMetadata?.scope || 'full';
+    const targetPath = eventMetadata?.targetPath;
 
     await writeJobLog(jobId, project.id, project.name, null, 'scope_parsed', 'info', {
         scope,
         targetPath,
-        jobDetails
+        source: eventMetadata ? 'event_data' : 'default'
     });
 
     // Step 3: Get folders to process (with scope filtering)
