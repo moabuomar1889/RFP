@@ -553,6 +553,70 @@ export async function GET(request: NextRequest) {
             });
         }
 
+        // ── Second pass: template paths NOT in folder_index ──────────
+        // Show template folders that have no folder_index entry so the
+        // audit tree displays ALL expected folders, not just indexed ones.
+        const coveredPaths = new Set(comparisons.map(c => c.normalizedPath));
+        for (const [tplPath, perms] of Object.entries(permissionsMap)) {
+            if (coveredPaths.has(tplPath)) continue;
+
+            const missingGroups = (perms.groups || []).length;
+            const missingUsers = (perms.users || []).length;
+            totalMissing += missingGroups + missingUsers;
+
+            comparisons.push({
+                folderPath: tplPath,
+                normalizedPath: tplPath,
+                driveFolderId: '',
+                expectedGroups: (perms.groups || []).map((g: any) => ({
+                    email: g.email,
+                    role: g.role || 'reader',
+                })),
+                expectedUsers: (perms.users || []).map((u: any) => ({
+                    email: u.email,
+                    role: u.role || 'reader',
+                })),
+                actualPermissions: [],
+                comparisonRows: [
+                    ...(perms.groups || []).map((g: any) => ({
+                        type: 'group' as const,
+                        identifier: g.email,
+                        expectedRole: g.role || 'reader',
+                        expectedRoleRaw: g.role || 'reader',
+                        actualRole: null,
+                        actualRoleRaw: null,
+                        status: 'missing' as const,
+                        tags: [] as string[],
+                        inherited: false,
+                    })),
+                    ...(perms.users || []).map((u: any) => ({
+                        type: 'user' as const,
+                        identifier: u.email,
+                        expectedRole: u.role || 'reader',
+                        expectedRoleRaw: u.role || 'reader',
+                        actualRole: null,
+                        actualRoleRaw: null,
+                        status: 'missing' as const,
+                        tags: [] as string[],
+                        inherited: false,
+                    })),
+                ],
+                matchCount: 0,
+                extraCount: 0,
+                missingCount: missingGroups + missingUsers,
+                mismatchCount: 0,
+                status: 'non_compliant',
+                statusLabel: 'Not Indexed',
+                discrepancies: ['Folder not found in index — run Rebuild Index'],
+                expectedCount: missingGroups + missingUsers,
+                directActualCount: 0,
+                inheritedActualCount: 0,
+                totalActualCount: 0,
+                limitedAccessExpected: perms.limitedAccess || false,
+                limitedAccessActual: false,
+            });
+        }
+
         const result: AuditResult = {
             projectId: project.id,
             projectName: project.name,
