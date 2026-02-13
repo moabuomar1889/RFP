@@ -71,7 +71,6 @@ export async function POST(
                     p_project_id: id,
                     p_template_path: folder.path || folder.name,
                     p_drive_folder_id: folder.id,
-                    p_drive_folder_name: folder.name,
                 });
 
                 if (indexError) {

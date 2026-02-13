@@ -152,8 +152,9 @@ export async function POST(
                         p_project_id: projectId,
                         p_template_path: folder.templatePath,
                         p_drive_folder_id: folder.driveFolderId,
-                        p_drive_folder_name: folder.driveFolderName,
-                        p_limited_access_enabled: folder.limitedAccessEnabled,
+                        p_expected_limited_access: folder.limitedAccessEnabled || false,
+                        p_expected_groups: folder.expectedGroups || [],
+                        p_expected_users: folder.expectedUsers || [],
                     });
 
                     if (indexError) {
