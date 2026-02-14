@@ -1673,19 +1673,23 @@ async function enforceProjectPermissionsWithReset(
 
     // Step 4: Process each folder with RESET-THEN-APPLY
     for (const folder of folders) {
-        // Normalize Drive path to template-matching path
+        // Use pre-computed normalized_template_path (has fuzzy-match corrections)
+        // Fall back to runtime normalization if normalized_template_path is missing
         const rawPath = folder.template_path;
-        const templatePath = normalizeDrivePathToTemplate(rawPath);
+        const templatePath = folder.normalized_template_path || normalizeDrivePathToTemplate(rawPath);
         if (!templatePath) continue;
 
         const expectedPerms = templateMap.get(templatePath);
         if (!expectedPerms) {
             await writeJobLog(jobId, project.id, project.name, rawPath, 'no_template', 'warning', {
                 message: 'Folder not in template',
-                normalizedPath: templatePath
+                normalizedPath: templatePath,
+                dbNormalized: folder.normalized_template_path || '(none)',
+                runtimeNormalized: normalizeDrivePathToTemplate(rawPath)
             });
             continue;
         }
+
 
         await writeJobLog(jobId, project.id, project.name, templatePath, 'start_reset_apply', 'info', {
             folderId: folder.drive_folder_id
