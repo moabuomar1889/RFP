@@ -2,25 +2,26 @@ import { NextResponse } from 'next/server';
 import { listFolders, renameFolder } from '@/server/google-drive';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 /**
  * Bulk strip number prefixes from Drive folder names
  * 
- * Scans all projects recursively, finds folders matching "N-PRJ-..." pattern
- * and renames them by removing the leading "N-" prefix.
- * 
- * Example: "4-PRJ-020-RFP-Commercial Propsal" → "PRJ-020-RFP-Commercial Propsal"
- * 
  * POST /api/admin/strip-prefix
- * Body: { dryRun?: boolean }  — defaults to true (safe preview)
+ * Body: { 
+ *   dryRun?: boolean,     — defaults to true (safe preview)
+ *   prNumber?: string      — e.g. "PRJ-020" to process one project (recommended)
+ *                            omit to process ALL projects
+ * }
  */
 export async function POST(request: Request) {
     try {
         const body = await request.json().catch(() => ({}));
-        const dryRun = body.dryRun !== false; // Default to dry run
+        const dryRun = body.dryRun !== false;
+        const filterPrNumber = body.prNumber || null; // e.g. "PRJ-020"
 
         const supabase = getSupabaseAdmin();
 
-        // Get all projects
         const { data: projects, error } = await supabase.rpc('get_projects', {
             p_status: null,
             p_phase: null
@@ -30,16 +31,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Failed to fetch projects', details: error?.message }, { status: 500 });
         }
 
-        console.log(`[STRIP PREFIX] Scanning ${projects.length} projects (dryRun: ${dryRun})`);
+        // Filter to specific project if requested
+        const targetProjects = filterPrNumber
+            ? projects.filter((p: any) => (p.pr_number || p.prNumber) === filterPrNumber)
+            : projects;
+
+        console.log(`[STRIP PREFIX] Scanning ${targetProjects.length} projects (dryRun: ${dryRun}, filter: ${filterPrNumber || 'ALL'})`);
 
         const results: any[] = [];
-        let totalRenamed = 0;
-        let totalAlreadyClean = 0;
-
         // Pattern: starts with one or more digits followed by a dash, then PRJ-
         const numberPrefixPattern = /^\d+-(?=PRJ-)/;
 
-        for (const project of projects) {
+        for (const project of targetProjects) {
             const prNumber = project.pr_number || project.prNumber;
             const rootFolderId = project.drive_folder_id || project.driveFolderId;
 
@@ -48,33 +51,33 @@ export async function POST(request: Request) {
             try {
                 // Get phase folders (PRJ-XXX-RFP, PRJ-XXX-PD)
                 const phaseChildren = await listFolders(rootFolderId);
+                await sleep(100);
 
                 for (const phaseFolder of phaseChildren) {
-                    // Recursively scan all children of this phase folder
-                    await scanAndRename(phaseFolder.id!, prNumber, phaseFolder.name!, results, numberPrefixPattern, dryRun);
+                    // Scan 2 levels deep (children + grandchildren)
+                    await scanAndRename(phaseFolder.id!, prNumber, phaseFolder.name!, results, numberPrefixPattern, dryRun, 0, 2);
                 }
             } catch (err: any) {
-                results.push({
-                    prNumber,
-                    status: 'error',
-                    error: err.message
-                });
+                results.push({ prNumber, status: 'error', error: err.message });
             }
         }
 
-        // Count results
+        let totalRenamed = 0, totalWouldRename = 0, totalClean = 0;
         for (const r of results) {
             if (r.status === 'renamed') totalRenamed++;
-            if (r.status === 'already_clean') totalAlreadyClean++;
+            if (r.status === 'would_rename') totalWouldRename++;
+            if (r.status === 'already_clean') totalClean++;
         }
 
         return NextResponse.json({
             success: true,
             dryRun,
+            filter: filterPrNumber || 'ALL',
             summary: {
-                projectsScanned: projects.length,
+                projectsScanned: targetProjects.length,
                 foldersRenamed: totalRenamed,
-                foldersAlreadyClean: totalAlreadyClean,
+                foldersWouldRename: totalWouldRename,
+                foldersAlreadyClean: totalClean,
                 totalResults: results.length
             },
             results
@@ -87,7 +90,7 @@ export async function POST(request: Request) {
 }
 
 /**
- * Recursively scan folders and rename those with number prefixes
+ * Scan folders and rename those with number prefixes (depth-limited)
  */
 async function scanAndRename(
     folderId: string,
@@ -95,43 +98,31 @@ async function scanAndRename(
     currentName: string,
     results: any[],
     pattern: RegExp,
-    dryRun: boolean
+    dryRun: boolean,
+    depth: number,
+    maxDepth: number
 ) {
-    // Check if THIS folder has a number prefix
     if (pattern.test(currentName)) {
         const newName = currentName.replace(pattern, '');
 
         if (dryRun) {
-            results.push({
-                prNumber,
-                folderId,
-                currentName,
-                newName,
-                status: 'would_rename'
-            });
+            results.push({ prNumber, folderId, currentName, newName, status: 'would_rename' });
         } else {
             console.log(`[STRIP PREFIX] ${prNumber}: "${currentName}" → "${newName}"`);
             await renameFolder(folderId, newName);
-            results.push({
-                prNumber,
-                folderId,
-                currentName,
-                newName,
-                status: 'renamed'
-            });
+            await sleep(150);
+            results.push({ prNumber, folderId, currentName, newName, status: 'renamed' });
         }
     } else {
-        results.push({
-            prNumber,
-            folderId,
-            currentName,
-            status: 'already_clean'
-        });
+        results.push({ prNumber, folderId, currentName, status: 'already_clean' });
     }
 
-    // Recurse into children
-    const children = await listFolders(folderId);
-    for (const child of children) {
-        await scanAndRename(child.id!, prNumber, child.name!, results, pattern, dryRun);
+    // Recurse into children (depth-limited)
+    if (depth < maxDepth) {
+        const children = await listFolders(folderId);
+        await sleep(100);
+        for (const child of children) {
+            await scanAndRename(child.id!, prNumber, child.name!, results, pattern, dryRun, depth + 1, maxDepth);
+        }
     }
 }
