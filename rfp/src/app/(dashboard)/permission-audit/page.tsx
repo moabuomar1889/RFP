@@ -94,6 +94,8 @@ interface AuditResult {
     projectId: string;
     projectName: string;
     projectCode: string;
+    phase?: string;
+    phaseLabel?: string;
     totalFolders: number;
     matchCount: number;
     extraCount: number;
@@ -187,7 +189,7 @@ interface TreeNode {
     children: TreeNode[];
 }
 
-function buildFolderTree(comparisons: PermissionComparison[]): TreeNode[] {
+function buildFolderTree(comparisons: PermissionComparison[], phaseLabel?: string): TreeNode[] {
     const roots: TreeNode[] = [];
     const nodeMap = new Map<string, TreeNode>();
 
@@ -217,6 +219,19 @@ function buildFolderTree(comparisons: PermissionComparison[]): TreeNode[] {
             roots.push(node);
         }
     }
+
+    // Wrap in phase root node if phaseLabel is provided
+    if (phaseLabel && roots.length > 0) {
+        const phaseRoot: TreeNode = {
+            id: `__phase__${phaseLabel}`,
+            name: phaseLabel,
+            path: `__phase__${phaseLabel}`,
+            comparison: null,
+            children: roots,
+        };
+        return [phaseRoot];
+    }
+
     return roots;
 }
 
@@ -780,8 +795,16 @@ export default function PermissionAuditPage() {
                     setSelectedProjectId(projectId);
                     setAuditResult(result);
                     if (result.comparisons?.length > 0) {
-                        const tree = buildFolderTree(result.comparisons);
-                        const allPaths = new Set(tree.map((n: TreeNode) => n.path));
+                        const tree = buildFolderTree(result.comparisons, result.phaseLabel);
+                        const allPaths = new Set<string>();
+                        // Auto-expand phase root and top-level folders
+                        function collectPaths(nodes: TreeNode[]) {
+                            for (const n of nodes) {
+                                allPaths.add(n.path);
+                                if (n.children.length > 0) collectPaths(n.children);
+                            }
+                        }
+                        collectPaths(tree);
                         setExpandedPaths(allPaths);
                         setSelectedPath(result.comparisons[0].normalizedPath);
                     }
@@ -835,8 +858,15 @@ export default function PermissionAuditPage() {
                 } catch { /* quota exceeded — ignore */ }
                 // Auto-expand and select first
                 if (data.result.comparisons.length > 0) {
-                    const tree = buildFolderTree(data.result.comparisons);
-                    const allPaths = new Set(tree.map((n) => n.path));
+                    const tree = buildFolderTree(data.result.comparisons, data.result.phaseLabel);
+                    const allPaths = new Set<string>();
+                    function collectPaths(nodes: TreeNode[]) {
+                        for (const n of nodes) {
+                            allPaths.add(n.path);
+                            if (n.children.length > 0) collectPaths(n.children);
+                        }
+                    }
+                    collectPaths(tree);
                     setExpandedPaths(allPaths);
                     setSelectedPath(data.result.comparisons[0].normalizedPath);
                 }
@@ -1005,7 +1035,7 @@ export default function PermissionAuditPage() {
     }, []);
 
     // Build tree + filter
-    const tree = auditResult ? buildFolderTree(auditResult.comparisons) : [];
+    const tree = auditResult ? buildFolderTree(auditResult.comparisons, auditResult.phaseLabel) : [];
     const selectedComp = auditResult?.comparisons.find(
         (c) => c.normalizedPath === selectedPath
     );
@@ -1015,7 +1045,7 @@ export default function PermissionAuditPage() {
         filter === "issues"
             ? auditResult?.comparisons.filter((c) => c.status !== "exact_match") || []
             : auditResult?.comparisons || [];
-    const filteredTree = buildFolderTree(filteredComparisons);
+    const filteredTree = buildFolderTree(filteredComparisons, auditResult?.phaseLabel);
 
     return (
         <div className="space-y-4">

@@ -57,6 +57,8 @@ interface AuditResult {
     projectId: string;
     projectName: string;
     projectCode: string;
+    phase?: string;
+    phaseLabel?: string;
     totalFolders: number;
     matchCount: number;
     extraCount: number;
@@ -620,6 +622,8 @@ export async function GET(request: NextRequest) {
             projectId: project.id,
             projectName: project.name,
             projectCode: project.pr_number,
+            phase: projectPhase,
+            phaseLabel: phaseNodeName,
             totalFolders: comparisons.length,
             matchCount: totalMatch,
             extraCount: totalExtra,
