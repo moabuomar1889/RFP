@@ -1519,9 +1519,151 @@ async function enforceProjectPermissionsWithLogging(
 }
 
 /**
+ * Rebuild folder index for a single project.
+ * Extracted as a reusable helper so both buildFolderIndex and enforce can use it.
+ */
+async function rebuildFolderIndexForProject(
+    project: any
+): Promise<{ foldersFound: number; foldersUpserted: number }> {
+    const client = getRawSupabaseAdmin();
+    const prNumber = project.prNumber || project.pr_number;
+    const driveFolderId = project.driveFolderId || project.drive_folder_id;
+    const projectPhase = project.phase || 'bidding';
+    const projectId = project.id;
+
+    if (!driveFolderId) {
+        return { foldersFound: 0, foldersUpserted: 0 };
+    }
+
+    // A: Delete stale entries
+    await client.rpc('delete_project_folder_index', { p_project_id: projectId });
+
+    // B: Load template and build phase-filtered paths
+    const { data: templateData } = await client.rpc('get_active_template');
+    const template = Array.isArray(templateData) ? templateData[0] : templateData;
+    const templatePaths = new Set<string>();
+
+    if (template?.template_json) {
+        const templateNodes = Array.isArray(template.template_json)
+            ? template.template_json
+            : template.template_json.template || [];
+
+        const phaseNodeName = projectPhase === 'bidding' ? 'Bidding' : 'Project Delivery';
+
+        function collectPaths(node: any, parentPath = '') {
+            const name = node.name || node.text || '';
+            const current = parentPath ? `${parentPath}/${name}` : name;
+            if (name) templatePaths.add(current);
+            const children = node.children || node.nodes || [];
+            for (const child of children) collectPaths(child, current);
+        }
+
+        const phaseNode = templateNodes.find((n: any) => {
+            const nodeName = (n.name || n.text || '').trim();
+            return nodeName === phaseNodeName;
+        });
+
+        if (phaseNode?.children) {
+            for (const child of phaseNode.children) collectPaths(child, '');
+        } else {
+            for (const topNode of templateNodes) {
+                const children = topNode.children || topNode.nodes || [];
+                for (const child of children) collectPaths(child, '');
+            }
+        }
+    }
+
+    // C: Get all folders from Drive
+    const folders = await getAllFoldersRecursive(driveFolderId);
+
+    // D: Path normalization
+    const projectCode = prNumber || '';
+    function normalizeDrivePath(drivePath: string): string {
+        const segments = drivePath.split('/');
+        const remaining = segments.slice(1);
+        const cleaned = remaining.map(seg => {
+            const escaped = projectCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const prefixPattern = new RegExp(`^\\d+-${escaped}-(RFP|PD)-`, 'i');
+            let c = seg.replace(prefixPattern, '');
+            if (c === seg) {
+                const alt = new RegExp(`^${escaped}-(RFP|PD)-`, 'i');
+                c = seg.replace(alt, '');
+            }
+            return c;
+        });
+        return cleaned.filter(s => s).join('/');
+    }
+
+    // E: Fuzzy matching (Levenshtein)
+    function editDistance(a: string, b: string): number {
+        const la = a.length, lb = b.length;
+        if (la === 0) return lb;
+        if (lb === 0) return la;
+        const dp: number[][] = Array.from({ length: la + 1 }, () => Array(lb + 1).fill(0));
+        for (let i = 0; i <= la; i++) dp[i][0] = i;
+        for (let j = 0; j <= lb; j++) dp[0][j] = j;
+        for (let i = 1; i <= la; i++) {
+            for (let j = 1; j <= lb; j++) {
+                dp[i][j] = Math.min(
+                    dp[i - 1][j] + 1,
+                    dp[i][j - 1] + 1,
+                    dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+                );
+            }
+        }
+        return dp[la][lb];
+    }
+
+    function findClosestTemplatePath(normalized: string): string | null {
+        if (templatePaths.has(normalized)) return normalized;
+        for (const tp of templatePaths) {
+            if (tp.toLowerCase() === normalized.toLowerCase()) return tp;
+        }
+        let bestMatch: string | null = null;
+        let bestDist = Infinity;
+        for (const tp of templatePaths) {
+            const dist = editDistance(normalized.toLowerCase(), tp.toLowerCase());
+            if (dist < bestDist && dist <= 2) {
+                bestDist = dist;
+                bestMatch = tp;
+            }
+        }
+        return bestMatch;
+    }
+
+    // F: Upsert matched folders
+    let upsertedCount = 0;
+    const seenNormalized = new Set<string>();
+
+    for (const folder of folders) {
+        const normalized = normalizeDrivePath(folder.path);
+        if (!normalized) continue;
+
+        const matchedPath = templatePaths.size > 0 ? findClosestTemplatePath(normalized) : normalized;
+        if (!matchedPath) continue;
+
+        if (seenNormalized.has(matchedPath)) continue;
+        seenNormalized.add(matchedPath);
+
+        const { error } = await client.rpc('upsert_folder_index', {
+            p_project_id: projectId,
+            p_template_path: folder.path,
+            p_drive_folder_id: folder.id,
+            p_normalized_template_path: matchedPath,
+        });
+
+        if (!error) upsertedCount++;
+    }
+
+    console.log(`[rebuildFolderIndex] ${prNumber}: indexed ${upsertedCount}/${folders.length} folders`);
+    return { foldersFound: folders.length, foldersUpserted: upsertedCount };
+}
+
+/**
  * NEW: Enforce permissions using RESET-THEN-APPLY approach
  * This eliminates conflicts with Limited Access and role modifications
  * 
+ * PHASE 0: Auto-rebuild folder index (ensures fresh data)
  * PHASE 1: Remove all permissions (except protected)
  * PHASE 2: Clear Limited Access  
  * PHASE 3: Apply template from scratch
@@ -1536,7 +1678,21 @@ async function enforceProjectPermissionsWithReset(
     let added = 0;
     let errors = 0;
 
+
     console.log(`\n========== RESET-THEN-APPLY ENFORCEMENT FOR ${project.prNumber || project.pr_number} ==========`);
+
+    // Step 0: Auto-rebuild folder index for this project (ensures fresh data)
+    console.log(`[ENFORCE] Step 0: Rebuilding folder index for ${project.prNumber || project.pr_number}...`);
+    try {
+        const indexResult = await rebuildFolderIndexForProject(project);
+        console.log(`[ENFORCE] Index rebuilt: ${indexResult.foldersUpserted} folders indexed`);
+    } catch (indexErr: any) {
+        console.error(`[ENFORCE] Index rebuild failed (continuing with existing data):`, indexErr.message);
+        await writeJobLog(jobId, project.id, project.name, null, 'index_rebuild_warning', 'warning', {
+            message: 'Folder index rebuild failed, using existing data',
+            error: indexErr.message
+        });
+    }
 
     // Step 1: Get the active template
     const { data: templateData } = await supabaseAdmin.rpc('get_active_template');
