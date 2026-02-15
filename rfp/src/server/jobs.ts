@@ -516,9 +516,13 @@ export const buildFolderIndex = inngest.createFunction(
                         ? template.template_json
                         : template.template_json.template || [];
 
-                    // Phase-aware: only collect paths for the project's current phase
+                    // Phase-aware: collect template paths
+                    // - bidding: only Bidding phase
+                    // - execution: BOTH Bidding + Project Delivery (PD projects keep RFP folders)
                     const projectPhase = project.phase || 'bidding';
-                    const phaseNodeName = projectPhase === 'bidding' ? 'Bidding' : 'Project Delivery';
+                    const phasesToIndex = projectPhase === 'bidding'
+                        ? ['Bidding']
+                        : ['Bidding', 'Project Delivery'];
 
                     function collectPaths(node: any, parentPath = '') {
                         const name = node.name || node.text || '';
@@ -528,20 +532,16 @@ export const buildFolderIndex = inngest.createFunction(
                         for (const child of children) collectPaths(child, current);
                     }
 
-                    // Find the matching phase node
-                    const phaseNode = templateNodes.find((n: any) => {
-                        const nodeName = (n.name || n.text || '').trim();
-                        return nodeName === phaseNodeName;
-                    });
+                    for (const phaseNodeName of phasesToIndex) {
+                        const phaseNode = templateNodes.find((n: any) => {
+                            const nodeName = (n.name || n.text || '').trim();
+                            return nodeName === phaseNodeName;
+                        });
 
-                    if (phaseNode?.children) {
-                        for (const child of phaseNode.children) collectPaths(child, '');
-                    } else {
-                        // Fallback: collect from all nodes if phase matching fails
-                        console.warn(`Phase node '${phaseNodeName}' not found, collecting from all`);
-                        for (const topNode of templateNodes) {
-                            const children = topNode.children || topNode.nodes || [];
-                            for (const child of children) collectPaths(child, '');
+                        if (phaseNode?.children) {
+                            for (const child of phaseNode.children) collectPaths(child, '');
+                        } else {
+                            console.warn(`Phase node '${phaseNodeName}' not found for ${project.prNumber}`);
                         }
                     }
                 }
@@ -1548,7 +1548,9 @@ async function rebuildFolderIndexForProject(
             ? template.template_json
             : template.template_json.template || [];
 
-        const phaseNodeName = projectPhase === 'bidding' ? 'Bidding' : 'Project Delivery';
+        const phasesToIndex = projectPhase === 'bidding'
+            ? ['Bidding']
+            : ['Bidding', 'Project Delivery'];
 
         function collectPaths(node: any, parentPath = '') {
             const name = node.name || node.text || '';
@@ -1558,17 +1560,16 @@ async function rebuildFolderIndexForProject(
             for (const child of children) collectPaths(child, current);
         }
 
-        const phaseNode = templateNodes.find((n: any) => {
-            const nodeName = (n.name || n.text || '').trim();
-            return nodeName === phaseNodeName;
-        });
+        for (const phaseNodeName of phasesToIndex) {
+            const phaseNode = templateNodes.find((n: any) => {
+                const nodeName = (n.name || n.text || '').trim();
+                return nodeName === phaseNodeName;
+            });
 
-        if (phaseNode?.children) {
-            for (const child of phaseNode.children) collectPaths(child, '');
-        } else {
-            for (const topNode of templateNodes) {
-                const children = topNode.children || topNode.nodes || [];
-                for (const child of children) collectPaths(child, '');
+            if (phaseNode?.children) {
+                for (const child of phaseNode.children) collectPaths(child, '');
+            } else {
+                console.warn(`[rebuildFolderIndex] Phase '${phaseNodeName}' not found for ${prNumber}`);
             }
         }
     }

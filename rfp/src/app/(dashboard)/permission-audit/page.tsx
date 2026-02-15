@@ -95,7 +95,7 @@ interface AuditResult {
     projectName: string;
     projectCode: string;
     phase?: string;
-    phaseLabel?: string;
+    phaseLabels?: string[];
     totalFolders: number;
     matchCount: number;
     extraCount: number;
@@ -189,47 +189,65 @@ interface TreeNode {
     children: TreeNode[];
 }
 
-function buildFolderTree(comparisons: PermissionComparison[], phaseLabel?: string): TreeNode[] {
+function buildFolderTree(comparisons: PermissionComparison[]): TreeNode[] {
     const roots: TreeNode[] = [];
     const nodeMap = new Map<string, TreeNode>();
 
-    // Sort by path depth
+    // Sort by path depth so parents are created before children
     const sorted = [...comparisons].sort(
         (a, b) => a.normalizedPath.split("/").length - b.normalizedPath.split("/").length
     );
 
     for (const comp of sorted) {
         const parts = comp.normalizedPath.split("/").filter(Boolean);
-        const name = parts[parts.length - 1] || comp.normalizedPath;
-        const node: TreeNode = {
-            id: comp.normalizedPath,
-            name,
-            path: comp.normalizedPath,
-            comparison: comp,
-            children: [],
-        };
-        nodeMap.set(comp.normalizedPath, node);
 
-        // Find parent
-        const parentPath = parts.slice(0, -1).join("/");
-        const parent = parentPath ? nodeMap.get(parentPath) : null;
-        if (parent) {
-            parent.children.push(node);
-        } else {
-            roots.push(node);
+        // Auto-create ancestor nodes (e.g., phase roots like "Bidding", "Project Delivery")
+        for (let i = 0; i < parts.length - 1; i++) {
+            const ancestorPath = parts.slice(0, i + 1).join("/");
+            if (!nodeMap.has(ancestorPath)) {
+                const ancestor: TreeNode = {
+                    id: ancestorPath,
+                    name: parts[i],
+                    path: ancestorPath,
+                    comparison: null,
+                    children: [],
+                };
+                nodeMap.set(ancestorPath, ancestor);
+                const parentPath = parts.slice(0, i).join("/");
+                const parent = parentPath ? nodeMap.get(parentPath) : null;
+                if (parent) {
+                    parent.children.push(ancestor);
+                } else {
+                    roots.push(ancestor);
+                }
+            }
         }
-    }
 
-    // Wrap in phase root node if phaseLabel is provided
-    if (phaseLabel && roots.length > 0) {
-        const phaseRoot: TreeNode = {
-            id: `__phase__${phaseLabel}`,
-            name: phaseLabel,
-            path: `__phase__${phaseLabel}`,
-            comparison: null,
-            children: roots,
-        };
-        return [phaseRoot];
+        // Create or update the actual node
+        const name = parts[parts.length - 1] || comp.normalizedPath;
+        const fullPath = comp.normalizedPath;
+
+        if (nodeMap.has(fullPath)) {
+            // Node already exists as auto-created ancestor — attach comparison
+            const existing = nodeMap.get(fullPath)!;
+            existing.comparison = comp;
+        } else {
+            const node: TreeNode = {
+                id: fullPath,
+                name,
+                path: fullPath,
+                comparison: comp,
+                children: [],
+            };
+            nodeMap.set(fullPath, node);
+            const parentPath = parts.slice(0, -1).join("/");
+            const parent = parentPath ? nodeMap.get(parentPath) : null;
+            if (parent) {
+                parent.children.push(node);
+            } else {
+                roots.push(node);
+            }
+        }
     }
 
     return roots;
@@ -795,7 +813,7 @@ export default function PermissionAuditPage() {
                     setSelectedProjectId(projectId);
                     setAuditResult(result);
                     if (result.comparisons?.length > 0) {
-                        const tree = buildFolderTree(result.comparisons, result.phaseLabel);
+                        const tree = buildFolderTree(result.comparisons);
                         const allPaths = new Set<string>();
                         // Auto-expand phase root and top-level folders
                         function collectPaths(nodes: TreeNode[]) {
@@ -858,7 +876,7 @@ export default function PermissionAuditPage() {
                 } catch { /* quota exceeded — ignore */ }
                 // Auto-expand and select first
                 if (data.result.comparisons.length > 0) {
-                    const tree = buildFolderTree(data.result.comparisons, data.result.phaseLabel);
+                    const tree = buildFolderTree(data.result.comparisons);
                     const allPaths = new Set<string>();
                     function collectPaths(nodes: TreeNode[]) {
                         for (const n of nodes) {
@@ -1035,7 +1053,7 @@ export default function PermissionAuditPage() {
     }, []);
 
     // Build tree + filter
-    const tree = auditResult ? buildFolderTree(auditResult.comparisons, auditResult.phaseLabel) : [];
+    const tree = auditResult ? buildFolderTree(auditResult.comparisons) : [];
     const selectedComp = auditResult?.comparisons.find(
         (c) => c.normalizedPath === selectedPath
     );
@@ -1045,7 +1063,7 @@ export default function PermissionAuditPage() {
         filter === "issues"
             ? auditResult?.comparisons.filter((c) => c.status !== "exact_match") || []
             : auditResult?.comparisons || [];
-    const filteredTree = buildFolderTree(filteredComparisons, auditResult?.phaseLabel);
+    const filteredTree = buildFolderTree(filteredComparisons);
 
     return (
         <div className="space-y-4">

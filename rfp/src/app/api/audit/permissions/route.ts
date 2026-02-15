@@ -58,7 +58,7 @@ interface AuditResult {
     projectName: string;
     projectCode: string;
     phase?: string;
-    phaseLabel?: string;
+    phaseLabels?: string[];
     totalFolders: number;
     matchCount: number;
     extraCount: number;
@@ -353,32 +353,37 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'No active template found' }, { status: 404 });
         }
 
-        // Build effective permissions map from template — PHASE FILTERED
+        // Build effective permissions map from template
         const templateNodes = Array.isArray(template.template_json)
             ? template.template_json
             : template.template_json.template || [];
 
-        // Only show folders for the project's current phase
+        // Determine which phases to audit:
+        // - bidding: only Bidding
+        // - execution: BOTH Bidding + Project Delivery
         const projectPhase = project.phase || 'bidding';
-        const phaseNodeName = projectPhase === 'bidding' ? 'Bidding' : 'Project Delivery';
+        const phasesToAudit = projectPhase === 'bidding'
+            ? ['Bidding']
+            : ['Bidding', 'Project Delivery'];
 
-        const phaseNode = templateNodes.find((n: any) => {
-            const nodeName = (n.name || n.text || '').trim();
-            return nodeName === phaseNodeName;
-        });
+        // Build permissionsMap with phase-prefixed keys
+        // e.g. "Bidding/SOW", "Project Delivery/Document Control"
+        const permissionsMap: Record<string, any> = {};
+        for (const phaseNodeName of phasesToAudit) {
+            const phaseNode = templateNodes.find((n: any) => {
+                const nodeName = (n.name || n.text || '').trim();
+                return nodeName === phaseNodeName;
+            });
 
-        let phaseChildren: any[] = [];
-        if (phaseNode?.children) {
-            phaseChildren = phaseNode.children;
-        } else {
-            // Fallback: collect from all nodes if phase matching fails
-            console.warn(`[AUDIT] Phase node '${phaseNodeName}' not found, using all`);
-            for (const topNode of templateNodes) {
-                const children = topNode.children || topNode.nodes || [];
-                phaseChildren.push(...children);
+            if (phaseNode?.children) {
+                const phaseMap = buildEffectivePermissionsMap(phaseNode.children);
+                for (const [path, perms] of Object.entries(phaseMap)) {
+                    permissionsMap[`${phaseNodeName}/${path}`] = perms;
+                }
+            } else {
+                console.warn(`[AUDIT] Phase node '${phaseNodeName}' not found`);
             }
         }
-        const permissionsMap = buildEffectivePermissionsMap(phaseChildren);
 
         // Get indexed folders for this project
         const { data: rawFolders } = await supabaseAdmin.rpc('list_project_folders', {
@@ -392,6 +397,8 @@ export async function GET(request: NextRequest) {
                     projectId: project.id,
                     projectName: project.name,
                     projectCode: project.pr_number,
+                    phase: projectPhase,
+                    phaseLabels: phasesToAudit,
                     totalFolders: 0,
                     matchCount: 0,
                     extraCount: 0,
@@ -403,20 +410,19 @@ export async function GET(request: NextRequest) {
         }
 
         // Deduplicate folders by drive_folder_id
-        // folder_index can have two entries for same folder: one from enforce (template-style path)
-        // and one from rebuild (Drive-style path). Prefer template-style paths.
         const folderMap = new Map<string, any>();
         for (const folder of rawFolders) {
             const existing = folderMap.get(folder.drive_folder_id);
             if (!existing) {
                 folderMap.set(folder.drive_folder_id, folder);
             } else {
-                // Prefer the path that matches a permissionsMap key (template-style)
-                const existingPath = (existing.normalized_template_path || existing.template_path || '')
-                    .replace(/^(Bidding|Project Delivery)\//, '');
-                const newPath = (folder.normalized_template_path || folder.template_path || '')
-                    .replace(/^(Bidding|Project Delivery)\//, '');
-                if (!permissionsMap[existingPath] && permissionsMap[newPath]) {
+                // Prefer the path that matches a permissionsMap key
+                const existingNorm = existing.normalized_template_path || existing.template_path || '';
+                const newNorm = folder.normalized_template_path || folder.template_path || '';
+                // Check both with and without phase prefix
+                const existingHasMatch = Object.keys(permissionsMap).some(k => k.endsWith(`/${existingNorm}`) || k === existingNorm);
+                const newHasMatch = Object.keys(permissionsMap).some(k => k.endsWith(`/${newNorm}`) || k === newNorm);
+                if (!existingHasMatch && newHasMatch) {
                     folderMap.set(folder.drive_folder_id, folder);
                 }
             }
@@ -424,20 +430,16 @@ export async function GET(request: NextRequest) {
         const folders = Array.from(folderMap.values());
 
         // Helper: Normalize Drive-style paths to template-matching paths
-        // "PRJ-017-RFP/3-PRJ-017-RFP-Vendors Quotations" → "Vendors Quotations"
         const projectCode = project.pr_number || '';
         function normalizeDrivePathToTemplate(drivePath: string): string {
             const segments = drivePath.split('/');
-            // First segment is project root (e.g., "PRJ-017-RFP") — skip it
             const remaining = segments.slice(1);
             const cleaned = remaining.map(seg => {
-                // Strip "{number}-{project_code}-{suffix}-" prefix
                 const prefixPattern = new RegExp(
                     `^\\d+-${projectCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(RFP|PD)-`, 'i'
                 );
                 let result = seg.replace(prefixPattern, '');
                 if (result === seg) {
-                    // Try without number
                     const altPattern = new RegExp(
                         `^${projectCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(RFP|PD)-`, 'i'
                     );
@@ -448,34 +450,45 @@ export async function GET(request: NextRequest) {
             return cleaned.filter(s => s).join('/');
         }
 
+        // Helper: Determine phase from template_path (e.g. "PRJ-017-RFP/..." → "Bidding")
+        function detectFolderPhase(templatePath: string): string {
+            if (/-RFP[-/]/i.test(templatePath) || templatePath.includes('-RFP')) {
+                return 'Bidding';
+            }
+            return 'Project Delivery';
+        }
+
         const comparisons: PermissionComparison[] = [];
         let totalMatch = 0, totalExtra = 0, totalMissing = 0, totalMismatch = 0;
 
         for (const folder of folders) {
             let templatePath = folder.normalized_template_path || folder.template_path;
+            const folderPhase = detectFolderPhase(folder.template_path || '');
 
-            // Strip phase prefix since permissionsMap keys don't include it
-            // E.g. "Bidding/SOW" -> "SOW", "Project Delivery/Document Control" -> "Document Control"
+            // Strip phase prefix if present
             let pathWithoutPhase = templatePath.replace(/^(Bidding|Project Delivery)\//, '');
-            let expectedPerms = permissionsMap[pathWithoutPhase];
+
+            // Build phase-prefixed key for permissionsMap lookup
+            const prefixedPath = `${folderPhase}/${pathWithoutPhase}`;
+            let expectedPerms = permissionsMap[prefixedPath];
 
             // If no match, try normalizing as a Drive-style path
             if (!expectedPerms) {
                 const normalizedPath = normalizeDrivePathToTemplate(templatePath);
                 if (normalizedPath) {
-                    expectedPerms = permissionsMap[normalizedPath];
+                    const altPrefixed = `${folderPhase}/${normalizedPath}`;
+                    expectedPerms = permissionsMap[altPrefixed];
                     if (expectedPerms) {
                         pathWithoutPhase = normalizedPath;
-                        templatePath = normalizedPath;
                     }
                 }
             }
 
             console.log('[AUDIT DEBUG]', {
                 templatePath,
-                pathWithoutPhase,
+                folderPhase,
+                prefixedPath,
                 hasMatch: !!expectedPerms,
-                availableKeys: Object.keys(permissionsMap).slice(0, 5)
             });
 
             if (!expectedPerms) continue;
@@ -517,7 +530,7 @@ export async function GET(request: NextRequest) {
 
             comparisons.push({
                 folderPath: folder.template_path,
-                normalizedPath: templatePath,
+                normalizedPath: `${folderPhase}/${pathWithoutPhase}`,
                 driveFolderId: folder.drive_folder_id,
                 expectedGroups: (expectedPerms.groups || []).map((g: any) => ({
                     email: g.email,
@@ -623,7 +636,7 @@ export async function GET(request: NextRequest) {
             projectName: project.name,
             projectCode: project.pr_number,
             phase: projectPhase,
-            phaseLabel: phaseNodeName,
+            phaseLabels: phasesToAudit,
             totalFolders: comparisons.length,
             matchCount: totalMatch,
             extraCount: totalExtra,
