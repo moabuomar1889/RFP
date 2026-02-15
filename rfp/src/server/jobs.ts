@@ -29,7 +29,7 @@ import {
 import { JOB_STATUS, TASK_STATUS } from '@/lib/config';
 
 // Rate limiting helper
-const RATE_LIMIT_DELAY = 300; // ms between API calls
+const RATE_LIMIT_DELAY = 100; // ms between API calls (reduced from 300ms for better performance)
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ============= JOB LOGGING HELPERS =============
@@ -1661,6 +1661,125 @@ async function rebuildFolderIndexForProject(
 }
 
 /**
+ * Auto-create missing folders from template (respects project phase)
+ * - Bidding project → Creates Bidding folders only
+ * - Project Delivery → Creates BOTH Bidding + Project Delivery folders
+ */
+async function createMissingFoldersFromTemplate(
+    project: any,
+    templateJson: any,
+    projectPhase: string,
+    jobId: string
+): Promise<{ created: number; errors: number }> {
+    let created = 0;
+    let errors = 0;
+
+    // Get phase nodes from template based on project phase
+    const templateNodes = Array.isArray(templateJson) ? templateJson : templateJson.template || [];
+
+    // If project is in "project delivery" → create folders for BOTH phases
+    // If project is in "bidding" → create folders for Bidding only
+    const phaseNamesToProcess = projectPhase === 'bidding'
+        ? ['Bidding']
+        : ['Bidding', 'Project Delivery'];
+
+    const phaseNodes = templateNodes.filter((n: any) =>
+        phaseNamesToProcess.includes((n.name || n.text || '').trim())
+    );
+
+    if (phaseNodes.length === 0) {
+        return { created: 0, errors: 0 };
+    }
+
+    // Build list of ALL expected folders from template
+    const expectedFolders = new Map<string, any>(); // path -> templateNode
+
+    function collectTemplateFolders(node: any, parentPath = '') {
+        const nodeName = node.name || node.text || '';
+        const currentPath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
+        expectedFolders.set(currentPath, node);
+
+        const children = node.children || node.nodes || [];
+        for (const child of children) {
+            collectTemplateFolders(child, currentPath);
+        }
+    }
+
+    // Collect all folders from the selected phase(s)
+    for (const phaseNode of phaseNodes) {
+        for (const child of phaseNode.children || []) {
+            collectTemplateFolders(child, '');
+        }
+    }
+
+    // Get existing folders from Drive (via folder_index)
+    const { data: existingFolders } = await supabaseAdmin.rpc('list_project_folders', {
+        p_project_id: project.id
+    });
+
+    const existingPaths = new Set(
+        (existingFolders || []).map((f: any) => f.normalized_template_path || f.template_path)
+    );
+
+    // Find missing folders
+    const missingFolders: Array<{ path: string; node: any }> = [];
+    for (const [path, node] of expectedFolders.entries()) {
+        if (!existingPaths.has(path)) {
+            missingFolders.push({ path, node });
+        }
+    }
+
+    if (missingFolders.length === 0) {
+        return { created: 0, errors: 0 };
+    }
+
+    // Sort by depth (create parent folders first)
+    missingFolders.sort((a, b) => {
+        const depthA = a.path.split('/').length;
+        const depthB = b.path.split('/').length;
+        return depthA - depthB;
+    });
+
+    // Create each missing folder
+    for (const { path, node } of missingFolders) {
+        try {
+            // Find parent folder ID
+            const pathParts = path.split('/');
+            const folderName = pathParts[pathParts.length - 1];
+            let parentId = project.google_folder_id; // Default to project root
+
+            if (pathParts.length > 1) {
+                // Find parent in existing folders
+                const parentPath = pathParts.slice(0, -1).join('/');
+                const parentFolder = (existingFolders || []).find(
+                    (f: any) => (f.normalized_template_path || f.template_path) === parentPath
+                );
+                parentId = parentFolder?.google_folder_id || parentId;
+            }
+
+            // Create folder in Google Drive
+            const newFolder = await createFolder(folderName, parentId);
+
+            await writeJobLog(jobId, project.id, project.name, path, 'folder_created', 'success', {
+                folder_id: newFolder.id,
+                parent_id: parentId
+            });
+
+            created++;
+            await sleep(RATE_LIMIT_DELAY);
+
+        } catch (err: any) {
+            await writeJobLog(jobId, project.id, project.name, path, 'folder_create_failed', 'error', {
+                error: err.message
+            });
+            errors++;
+        }
+    }
+
+    return { created, errors };
+}
+
+/**
  * NEW: Enforce permissions using RESET-THEN-APPLY approach
  * This eliminates conflicts with Limited Access and role modifications
  * 
@@ -1756,13 +1875,43 @@ async function enforceProjectPermissionsWithReset(
     });
 
     // Step 3: Get folders to process using RPC (includes normalized_template_path)
-    const { data: rawFolders } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
+    let { data: rawFolders } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
 
     if (!rawFolders || rawFolders.length === 0) {
         await writeJobLog(jobId, project.id, project.name, null, 'warning', 'warning', {
             message: 'No folders found in index'
         });
         return { removed: 0, added: 0, errors: 0 };
+    }
+
+    // Step 3.5: Auto-create missing folders from template
+    console.log(`[ENFORCE] Checking for missing folders from template...`);
+    const { created, errors: createErrors } = await createMissingFoldersFromTemplate(
+        project,
+        template.template_json,
+        projectPhase,
+        jobId
+    );
+
+    if (created > 0) {
+        await writeJobLog(jobId, project.id, project.name, null, 'folders_created', 'success', {
+            count: created,
+            phase: projectPhase
+        });
+
+        // Rebuild index to include newly created folders
+        console.log(`[ENFORCE] Rebuilding index to include ${created} newly created folders...`);
+        await rebuildFolderIndexForProject(project);
+
+        // Re-fetch folders
+        const { data: updatedFolders } = await supabaseAdmin.rpc('list_project_folders', {
+            p_project_id: project.id
+        });
+        rawFolders = updatedFolders;
+    }
+
+    if (createErrors > 0) {
+        errors += createErrors;
     }
 
     // Apply scope filtering using normalized_template_path
@@ -1855,6 +2004,7 @@ async function enforceProjectPermissionsWithReset(
         // === PHASE 1: RESET - Remove all non-protected permissions ===
         try {
             const currentPerms = await listPermissions(folder.drive_folder_id);
+            const inheritedPerms: Array<{ email: string; role: string }> = [];
 
             for (const perm of currentPerms) {
                 if (!perm.emailAddress) continue;
@@ -1867,11 +2017,11 @@ async function enforceProjectPermissionsWithReset(
                     continue;
                 }
 
-                // Skip inherited permissions (cannot be removed at folder level)
+                // Collect inherited permissions (cannot be removed at folder level)
                 if (perm.inherited || perm.permissionDetails?.[0]?.inherited) {
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'skip_inherited', 'info', {
+                    inheritedPerms.push({
                         email: perm.emailAddress,
-                        role: perm.role
+                        role: perm.role || 'unknown'
                     });
                     continue;
                 }
@@ -1900,6 +2050,14 @@ async function enforceProjectPermissionsWithReset(
                         });
                     }
                 }
+            }
+
+            // Log inherited permissions summary (instead of individual entries)
+            if (inheritedPerms.length > 0) {
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_summary', 'info', {
+                    count: inheritedPerms.length,
+                    sample: inheritedPerms.slice(0, 3) // First 3 for reference
+                });
             }
 
             // === PHASE 2: Clear Limited Access ===
