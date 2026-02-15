@@ -133,13 +133,13 @@ export function hasActiveOverrides(o?: Overrides): boolean {
 
 export interface ExplicitPrincipal {
     email: string;
-    role: 'reader' | 'writer' | 'fileOrganizer' | 'organizer';
+    role: 'reader' | 'commenter' | 'writer' | 'fileOrganizer' | 'organizer';
 }
 
 export interface EffectivePrincipal {
     type: 'user' | 'group';
     email: string;
-    role: 'reader' | 'writer' | 'fileOrganizer' | 'organizer';
+    role: 'reader' | 'commenter' | 'writer' | 'fileOrganizer' | 'organizer';
     scope: 'explicit' | 'inherited';
     /** ID of the node that defines this principal (null if explicit on current node) */
     sourceNodeId: string | null;

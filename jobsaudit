@@ -1,0 +1,3764 @@
+{
+    "success": true,
+    "logs": [
+        {
+            "id": "c53c4515-89af-4da5-8032-d9cab02f41f2",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "set_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "enabled": true
+                },
+                "message": "Quantity Survey",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:31.840787+00:00"
+        },
+        {
+            "id": "90101e49-77fb-448d-bdf6-73594e3341be",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Quantity Survey",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:30.15098+00:00"
+        },
+        {
+            "id": "7d6cee57-008b-4f8b-9990-a35b4479c300",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Quantity Survey",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:28.924017+00:00"
+        },
+        {
+            "id": "5639a043-608f-4105-af1c-a8f863a18f77",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Quantity Survey",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:28.635066+00:00"
+        },
+        {
+            "id": "327f7e2c-d413-4a3f-923a-0020668d0820",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "reader",
+                    "email": "HSE-Team@dtgsa.com"
+                },
+                "message": "Quantity Survey",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:28.357644+00:00"
+        },
+        {
+            "id": "652e1e39-6401-41be-b010-4b8dd8b3a543",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Quantity Survey",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:28.085459+00:00"
+        },
+        {
+            "id": "e1237f49-a134-4368-bb37-147b66f14e9b",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Quantity Survey",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:27.793236+00:00"
+        },
+        {
+            "id": "b6b91888-6f4e-4acc-87f9-a623fdee2703",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Quantity Survey",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:27.459029+00:00"
+        },
+        {
+            "id": "efc48601-1030-456e-82b7-094e7b5acd98",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Survey-Team@dtgsa.com"
+                },
+                "message": "Quantity Survey",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:27.112009+00:00"
+        },
+        {
+            "id": "1450039f-fca6-4d2c-9263-9cbd7ff63aa6",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "reader",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Quantity Survey",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:26.83716+00:00"
+        },
+        {
+            "id": "ca674b86-7dbd-4dad-b724-61524127fc12",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Technical-Team@dtgsa.com"
+                },
+                "message": "Quantity Survey",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:26.566711+00:00"
+        },
+        {
+            "id": "54cd5e66-b25c-449e-9121-80efd4769b34",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quantity Survey",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1XJqYjaq_DILUqYHZqLYWdYkpOSJ9z3qT"
+                },
+                "message": "Quantity Survey",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:25.837616+00:00"
+        },
+        {
+            "id": "d4671a3b-e93b-4d8b-a9f8-4002f5221df0",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 5,
+                    "limitedAccess": true
+                },
+                "message": "Quality Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:25.250084+00:00"
+        },
+        {
+            "id": "80001af9-5831-43a2-82c6-8098e0025f2d",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "technical-team@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:24.662907+00:00"
+        },
+        {
+            "id": "7e4cc107-8833-431b-a956-ca9192058ed0",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "quality-control@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:22.961196+00:00"
+        },
+        {
+            "id": "995c7e8e-9738-4623-956a-055a317a4cd2",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "projects-managers@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:21.168508+00:00"
+        },
+        {
+            "id": "4300a914-777e-4e2d-9d1a-74faba06ee16",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "projects-control@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:19.376901+00:00"
+        },
+        {
+            "id": "51a5087f-aea2-4d77-bb11-74d67ff88ad3",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "dc-team@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:17.667237+00:00"
+        },
+        {
+            "id": "f928fa8b-10e7-4c2f-8a33-5490c6401ff8",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "set_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "enabled": true
+                },
+                "message": "Quality Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:16.041923+00:00"
+        },
+        {
+            "id": "cfc88969-e0fa-4ccf-ac6c-4c91a0bc2727",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Quality Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:14.023972+00:00"
+        },
+        {
+            "id": "511cd66a-4dba-4baa-9edb-867e74d72f42",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:12.47454+00:00"
+        },
+        {
+            "id": "52a777ae-970b-45d8-848f-44b5fde96473",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:12.21701+00:00"
+        },
+        {
+            "id": "8abc6ffd-6f89-4303-bdde-95eb93a7c9a5",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "reader",
+                    "email": "HSE-Team@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:11.942542+00:00"
+        },
+        {
+            "id": "6880eea0-4686-4a19-a3f0-f2e39a717cdf",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:11.671445+00:00"
+        },
+        {
+            "id": "ce25f23e-ed4d-4778-ac79-6ed8fc82c719",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:11.39331+00:00"
+        },
+        {
+            "id": "c54276ed-f627-40dd-bf9b-bb2aaf3cb084",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:11.121148+00:00"
+        },
+        {
+            "id": "abe220ce-9cc5-4d05-a047-41fe07803076",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "reader",
+                    "email": "Survey-Team@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:10.860144+00:00"
+        },
+        {
+            "id": "d43d9359-82d6-4cc7-adfc-cdfb9270ab73",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:10.580821+00:00"
+        },
+        {
+            "id": "8e8654fc-2f07-4840-9346-ae79061111c6",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Technical-Team@dtgsa.com"
+                },
+                "message": "Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:10.309468+00:00"
+        },
+        {
+            "id": "ed4b44fc-a25e-44e5-9f8d-bbb6d4dc10ba",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Quality Control",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1huASBQzFY_u-uwr8Z3JWf3FvTZirsa52"
+                },
+                "message": "Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:09.617566+00:00"
+        },
+        {
+            "id": "dbac18c9-0932-40fb-8f46-da9e7eb64c33",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Reports",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Project Control/Planning/Reports",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:09.044599+00:00"
+        },
+        {
+            "id": "dc10e9c8-8034-4b3f-8ca8-b72f50a132b2",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Reports",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Project Control/Planning/Reports",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:08.474724+00:00"
+        },
+        {
+            "id": "1f2619fa-121c-4ce2-b203-afadc8727761",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Reports",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Project Control/Planning/Reports",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:07.240258+00:00"
+        },
+        {
+            "id": "f398b741-1390-4bcf-959b-d89e0507e623",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Reports",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Project Control/Planning/Reports",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:06.981117+00:00"
+        },
+        {
+            "id": "3f584e9d-ed16-472e-be75-a2e0bd7f0ff7",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Reports",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Project Control/Planning/Reports",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:06.718637+00:00"
+        },
+        {
+            "id": "45654357-5177-4c1e-8a06-6a7e04353ca7",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Reports",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Project Control/Planning/Reports",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:06.454886+00:00"
+        },
+        {
+            "id": "022c1b28-0a6a-466f-b2cb-44230571be93",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Reports",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Project Control/Planning/Reports",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:06.184784+00:00"
+        },
+        {
+            "id": "ab83530d-6320-48bb-8da6-c0b555aae9c1",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Reports",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1KJEWSci6qd2QcmG4nz8vR1nab5xqzdfn"
+                },
+                "message": "Project Control/Planning/Reports",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:05.502903+00:00"
+        },
+        {
+            "id": "feddcd37-3cb6-4f6d-a4fb-6b92602a6eb8",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Planning Deliverables",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Project Control/Planning/Planning Deliverables",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:04.928461+00:00"
+        },
+        {
+            "id": "3c52a33c-c507-48c6-9dc1-d5bbc3618a7e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Planning Deliverables",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Project Control/Planning/Planning Deliverables",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:04.353875+00:00"
+        },
+        {
+            "id": "cab9a15e-3126-4ab6-b3c4-74ec9ec20ca5",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Planning Deliverables",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Project Control/Planning/Planning Deliverables",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:03.166479+00:00"
+        },
+        {
+            "id": "a8cacc58-47ce-4297-abcc-3c8fe7aef4f4",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Planning Deliverables",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Project Control/Planning/Planning Deliverables",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:02.888403+00:00"
+        },
+        {
+            "id": "4056dddd-90fa-4b3e-bbbf-cb454ae8011e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Planning Deliverables",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Project Control/Planning/Planning Deliverables",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:02.618853+00:00"
+        },
+        {
+            "id": "61b15593-9df7-4405-9750-61cb40ff6ba1",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Planning Deliverables",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Project Control/Planning/Planning Deliverables",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:02.347097+00:00"
+        },
+        {
+            "id": "fa4386c9-bc24-4681-b5a6-2a44a345d763",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Planning Deliverables",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Project Control/Planning/Planning Deliverables",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:02.041799+00:00"
+        },
+        {
+            "id": "c8b04086-349d-450f-8f2a-2765b46618ba",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning/Planning Deliverables",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1ZAEsBkUrclJaVLscTI0UnnTtqE3n8RNj"
+                },
+                "message": "Project Control/Planning/Planning Deliverables",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:01.283934+00:00"
+        },
+        {
+            "id": "7c6520b7-eb4b-46cb-852c-8780cf34a357",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Project Control/Planning",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:00.726831+00:00"
+        },
+        {
+            "id": "a5f64a21-80ab-4a01-ad0d-2833c528ad61",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Project Control/Planning",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:01:00.135648+00:00"
+        },
+        {
+            "id": "ba9f84fd-6f8b-4c6b-af31-903766e94c67",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Project Control/Planning",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:58.941515+00:00"
+        },
+        {
+            "id": "bf086723-6179-40df-a2d2-c139393f45c0",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Project Control/Planning",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:58.68506+00:00"
+        },
+        {
+            "id": "40a8c07a-3f16-4b07-926d-01023c83c79e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Project Control/Planning",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:58.427242+00:00"
+        },
+        {
+            "id": "6d8d189c-b89a-4dd5-86e1-4b010a24f328",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Project Control/Planning",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:58.164105+00:00"
+        },
+        {
+            "id": "ab639cdf-b1bf-4f06-bfc9-02c81f0994fd",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Project Control/Planning",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:57.894342+00:00"
+        },
+        {
+            "id": "aef14e06-2360-47b6-bfbd-b9959c1e5df7",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Planning",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1l7CBr8sJjQrEqClrC00fLGTxtAhrZwxv"
+                },
+                "message": "Project Control/Planning",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:57.177984+00:00"
+        },
+        {
+            "id": "49364683-8873-4a27-b7b0-14a87a7d3b7b",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Invoices",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Project Control/Commercial/Invoices",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:56.61366+00:00"
+        },
+        {
+            "id": "fc190fd6-ad43-4bf1-a946-3415f47acaaa",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Invoices",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Project Control/Commercial/Invoices",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:56.051151+00:00"
+        },
+        {
+            "id": "b938d19d-54b8-49a1-aaed-515a765636ba",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Invoices",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Invoices",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:54.795909+00:00"
+        },
+        {
+            "id": "144b1190-ee07-40a7-bf1d-3565d3b8aab6",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Invoices",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Invoices",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:54.524842+00:00"
+        },
+        {
+            "id": "c5721648-1346-4c9e-a0a6-4b910a9423c4",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Invoices",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Invoices",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:54.265197+00:00"
+        },
+        {
+            "id": "c9d655af-209c-4caa-aa66-fcfe350bf15f",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Invoices",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Invoices",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:53.50202+00:00"
+        },
+        {
+            "id": "91b4e899-7d11-4ee2-beb3-6e60f2b7f9dd",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Invoices",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Invoices",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:53.244848+00:00"
+        },
+        {
+            "id": "7d2d445e-68cd-4c12-a7da-ccceb82fadd0",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Invoices",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1zb7geeTQKkoruOsGbhvHg1fRPr-a9s9b"
+                },
+                "message": "Project Control/Commercial/Invoices",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:52.553163+00:00"
+        },
+        {
+            "id": "4be7e923-dd31-45f2-98f3-7c0ca4c31fba",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Contract & PO",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Project Control/Commercial/Agreements/Contract & PO",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:51.983548+00:00"
+        },
+        {
+            "id": "c552c60f-891f-4a3d-8804-cdf8d419fd7b",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Contract & PO",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Project Control/Commercial/Agreements/Contract & PO",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:51.426844+00:00"
+        },
+        {
+            "id": "fa2ad6d7-4ea1-4e5a-a778-f65421a9d1ab",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Contract & PO",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Contract & PO",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:50.211361+00:00"
+        },
+        {
+            "id": "bf1543d3-a6ad-491f-aafb-8aa24996cc6d",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Contract & PO",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Contract & PO",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:49.94137+00:00"
+        },
+        {
+            "id": "a31e01b2-0858-4d14-905d-59f2a20878cf",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Contract & PO",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "muath@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Contract & PO",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:49.677028+00:00"
+        },
+        {
+            "id": "0440d3c9-dcb1-42d1-943e-ab2e45a03c80",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Contract & PO",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Contract & PO",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:49.393702+00:00"
+        },
+        {
+            "id": "3adebe04-27d8-4321-a9c2-73475cc97b35",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Contract & PO",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "qandil@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Contract & PO",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:49.132828+00:00"
+        },
+        {
+            "id": "e7846fa1-9868-41f5-bf7f-9cc0990e6131",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Contract & PO",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Contract & PO",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:48.868042+00:00"
+        },
+        {
+            "id": "74266a6c-c4b9-45ca-ab65-cd1779e87254",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Contract & PO",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Contract & PO",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:48.580195+00:00"
+        },
+        {
+            "id": "dcc50adf-de4c-464b-abec-608dad5e0fbd",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Contract & PO",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1KNQdndqiBRf5GV8pUm9mYlopdmdBVUVS"
+                },
+                "message": "Project Control/Commercial/Agreements/Contract & PO",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:47.909131+00:00"
+        },
+        {
+            "id": "7ab051f3-53b2-442e-a2e0-2e6c20875b8e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Change Orders",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Project Control/Commercial/Agreements/Change Orders",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:47.339035+00:00"
+        },
+        {
+            "id": "204fe89a-5441-41c1-9ff4-43a5851dbbf4",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Change Orders",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Project Control/Commercial/Agreements/Change Orders",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:46.778343+00:00"
+        },
+        {
+            "id": "cf61013a-a104-4d26-b03c-b7769f9726d6",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Change Orders",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Change Orders",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:45.545167+00:00"
+        },
+        {
+            "id": "2647f5e2-43fa-43c3-9f27-63a30e4fe2c7",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Change Orders",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Change Orders",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:45.273746+00:00"
+        },
+        {
+            "id": "ebf73757-a575-4d57-872f-de283c7ffe89",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Change Orders",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "muath@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Change Orders",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:45.006946+00:00"
+        },
+        {
+            "id": "6a80dfac-c68f-4a6a-a99f-13e615d9fad1",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Change Orders",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Change Orders",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:44.699803+00:00"
+        },
+        {
+            "id": "3c6e8bd8-fe1b-4fba-b90a-59b795335108",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Change Orders",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "qandil@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Change Orders",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:44.419368+00:00"
+        },
+        {
+            "id": "62fc007c-1f54-4507-9827-f359c29e5ce0",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Change Orders",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Change Orders",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:44.147881+00:00"
+        },
+        {
+            "id": "2795e005-0bc4-4e4a-ba7d-c4a1cd2605b8",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Change Orders",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements/Change Orders",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:43.85908+00:00"
+        },
+        {
+            "id": "9443ebb1-b781-4ee0-bbd5-d7e80a0660c4",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements/Change Orders",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1RNsrBn1dPFBiqyqqrsNzVAHlln8jJWvv"
+                },
+                "message": "Project Control/Commercial/Agreements/Change Orders",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:43.153192+00:00"
+        },
+        {
+            "id": "aa588302-5eef-4f6b-97cd-78b7eefa7cc1",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 2,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:42.570849+00:00"
+        },
+        {
+            "id": "2ce14a13-4722-47d6-b542-7b02ea443570",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "added_user",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "qandil@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:42.004735+00:00"
+        },
+        {
+            "id": "ed44fdb2-d1ee-4611-b643-b75b2bd2c951",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "added_user",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "muath@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:40.019904+00:00"
+        },
+        {
+            "id": "102765ca-b18f-4c41-8d9e-322d93630b4c",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:38.305272+00:00"
+        },
+        {
+            "id": "1972948b-efe0-40e5-a77b-17c6545db014",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:36.969261+00:00"
+        },
+        {
+            "id": "25a034e6-fff9-48aa-b9e8-bce710ee252f",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:36.70275+00:00"
+        },
+        {
+            "id": "ae2f80aa-dc48-481d-ad89-86d4a98e5479",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "removed_permission",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "muath@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:36.138189+00:00"
+        },
+        {
+            "id": "452f736c-608c-4d48-a5b2-090b2694d832",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:34.716553+00:00"
+        },
+        {
+            "id": "d6145f16-bddf-44ac-929e-0ed8280be768",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "removed_permission",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "qandil@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:34.15498+00:00"
+        },
+        {
+            "id": "ce0baf57-8c39-489f-acb4-4debcda24498",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:32.224706+00:00"
+        },
+        {
+            "id": "9bd42faa-a8f9-4f1f-be06-dcd0d987af4b",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:31.964721+00:00"
+        },
+        {
+            "id": "bd5bea5f-3c11-4bee-914b-c0e0ad13d64a",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial/Agreements",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1qDmDDYSfraZkB5maTFC1nwivC8EpE05F"
+                },
+                "message": "Project Control/Commercial/Agreements",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:31.286922+00:00"
+        },
+        {
+            "id": "0026b06f-d672-4567-9e72-19133982be67",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Project Control/Commercial",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:30.701804+00:00"
+        },
+        {
+            "id": "e0dd59c0-d747-4d56-ae9c-a322534db960",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Project Control/Commercial",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:30.133001+00:00"
+        },
+        {
+            "id": "98039528-f4d4-47d3-84b9-53d94ff48c32",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Project Control/Commercial",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:28.900834+00:00"
+        },
+        {
+            "id": "2a0f42bb-916f-48cb-ba7b-ea9ecfdb7543",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Project Control/Commercial",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:28.618491+00:00"
+        },
+        {
+            "id": "a206fdaf-0222-4967-8a84-97c27deadc9c",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Project Control/Commercial",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:27.892195+00:00"
+        },
+        {
+            "id": "f967b07f-fb39-4c56-8835-683fb0d64a2e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Project Control/Commercial",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:27.624036+00:00"
+        },
+        {
+            "id": "99de84a4-5bc8-4f45-b077-d9cc8cbe3c1e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Project Control/Commercial",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:27.329563+00:00"
+        },
+        {
+            "id": "f5bffd5e-0b70-4d56-8b21-eed80d3c9dfd",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control/Commercial",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1fb8D7tlgXR3lTOdiE3H6DsDdgNcpn80S"
+                },
+                "message": "Project Control/Commercial",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:26.594476+00:00"
+        },
+        {
+            "id": "65fcc033-f729-4bc4-8ad7-d57cc9cb3e24",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 2,
+                    "limitedAccess": true
+                },
+                "message": "Project Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:26.018534+00:00"
+        },
+        {
+            "id": "8c995045-05e3-4513-b726-9305018b6df2",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "projects-managers@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:25.451607+00:00"
+        },
+        {
+            "id": "a35402c9-087f-4e89-8082-b84a61850e54",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "projects-control@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:23.753713+00:00"
+        },
+        {
+            "id": "aba7f3ca-a049-43e1-a6aa-df065567b1cf",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "set_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "enabled": true
+                },
+                "message": "Project Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:22.078504+00:00"
+        },
+        {
+            "id": "a5bbeef1-97e0-429c-8968-f48404e68c0c",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Project Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:19.974545+00:00"
+        },
+        {
+            "id": "293380f4-f2b5-41d3-88f7-339ce86fc3cb",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:18.597408+00:00"
+        },
+        {
+            "id": "2309c554-cb1a-4a55-8ada-1bdaef70072a",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:18.331923+00:00"
+        },
+        {
+            "id": "ab483983-f1a9-4b8c-8f9b-db8c83187240",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "reader",
+                    "email": "HSE-Team@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:18.054228+00:00"
+        },
+        {
+            "id": "a83be461-012e-4418-bf52-b5374abcfab4",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "reader",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:17.788856+00:00"
+        },
+        {
+            "id": "4cb5603f-9543-4f17-b488-b81614c3f856",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:17.519172+00:00"
+        },
+        {
+            "id": "b055395c-efe4-49d9-9a79-27648e6aaa5e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:16.742875+00:00"
+        },
+        {
+            "id": "ba90cb01-285d-4024-928d-05e76a3be575",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "reader",
+                    "email": "Survey-Team@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:16.465937+00:00"
+        },
+        {
+            "id": "4d73a44c-22e9-43d0-84bf-9172f1d07ebe",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:16.202993+00:00"
+        },
+        {
+            "id": "678d0804-bb8a-4b4d-9016-a4962daf892d",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "reader",
+                    "email": "Technical-Team@dtgsa.com"
+                },
+                "message": "Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:15.927363+00:00"
+        },
+        {
+            "id": "3b535d7d-ef1d-4173-99de-28973b2971e5",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Project Control",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "13oSrsgBYZ9liLsLyiRz1toDbM1evlLXE"
+                },
+                "message": "Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:15.179152+00:00"
+        },
+        {
+            "id": "75fdd6e2-39f9-4843-bc8c-21f2c4e29daf",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 7,
+                    "limitedAccess": true
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:14.615171+00:00"
+        },
+        {
+            "id": "d62df9df-802c-476b-98c5-37197e303e58",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "technical-team@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:14.048188+00:00"
+        },
+        {
+            "id": "9cb36b1f-d97f-48c3-b14f-5c90af879c6c",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "survey-team@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:12.247605+00:00"
+        },
+        {
+            "id": "6cd73cdd-a824-41ba-9b97-294b2075e87f",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "quality-control@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:10.495214+00:00"
+        },
+        {
+            "id": "7361698a-ef98-48bc-814e-1502a2bf6eb1",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "projects-managers@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:08.831255+00:00"
+        },
+        {
+            "id": "736faf03-ca1a-410c-afa4-4eafaa64295d",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "projects-control@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:06.937717+00:00"
+        },
+        {
+            "id": "66c70b82-8fe0-400d-8732-e933594ffb83",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "operation-team@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:05.263072+00:00"
+        },
+        {
+            "id": "887d90f9-11c3-4776-80ec-671a30006156",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "added_group",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "dc-team@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:03.476569+00:00"
+        },
+        {
+            "id": "9098f88c-eb61-48b3-bc25-09c1dd037448",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "set_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "enabled": true
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T04:00:01.740128+00:00"
+        },
+        {
+            "id": "554a197f-f8ea-40f2-8360-97ff4b8100d0",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:59.96453+00:00"
+        },
+        {
+            "id": "6e12b227-d33f-4ef5-800f-79f59a7f0e3a",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:58.613353+00:00"
+        },
+        {
+            "id": "648d14a7-23f0-470c-8f69-1e9e0a08f28e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:58.34494+00:00"
+        },
+        {
+            "id": "df68c900-9aeb-4781-945a-66c85917139f",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "reader",
+                    "email": "HSE-Team@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:58.080279+00:00"
+        },
+        {
+            "id": "76bbf5b7-8294-4ef6-9217-8bbcb0fccae9",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:57.81188+00:00"
+        },
+        {
+            "id": "d022ff82-8974-4837-82d3-39a122758379",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:57.532565+00:00"
+        },
+        {
+            "id": "4b240fe7-80fc-4a87-9ed6-c689e75b4e2b",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:57.267465+00:00"
+        },
+        {
+            "id": "d243ff0c-467e-4a2d-ba41-8ce07b8f7340",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "removed_permission",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Operation-team@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:56.703396+00:00"
+        },
+        {
+            "id": "be92d49f-f8ef-4773-bf78-01682996976f",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Survey-Team@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:55.124284+00:00"
+        },
+        {
+            "id": "744a42ef-8194-4502-982b-466f9a1b4a44",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:54.848639+00:00"
+        },
+        {
+            "id": "cefb9c10-193a-48f6-a33f-74cab2903068",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Technical-Team@dtgsa.com"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:54.559017+00:00"
+        },
+        {
+            "id": "a247bb32-89ce-402e-a787-0f0de1545d91",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Engineering (EPC ONLY)",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1PzELGik0EA41QH7ax62mV2ZE_CybubbK"
+                },
+                "message": "Engineering (EPC ONLY)",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:53.877087+00:00"
+        },
+        {
+            "id": "0fe30b16-4ee5-4da3-84af-cd9e8d1f2711",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/SI & CCCOR",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Document Control/Submittals/Received/SI & CCCOR",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:53.316233+00:00"
+        },
+        {
+            "id": "817f708a-d13d-474d-9969-18435e684c21",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/SI & CCCOR",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Document Control/Submittals/Received/SI & CCCOR",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:52.745763+00:00"
+        },
+        {
+            "id": "5985c068-2965-4049-a8d1-429dcbbcc9d0",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/SI & CCCOR",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/SI & CCCOR",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:51.561513+00:00"
+        },
+        {
+            "id": "b8afb3ea-dda6-4ae2-b566-06f7ad9f25b2",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/SI & CCCOR",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/SI & CCCOR",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:51.297786+00:00"
+        },
+        {
+            "id": "51ee7a41-6a67-454e-b0d9-f59f6155f040",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/SI & CCCOR",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/SI & CCCOR",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:51.028631+00:00"
+        },
+        {
+            "id": "f616852e-3ade-481b-80ed-1be3c9108276",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/SI & CCCOR",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/SI & CCCOR",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:50.762875+00:00"
+        },
+        {
+            "id": "b7028b48-7ea8-42a2-a78e-c0607df5360d",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/SI & CCCOR",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/SI & CCCOR",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:50.5029+00:00"
+        },
+        {
+            "id": "d0dbdc24-8679-4eb0-adb3-d8e1856ab525",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/SI & CCCOR",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/SI & CCCOR",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:50.240148+00:00"
+        },
+        {
+            "id": "83d13ae8-331a-4a2f-95cb-03a5ba107bc9",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/SI & CCCOR",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "12H2fR7MmJk72b1pVpJqkiO0rN4S2LzVX"
+                },
+                "message": "Document Control/Submittals/Received/SI & CCCOR",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:49.521952+00:00"
+        },
+        {
+            "id": "209d4fb3-94c1-4397-917d-6e5dfb451746",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Quality Control",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Document Control/Submittals/Received/Quality Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:48.948927+00:00"
+        },
+        {
+            "id": "81be560a-3897-434d-9608-f845eb5b65a9",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Quality Control",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Document Control/Submittals/Received/Quality Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:48.388052+00:00"
+        },
+        {
+            "id": "02967db5-3223-4588-bcb3-2a406ce9ad3b",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Quality Control",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:47.164707+00:00"
+        },
+        {
+            "id": "b1b3e1e1-c3f6-4d60-ad1e-b037a87385c0",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:46.904754+00:00"
+        },
+        {
+            "id": "9ec31922-2d40-4e28-87e8-dc54214b24d9",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:46.645242+00:00"
+        },
+        {
+            "id": "e013ce70-2fae-4c2f-9600-51ecdb1bfe52",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:46.384064+00:00"
+        },
+        {
+            "id": "99aae57f-e827-483e-9be9-18c3dc40afdc",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:46.116028+00:00"
+        },
+        {
+            "id": "c7683a3b-c0d8-46d1-9714-09c304a91c02",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Quality Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:45.853513+00:00"
+        },
+        {
+            "id": "9552d13d-a02b-4999-92f5-796e0fd2ecc8",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Quality Control",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1pqI2RYJu1_Wc7LZYmBunkxc0tXwcU5vS"
+                },
+                "message": "Document Control/Submittals/Received/Quality Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:45.162719+00:00"
+        },
+        {
+            "id": "3ee9281b-8852-4cd8-8e34-54b4fe13cda5",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Project Control",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Document Control/Submittals/Received/Project Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:44.596858+00:00"
+        },
+        {
+            "id": "4a932941-be42-489c-846b-f6f69c9d79a1",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Project Control",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Document Control/Submittals/Received/Project Control",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:43.984547+00:00"
+        },
+        {
+            "id": "f65ce7cb-c86f-4514-811d-56baa05b4430",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Project Control",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:42.703621+00:00"
+        },
+        {
+            "id": "eb7ff5f7-05ca-4152-94ec-b82bd8af8b72",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:42.436979+00:00"
+        },
+        {
+            "id": "8f041cc8-4e91-48c2-a9ba-c2ad95cf7c92",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:42.169238+00:00"
+        },
+        {
+            "id": "e65a65f7-a745-48e9-a82d-ce82d45efb57",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:41.908512+00:00"
+        },
+        {
+            "id": "3995864c-dcc2-42aa-9ae4-d642c389a9b8",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:41.648114+00:00"
+        },
+        {
+            "id": "c1161efd-6d1c-4f72-80c4-218c42cf38a7",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Project Control",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:41.373342+00:00"
+        },
+        {
+            "id": "d23c88ce-873f-4963-9989-f82d0aeb1c33",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Project Control",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1WZ7HJho5njPqbwSw3jm4U6QV9sa0uAU0"
+                },
+                "message": "Document Control/Submittals/Received/Project Control",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:40.690752+00:00"
+        },
+        {
+            "id": "7e168085-1631-4396-9a73-95f2c20dd1bd",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Procurement",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Document Control/Submittals/Received/Procurement",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:40.129119+00:00"
+        },
+        {
+            "id": "d393c3c1-3be2-49f4-8dd5-6a6f2f8ea955",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Procurement",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Document Control/Submittals/Received/Procurement",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:39.570617+00:00"
+        },
+        {
+            "id": "2af2fe6d-d572-4717-ae79-eaa84a3bdca2",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Procurement",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Procurement",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:38.319725+00:00"
+        },
+        {
+            "id": "7fcbfee8-a404-4adf-acfc-e9fc38f5e04f",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Procurement",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Procurement",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:38.050559+00:00"
+        },
+        {
+            "id": "2014ba2f-a1d5-48a7-9dfe-86bcd40a1f24",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Procurement",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Procurement",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:37.785527+00:00"
+        },
+        {
+            "id": "45de1147-0810-4831-bc05-b6f3e8e8a7cf",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Procurement",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Procurement",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:37.514478+00:00"
+        },
+        {
+            "id": "6999ca18-bad2-4b31-a088-5e9b908da31e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Procurement",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Procurement",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:37.240902+00:00"
+        },
+        {
+            "id": "65957644-68c3-47dc-be1d-d784e294dc91",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Procurement",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Procurement",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:36.976871+00:00"
+        },
+        {
+            "id": "ac090e58-db5c-40e6-93fc-504496a142be",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Procurement",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1GMk66HByqtjhGskPNbxa__loRDmf_N1v"
+                },
+                "message": "Document Control/Submittals/Received/Procurement",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:36.256075+00:00"
+        },
+        {
+            "id": "0b1cd659-2a90-47ad-9bd5-5770b4f75565",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Minutes of Meetings",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Document Control/Submittals/Received/Minutes of Meetings",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:35.695194+00:00"
+        },
+        {
+            "id": "050235bd-b04b-4ff9-96d2-3999324605be",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Minutes of Meetings",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Document Control/Submittals/Received/Minutes of Meetings",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:35.130849+00:00"
+        },
+        {
+            "id": "26875e81-27ec-4885-a131-142d6379b4a8",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Minutes of Meetings",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Minutes of Meetings",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:33.961625+00:00"
+        },
+        {
+            "id": "d1ccecc7-783d-426e-baf6-145f0be4d93b",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Minutes of Meetings",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Minutes of Meetings",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:33.700752+00:00"
+        },
+        {
+            "id": "9c9aa006-35b2-4f43-b2b5-a6e0aa533d77",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Minutes of Meetings",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Minutes of Meetings",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:33.436225+00:00"
+        },
+        {
+            "id": "c23620a9-0644-4b52-aa76-942f9b874e71",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Minutes of Meetings",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Minutes of Meetings",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:33.173599+00:00"
+        },
+        {
+            "id": "dfe9795c-1668-4870-adb3-5dc21299b2b8",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Minutes of Meetings",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Minutes of Meetings",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:32.911394+00:00"
+        },
+        {
+            "id": "2b6d0c58-9b37-4b15-a87b-9016091214cc",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Minutes of Meetings",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Minutes of Meetings",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:32.642415+00:00"
+        },
+        {
+            "id": "ab2df6cf-c58c-4c45-83e1-536639f2448e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Minutes of Meetings",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1dY88zuEMUF0kSBHpZgcrXKPq-FnMVyZO"
+                },
+                "message": "Document Control/Submittals/Received/Minutes of Meetings",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:31.957002+00:00"
+        },
+        {
+            "id": "490c9afd-93e3-43d3-9cee-37d1ae451079",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Letters",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Document Control/Submittals/Received/Letters",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:31.384947+00:00"
+        },
+        {
+            "id": "50a1612c-e666-4809-ae0a-3b5406dd95f3",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Letters",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Document Control/Submittals/Received/Letters",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:30.816594+00:00"
+        },
+        {
+            "id": "3334f6b2-85d1-43e3-937f-2965c83abf62",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Letters",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Letters",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:29.592067+00:00"
+        },
+        {
+            "id": "1b412e92-85f5-4995-9cc6-6d4d5670fb98",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Letters",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Letters",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:29.315684+00:00"
+        },
+        {
+            "id": "6a8c3abf-ce51-43d7-a024-ebeae9cd0e80",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Letters",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Letters",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:29.055884+00:00"
+        },
+        {
+            "id": "6aa1c467-d202-45d6-a4cd-cc9aba0eecba",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Letters",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Letters",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:28.793267+00:00"
+        },
+        {
+            "id": "d222b16a-759f-4297-8127-387d7f2ddf9f",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Letters",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Letters",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:28.52207+00:00"
+        },
+        {
+            "id": "21bf8495-a8df-44c4-9ee6-c8d71e63e489",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Letters",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/Letters",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:28.262939+00:00"
+        },
+        {
+            "id": "ef652d19-69a1-4866-bad9-f9b23da3576f",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/Letters",
+            "action": "start_reset_apply",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "folderId": "1ulB0rs2VSeXrj5h9vBEdpNGWdKddZ5Ay"
+                },
+                "message": "Document Control/Submittals/Received/Letters",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:27.593393+00:00"
+        },
+        {
+            "id": "8b0002dc-1155-4a96-b2f7-a3c909736a23",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/EHS",
+            "action": "folder_complete",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "usersAdded": 0,
+                    "groupsAdded": 0,
+                    "limitedAccess": false
+                },
+                "message": "Document Control/Submittals/Received/EHS",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:27.019863+00:00"
+        },
+        {
+            "id": "e5034c4b-54e5-42ac-9568-d07f09935565",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/EHS",
+            "action": "cleared_limited_access",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "previousState": false
+                },
+                "message": "Document Control/Submittals/Received/EHS",
+                "log_status": "success",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:26.446308+00:00"
+        },
+        {
+            "id": "bdda663b-d720-41ae-b08e-c0ad91eeb82e",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/EHS",
+            "action": "skip_protected",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "email": "mo.abuomar@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/EHS",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:25.241054+00:00"
+        },
+        {
+            "id": "7c145df8-26f4-418f-b616-5ee9712ec2e5",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/EHS",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "Projects-Managers@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/EHS",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:24.97745+00:00"
+        },
+        {
+            "id": "112cc1a5-f171-411b-a4ed-fc5f68e711af",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/EHS",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Quality-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/EHS",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:24.713441+00:00"
+        },
+        {
+            "id": "1b3983fb-59df-410f-92d0-2b94e4190d31",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/EHS",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "organizer",
+                    "email": "Admin@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/EHS",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:24.453607+00:00"
+        },
+        {
+            "id": "4957ed84-a445-4166-9da4-6efb8b7f8e3d",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/EHS",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "writer",
+                    "email": "Projects-Control@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/EHS",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:24.194486+00:00"
+        },
+        {
+            "id": "ed1ab18e-393c-4400-87c4-2082acc08176",
+            "job_id": "9e806298-5ea0-4e5e-b925-ac1d88bb1ec3",
+            "project_id": "82f1c25f-6096-48c4-8a6a-58d5e7770851",
+            "project_name": "PRJ-017",
+            "folder_path": "Document Control/Submittals/Received/EHS",
+            "action": "skip_inherited",
+            "status": "completed",
+            "details": {
+                "details": {
+                    "role": "fileOrganizer",
+                    "email": "DC-Team@dtgsa.com"
+                },
+                "message": "Document Control/Submittals/Received/EHS",
+                "log_status": "info",
+                "project_name": "Micropiling-DN44.2 Work Packages"
+            },
+            "created_at": "2026-02-15T03:59:23.912947+00:00"
+        }
+    ],
+    "count": 200
+}

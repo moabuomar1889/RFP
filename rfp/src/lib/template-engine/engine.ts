@@ -823,6 +823,44 @@ export function removePrincipal(
     return newState;
 }
 
+/**
+ * Change the role of an existing explicit principal (group or user).
+ * Only works on explicit principals — inherited principals cannot be changed here.
+ */
+export function changePrincipalRole(
+    state: TemplateTreeState,
+    nodeId: string,
+    type: 'groups' | 'users',
+    email: string,
+    newRole: DriveRole
+): TemplateTreeState {
+    const node = state.nodes[nodeId];
+    if (!node) return state;
+
+    const existing = node.explicitPolicy[type];
+    const idx = existing.findIndex(p => p.email.toLowerCase() === email.toLowerCase());
+    if (idx === -1) return state; // Not found in explicit list
+
+    // Create new list with updated role
+    const newList = [...existing];
+    newList[idx] = { ...newList[idx], role: newRole as ExplicitPrincipal['role'] };
+
+    const newNodes = {
+        ...state.nodes,
+        [nodeId]: {
+            ...node,
+            explicitPolicy: {
+                ...node.explicitPolicy,
+                [type]: newList,
+            },
+        },
+    };
+
+    let newState: TemplateTreeState = { ...state, nodes: newNodes };
+    newState = recomputeSubtree(newState, nodeId);
+    return newState;
+}
+
 // ─── Override Mutation Helpers (Immutable) ───────────────────
 
 /**

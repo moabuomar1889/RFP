@@ -45,6 +45,7 @@ export {
     clearLimitedAccess,
     addPrincipal,
     removePrincipal,
+    changePrincipalRole,
     addOverrideRemove,
     removeOverrideRemove,
     setOverrideDowngrade,

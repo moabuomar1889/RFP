@@ -1931,8 +1931,8 @@ async function enforceProjectPermissionsWithReset(
     await writeJobLog(jobId, project.id, project.name, null, 'scope_info', 'info', {
         scope,
         targetPath,
-        totalFolders: folders.length,
-        rawFolderCount: rawFolders.length
+        totalFoldersInDrive: rawFolders.length,
+        templateFoldersToProcess: templateMap.size
     });
 
     // Helper: Normalize a Drive folder path to a template-matching path
@@ -1965,37 +1965,47 @@ async function enforceProjectPermissionsWithReset(
         return cleaned.filter(s => s).join('/');
     }
 
-    // Debug: Log template map keys and first few folder paths for comparison
-    const mapKeys = Array.from(templateMap.keys()).slice(0, 5);
-    const samplePaths = folders.slice(0, 3).map((f: any) => ({
-        raw: f.template_path,
-        normalized: normalizeDrivePathToTemplate(f.template_path)
-    }));
+    // Create a map of normalized paths to Drive folders for quick lookup
+    const driveFolderMap = new Map<string, any>();
+    for (const folder of rawFolders) {
+        const normalizedPath = folder.normalized_template_path || normalizeDrivePathToTemplate(folder.template_path);
+        if (normalizedPath) {
+            driveFolderMap.set(normalizedPath, folder);
+        }
+    }
+
+    // Debug: Log template map keys and drive folder map keys for comparison
+    const templateKeys = Array.from(templateMap.keys()).slice(0, 5);
+    const driveKeys = Array.from(driveFolderMap.keys()).slice(0, 5);
     await writeJobLog(jobId, project.id, project.name, null, 'debug_paths', 'info', {
-        templateMapKeys: mapKeys,
-        sampleFolderPaths: samplePaths,
+        templateKeys,
+        driveKeys,
         projectCode
     });
 
-    // Step 4: Process each folder with RESET-THEN-APPLY
-    for (const folder of folders) {
-        // Use pre-computed normalized_template_path (has fuzzy-match corrections)
-        // Fall back to runtime normalization if normalized_template_path is missing
-        const rawPath = folder.template_path;
-        const templatePath = folder.normalized_template_path || normalizeDrivePathToTemplate(rawPath);
-        if (!templatePath) continue;
-
-        const expectedPerms = templateMap.get(templatePath);
-        if (!expectedPerms) {
-            await writeJobLog(jobId, project.id, project.name, rawPath, 'no_template', 'warning', {
-                message: 'Folder not in template',
-                normalizedPath: templatePath,
-                dbNormalized: folder.normalized_template_path || '(none)',
-                runtimeNormalized: normalizeDrivePathToTemplate(rawPath)
-            });
+    // Step 4: Process each folder FROM TEMPLATE (not from Drive!)
+    // This ensures we ONLY process folders defined in template, ignoring extra Drive folders
+    for (const [templatePath, expectedPerms] of templateMap.entries()) {
+        // Apply scope filtering
+        if (scope === 'single' && targetPath && templatePath !== targetPath) {
+            continue;
+        }
+        if (scope === 'branch' && targetPath && templatePath !== targetPath && !templatePath.startsWith(`${targetPath}/`)) {
             continue;
         }
 
+        // Find the corresponding Drive folder
+        const folder = driveFolderMap.get(templatePath);
+
+        if (!folder) {
+            // Folder exists in template but not in Drive
+            // This should have been created by createMissingFoldersFromTemplate
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_missing_in_drive', 'warning', {
+                message: 'Template folder not found in Drive (should have been created)',
+                templatePath
+            });
+            continue;
+        }
 
         await writeJobLog(jobId, project.id, project.name, templatePath, 'start_reset_apply', 'info', {
             folderId: folder.drive_folder_id

@@ -71,6 +71,7 @@ import {
     clearLimitedAccess,
     addPrincipal,
     removePrincipal,
+    changePrincipalRole,
     addOverrideRemove,
     removeOverrideRemove,
     setOverrideDowngrade,
@@ -285,6 +286,15 @@ function EffectivePolicyTable({ node, state }: { node: FolderNode; state: Templa
     );
 }
 
+// ─── All Available Roles ────────────────────────────────────
+const ALL_ROLES: { value: DriveRole; label: string }[] = [
+    { value: 'reader', label: 'Viewer' },
+    { value: 'commenter', label: 'Commenter' },
+    { value: 'writer', label: 'Contributor' },
+    { value: 'fileOrganizer', label: 'Content Manager' },
+    { value: 'organizer', label: 'Manager' },
+];
+
 // ─── Table B: Explicit Policy (Editable) ────────────────────
 function ExplicitPolicyTable({
     node,
@@ -293,6 +303,7 @@ function ExplicitPolicyTable({
     onClearLimited,
     onAddPrincipal,
     onRemovePrincipal,
+    onChangeRole,
 }: {
     node: FolderNode;
     state: TemplateTreeState;
@@ -300,6 +311,7 @@ function ExplicitPolicyTable({
     onClearLimited: () => void;
     onAddPrincipal: (type: "groups" | "users") => void;
     onRemovePrincipal: (type: "groups" | "users", email: string) => void;
+    onChangeRole: (type: "groups" | "users", email: string, newRole: DriveRole) => void;
 }) {
     const { explicitPolicy, uiLockState, derivedPolicy } = node;
     const isExplicitlySet = explicitPolicy.limitedAccess !== undefined;
@@ -379,7 +391,21 @@ function ExplicitPolicyTable({
                                         >
                                             <span className="truncate max-w-[180px] text-xs">{g.email}</span>
                                             <div className="flex items-center gap-1.5">
-                                                <Badge variant="outline" className="text-xs">{g.role}</Badge>
+                                                <Select
+                                                    value={g.role}
+                                                    onValueChange={(v) => onChangeRole("groups", g.email, v as DriveRole)}
+                                                >
+                                                    <SelectTrigger className="h-7 w-[130px] text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {ALL_ROLES.map(r => (
+                                                            <SelectItem key={r.value} value={r.value} className="text-xs">
+                                                                {r.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                                 <button
                                                     onClick={() => onRemovePrincipal("groups", g.email)}
                                                     className="text-muted-foreground hover:text-destructive transition-colors"
@@ -427,7 +453,21 @@ function ExplicitPolicyTable({
                                         >
                                             <span className="truncate max-w-[180px] text-xs">{u.email}</span>
                                             <div className="flex items-center gap-1.5">
-                                                <Badge variant="outline" className="text-xs">{u.role}</Badge>
+                                                <Select
+                                                    value={u.role}
+                                                    onValueChange={(v) => onChangeRole("users", u.email, v as DriveRole)}
+                                                >
+                                                    <SelectTrigger className="h-7 w-[130px] text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {ALL_ROLES.map(r => (
+                                                            <SelectItem key={r.value} value={r.value} className="text-xs">
+                                                                {r.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                                 <button
                                                     onClick={() => onRemovePrincipal("users", u.email)}
                                                     className="text-muted-foreground hover:text-destructive transition-colors"
@@ -463,7 +503,7 @@ function ExplicitPolicyTable({
 }
 
 // ─── Downgrade Role Picker Inline ───────────────────────────
-const DOWNGRADE_ROLES: DriveRole[] = ['reader', 'commenter', 'writer'];
+const DOWNGRADE_ROLES: DriveRole[] = ['reader', 'commenter', 'writer', 'fileOrganizer'];
 
 // ─── Table C: Principals Breakdown ──────────────────────────
 function PrincipalsBreakdownTable({
@@ -745,10 +785,10 @@ function AddPrincipalDialog({
     type: "groups" | "users";
     allGroups: { email: string; name?: string }[];
     allUsers: { email: string; name?: string }[];
-    onAdd: (email: string, role: "reader" | "writer" | "organizer") => void;
+    onAdd: (email: string, role: DriveRole) => void;
 }) {
     const [search, setSearch] = useState("");
-    const [selectedRole, setSelectedRole] = useState<"reader" | "writer" | "organizer">("writer");
+    const [selectedRole, setSelectedRole] = useState<DriveRole>("writer");
     const [customEmail, setCustomEmail] = useState("");
 
     const items = type === "groups" ? allGroups : allUsers;
@@ -760,7 +800,8 @@ function AddPrincipalDialog({
 
     const handleAdd = (email: string) => {
         onAdd(email, selectedRole);
-        toast.success(`Added ${email} as ${selectedRole}`);
+        const roleLabel = ALL_ROLES.find(r => r.value === selectedRole)?.label || selectedRole;
+        toast.success(`Added ${email} as ${roleLabel}`);
     };
 
     return (
@@ -779,15 +820,15 @@ function AddPrincipalDialog({
                         />
                         <Select
                             value={selectedRole}
-                            onValueChange={(v) => setSelectedRole(v as "reader" | "writer" | "organizer")}
+                            onValueChange={(v) => setSelectedRole(v as DriveRole)}
                         >
-                            <SelectTrigger className="w-[120px]">
+                            <SelectTrigger className="w-[140px]">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="reader">Reader</SelectItem>
-                                <SelectItem value="writer">Writer</SelectItem>
-                                <SelectItem value="organizer">Organizer</SelectItem>
+                                {ALL_ROLES.map(r => (
+                                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
@@ -1055,13 +1096,13 @@ export default function TemplateEditorV2() {
     }, [treeState, selectedNodeId, updateState]);
 
     const handleAddPrincipal = useCallback(
-        (email: string, role: "reader" | "writer" | "organizer") => {
+        (email: string, role: DriveRole) => {
             if (!treeState || !selectedNodeId) return;
             const newState = addPrincipal(
                 treeState,
                 selectedNodeId,
                 addPrincipalDialog.type,
-                { email, role }
+                { email, role: role as any }
             );
             updateState(newState);
         },
@@ -1072,6 +1113,15 @@ export default function TemplateEditorV2() {
         (type: "groups" | "users", email: string) => {
             if (!treeState || !selectedNodeId) return;
             const newState = removePrincipal(treeState, selectedNodeId, type, email);
+            updateState(newState);
+        },
+        [treeState, selectedNodeId, updateState]
+    );
+
+    const handleChangeRole = useCallback(
+        (type: "groups" | "users", email: string, newRole: DriveRole) => {
+            if (!treeState || !selectedNodeId) return;
+            const newState = changePrincipalRole(treeState, selectedNodeId, type, email, newRole);
             updateState(newState);
         },
         [treeState, selectedNodeId, updateState]
@@ -1246,6 +1296,7 @@ export default function TemplateEditorV2() {
                                                 setAddPrincipalDialog({ open: true, type })
                                             }
                                             onRemovePrincipal={handleRemovePrincipal}
+                                            onChangeRole={handleChangeRole}
                                         />
 
                                         {/* Divider */}
