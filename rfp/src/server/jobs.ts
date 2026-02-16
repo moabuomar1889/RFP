@@ -1771,6 +1771,25 @@ async function createMissingFoldersFromTemplate(
 
             // Create folder in Google Drive
             const newFolder = await createFolder(folderName, parentId);
+            await sleep(RATE_LIMIT_DELAY);
+
+            // Immediately index the new folder (avoids needing a full rebuild later)
+            const prNum = project.prNumber || project.pr_number || '';
+            const client = getRawSupabaseAdmin();
+            await client.rpc('upsert_folder_index', {
+                p_project_id: project.id,
+                p_template_path: `${prNum}/${path}`,
+                p_drive_folder_id: newFolder.id,
+                p_normalized_template_path: path,
+            });
+
+            // Also add to existingFolders so child folders can find their parent
+            (existingFolders as any[]).push({
+                drive_folder_id: newFolder.id,
+                google_folder_id: newFolder.id,
+                normalized_template_path: path,
+                template_path: `${prNum}/${path}`,
+            });
 
             await writeJobLog(jobId, project.id, project.name, path, 'folder_created', 'success', {
                 folder_id: newFolder.id,
@@ -1778,7 +1797,6 @@ async function createMissingFoldersFromTemplate(
             });
 
             created++;
-            await sleep(RATE_LIMIT_DELAY);
 
         } catch (err: any) {
             await writeJobLog(jobId, project.id, project.name, path, 'folder_create_failed', 'error', {
@@ -1813,17 +1831,22 @@ async function enforceProjectPermissionsWithReset(
 
     console.log(`\n========== RESET-THEN-APPLY ENFORCEMENT FOR ${project.prNumber || project.pr_number} ==========`);
 
-    // Step 0: Auto-rebuild folder index for this project (ensures fresh data)
-    console.log(`[ENFORCE] Step 0: Rebuilding folder index for ${project.prNumber || project.pr_number}...`);
-    try {
-        const indexResult = await rebuildFolderIndexForProject(project);
-        console.log(`[ENFORCE] Index rebuilt: ${indexResult.foldersUpserted} folders indexed`);
-    } catch (indexErr: any) {
-        console.error(`[ENFORCE] Index rebuild failed (continuing with existing data):`, indexErr.message);
-        await writeJobLog(jobId, project.id, project.name, null, 'index_rebuild_warning', 'warning', {
-            message: 'Folder index rebuild failed, using existing data',
-            error: indexErr.message
-        });
+    // Step 0: Only rebuild folder index if the project has no indexed folders
+    const { data: existingIndex } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
+    if (!existingIndex || existingIndex.length === 0) {
+        console.log(`[ENFORCE] Step 0: No index found, building for ${project.prNumber || project.pr_number}...`);
+        try {
+            const indexResult = await rebuildFolderIndexForProject(project);
+            console.log(`[ENFORCE] Index built: ${indexResult.foldersUpserted} folders indexed`);
+        } catch (indexErr: any) {
+            console.error(`[ENFORCE] Index rebuild failed (continuing):`, indexErr.message);
+            await writeJobLog(jobId, project.id, project.name, null, 'index_rebuild_warning', 'warning', {
+                message: 'Folder index rebuild failed, using existing data',
+                error: indexErr.message
+            });
+        }
+    } else {
+        console.log(`[ENFORCE] Step 0: Using existing index (${existingIndex.length} folders) for ${project.prNumber || project.pr_number}`);
     }
 
     // Step 1: Get the active template
@@ -1911,15 +1934,12 @@ async function enforceProjectPermissionsWithReset(
             phase: projectPhase
         });
 
-        // Rebuild index to include newly created folders
-        console.log(`[ENFORCE] Rebuilding index to include ${created} newly created folders...`);
-        await rebuildFolderIndexForProject(project);
-
-        // Re-fetch folders
+        // Re-fetch folders (new ones were indexed during creation, no need for full rebuild)
+        console.log(`[ENFORCE] Re-fetching folder list after creating ${created} folders...`);
         const { data: updatedFolders } = await supabaseAdmin.rpc('list_project_folders', {
             p_project_id: project.id
         });
-        rawFolders = updatedFolders;
+        rawFolders = updatedFolders || rawFolders;
     }
 
     if (createErrors > 0) {
@@ -2033,9 +2053,7 @@ async function enforceProjectPermissionsWithReset(
 
                 // Skip protected principals
                 if (protectedPrincipals.some(p => p.toLowerCase() === perm.emailAddress?.toLowerCase())) {
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'skip_protected', 'info', {
-                        email: perm.emailAddress
-                    });
+                    // Skip protected — no log needed for performance
                     continue;
                 }
 
@@ -2084,10 +2102,7 @@ async function enforceProjectPermissionsWithReset(
 
             // === PHASE 2: Clear Limited Access ===
             try {
-                const wasLimited = await setLimitedAccess(folder.drive_folder_id, false);
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'cleared_limited_access', 'success', {
-                    previousState: wasLimited
-                });
+                await setLimitedAccess(folder.drive_folder_id, false);
                 await sleep(RATE_LIMIT_DELAY);
             } catch (err: any) {
                 await writeJobLog(jobId, project.id, project.name, templatePath, 'clear_limited_failed', 'warning', {
@@ -2165,11 +2180,7 @@ async function enforceProjectPermissionsWithReset(
                 }
             }
 
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_complete', 'success', {
-                groupsAdded: groups.length,
-                usersAdded: users.length,
-                limitedAccess: !!expectedPerms.limitedAccess
-            });
+            // folder_complete logged only on errors to reduce DB writes
 
         } catch (err: any) {
             errors++;
@@ -2178,7 +2189,7 @@ async function enforceProjectPermissionsWithReset(
             });
         }
 
-        await sleep(RATE_LIMIT_DELAY);
+        // No sleep between folders (sleep only after Drive API calls)
     }
 
     return { removed, added, errors };
