@@ -102,6 +102,8 @@ interface AuditResult {
     missingCount: number;
     mismatchCount: number;
     comparisons: PermissionComparison[];
+    templateFolderCounts?: { phase: string; count: number }[];
+    indexedFolderCount?: number;
 }
 
 interface Project {
@@ -771,22 +773,67 @@ function StatsRow({ result }: { result: AuditResult }) {
         },
     ];
 
+    const templateTotal = result.templateFolderCounts?.reduce((s, t) => s + t.count, 0) ?? 0;
+    const isFullyIndexed = result.indexedFolderCount === templateTotal;
+
     return (
-        <div className="grid grid-cols-4 gap-4">
-            {stats.map((s) => (
-                <Card key={s.label}>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-4">
-                            <div className={`p-3 rounded-full ${s.bg}`}>{s.icon}</div>
-                            <div>
-                                <p className="text-2xl font-bold">{s.value}</p>
-                                <p className="text-sm text-muted-foreground">{s.label}</p>
+        <>
+            <div className="grid grid-cols-4 gap-4">
+                {stats.map((s) => (
+                    <Card key={s.label}>
+                        <CardContent className="pt-6">
+                            <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-full ${s.bg}`}>{s.icon}</div>
+                                <div>
+                                    <p className="text-2xl font-bold">{s.value}</p>
+                                    <p className="text-sm text-muted-foreground">{s.label}</p>
+                                </div>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {result.templateFolderCounts && result.templateFolderCounts.length > 0 && (
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                    {result.templateFolderCounts.map((tc) => (
+                        <Card key={tc.phase}>
+                            <CardContent className="pt-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900">
+                                        <FolderOpen className="h-5 w-5 text-blue-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-bold">{tc.count}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {tc.phase === 'Bidding' ? 'RFP' : 'PD'} Template
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-full ${isFullyIndexed ? 'bg-green-100 dark:bg-green-900' : 'bg-amber-100 dark:bg-amber-900'}`}>
+                                    <FolderOpen className={`h-5 w-5 ${isFullyIndexed ? 'text-green-500' : 'text-amber-500'}`} />
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold">
+                                        {result.indexedFolderCount ?? 0}
+                                        <span className="text-sm font-normal text-muted-foreground">
+                                            {' / '}{templateTotal}
+                                        </span>
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">Indexed</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+        </>
     );
 }
 
@@ -902,7 +949,7 @@ export default function PermissionAuditPage() {
         }
     }, [selectedProjectId]);
 
-    // Enforce THIS project only (FIX: was sending { all: true })
+    // Enforce THIS project only (FIX: was sending {all: true })
     const enforceProject = useCallback(async () => {
         if (!selectedProjectId) return;
         setEnforcing(true);

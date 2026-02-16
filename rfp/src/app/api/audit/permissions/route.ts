@@ -65,6 +65,8 @@ interface AuditResult {
     missingCount: number;
     mismatchCount: number;
     comparisons: PermissionComparison[];
+    templateFolderCounts?: { phase: string; count: number }[];
+    indexedFolderCount?: number;
 }
 
 // ─── Compare Permissions ────────────────────────────────────
@@ -369,6 +371,7 @@ export async function GET(request: NextRequest) {
         // Build permissionsMap with phase-prefixed keys
         // e.g. "Bidding/SOW", "Project Delivery/Document Control"
         const permissionsMap: Record<string, any> = {};
+        const templateFolderCounts: { phase: string; count: number }[] = [];
         for (const phaseNodeName of phasesToAudit) {
             const phaseNode = templateNodes.find((n: any) => {
                 const nodeName = (n.name || n.text || '').trim();
@@ -377,11 +380,14 @@ export async function GET(request: NextRequest) {
 
             if (phaseNode?.children) {
                 const phaseMap = buildEffectivePermissionsMap(phaseNode.children);
+                // count = children + 1 for the phase root folder itself
+                templateFolderCounts.push({ phase: phaseNodeName, count: Object.keys(phaseMap).length + 1 });
                 for (const [path, perms] of Object.entries(phaseMap)) {
                     permissionsMap[`${phaseNodeName}/${path}`] = perms;
                 }
             } else {
                 console.warn(`[AUDIT] Phase node '${phaseNodeName}' not found`);
+                templateFolderCounts.push({ phase: phaseNodeName, count: 0 });
             }
         }
 
@@ -633,6 +639,9 @@ export async function GET(request: NextRequest) {
             });
         }
 
+        // Count indexed folders (deduplicated)
+        const indexedFolderCount = folders.length;
+
         const result: AuditResult = {
             projectId: project.id,
             projectName: project.name,
@@ -644,7 +653,9 @@ export async function GET(request: NextRequest) {
             extraCount: totalExtra,
             missingCount: totalMissing,
             mismatchCount: totalMismatch,
-            comparisons
+            comparisons,
+            templateFolderCounts,
+            indexedFolderCount,
         };
 
         return NextResponse.json({ success: true, result });
