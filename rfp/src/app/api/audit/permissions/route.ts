@@ -450,9 +450,11 @@ export async function GET(request: NextRequest) {
             return cleaned.filter(s => s).join('/');
         }
 
-        // Helper: Determine phase from template_path (e.g. "PRJ-017-RFP/..." → "Bidding")
+        // Helper: Determine phase from template_path
+        // Supports both prefixed paths (e.g. "PRJ-017-RFP/...") and clean paths (e.g. "Bidding/...")
         function detectFolderPhase(templatePath: string): string {
-            if (/-RFP[-/]/i.test(templatePath) || templatePath.includes('-RFP')) {
+            if (templatePath.startsWith('Bidding/') || templatePath === 'Bidding' ||
+                /-RFP[-/]/i.test(templatePath) || templatePath.includes('-RFP')) {
                 return 'Bidding';
             }
             return 'Project Delivery';
