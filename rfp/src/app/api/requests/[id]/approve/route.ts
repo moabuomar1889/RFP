@@ -148,10 +148,23 @@ export async function POST(
 
                 // Save created folders to folder_index table using RPC
                 for (const folder of createdFolders) {
+                    // Compute normalized path by stripping phase prefix
+                    // Template paths come as "Bidding/Commercial Proposal" but 
+                    // the template engine expects "Commercial Proposal"
+                    let normalizedPath: string | null = folder.templatePath;
+                    if (normalizedPath === 'Bidding' || normalizedPath === 'Project Delivery') {
+                        normalizedPath = null; // Phase root nodes don't need normalized paths
+                    } else if (normalizedPath?.startsWith('Bidding/')) {
+                        normalizedPath = normalizedPath.substring('Bidding/'.length);
+                    } else if (normalizedPath?.startsWith('Project Delivery/')) {
+                        normalizedPath = normalizedPath.substring('Project Delivery/'.length);
+                    }
+
                     const { error: indexError } = await supabase.rpc('upsert_folder_index', {
                         p_project_id: projectId,
                         p_template_path: folder.templatePath,
                         p_drive_folder_id: folder.driveFolderId,
+                        p_normalized_template_path: normalizedPath,
                         p_expected_limited_access: folder.limitedAccessEnabled || false,
                         p_expected_groups: folder.expectedGroups || [],
                         p_expected_users: folder.expectedUsers || [],

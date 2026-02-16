@@ -1036,10 +1036,22 @@ async function enforceProjectPermissionsWithLogging(
             // Register in DB via upsert_folder_index
             const client = getRawSupabaseAdmin();
             const expectedPerms = permissionsMap[templatePath];
+
+            // Compute normalized path by stripping phase prefix
+            let normalizedPath: string | null = templatePath;
+            if (normalizedPath === 'Bidding' || normalizedPath === 'Project Delivery') {
+                normalizedPath = null;
+            } else if (normalizedPath.startsWith('Bidding/')) {
+                normalizedPath = normalizedPath.substring('Bidding/'.length);
+            } else if (normalizedPath.startsWith('Project Delivery/')) {
+                normalizedPath = normalizedPath.substring('Project Delivery/'.length);
+            }
+
             await client.rpc('upsert_folder_index', {
                 p_project_id: project.id,
                 p_template_path: templatePath,
                 p_drive_folder_id: newFolderId,
+                p_normalized_template_path: normalizedPath,
                 p_expected_limited_access: expectedPerms?.limitedAccess || false,
                 p_expected_groups: expectedPerms?.groups || [],
                 p_expected_users: expectedPerms?.users || [],
