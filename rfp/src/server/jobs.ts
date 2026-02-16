@@ -9,6 +9,7 @@ import {
     type NormalizedProject,
     type FolderPermissions,
     buildPermissionsMap,
+    buildEffectivePermissionsMap,
     normalizeRole,
 } from '@/server/audit-helpers';
 import { CANONICAL_RANK } from '@/lib/template-engine/types';
@@ -1871,18 +1872,10 @@ async function enforceProjectPermissionsWithReset(
         ? ['Bidding']
         : ['Bidding', 'Project Delivery'];
 
+    // Build template map using EFFECTIVE permissions (includes inherited from parent template nodes)
+    // This matches exactly what the Audit uses (buildEffectivePermissionsMap)
     const templateMap = new Map<string, any>();
-    function buildTemplateMap(node: any, parentPath = '') {
-        const nodeName = node.name || node.text || '';
-        const currentPath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
-        templateMap.set(currentPath, node);
-        const children = node.children || node.nodes || [];
-        for (const child of children) {
-            buildTemplateMap(child, currentPath);
-        }
-    }
 
-    // Build template map from ALL relevant phases
     let phasesFound = 0;
     for (const phaseNodeName of phaseNamesToProcess) {
         const phaseNode = templateNodes.find((n: any) => {
@@ -1891,11 +1884,12 @@ async function enforceProjectPermissionsWithReset(
         });
 
         if (phaseNode?.children) {
-            for (const child of phaseNode.children) {
-                buildTemplateMap(child, '');
+            const effectiveMap = buildEffectivePermissionsMap(phaseNode.children);
+            for (const [path, perms] of Object.entries(effectiveMap)) {
+                templateMap.set(path, perms);
             }
             phasesFound++;
-            console.log(`[ENFORCE] Template phase '${phaseNodeName}': ${phaseNode.children.length} root folders`);
+            console.log(`[ENFORCE] Template phase '${phaseNodeName}': ${Object.keys(effectiveMap).length} folders (effective permissions)`);
         } else {
             console.warn(`[ENFORCE] Template phase '${phaseNodeName}' not found`);
         }
@@ -1906,13 +1900,14 @@ async function enforceProjectPermissionsWithReset(
         console.warn(`[ENFORCE] No phase nodes found, using all template nodes`);
         for (const topNode of templateNodes) {
             const children = topNode.children || topNode.nodes || [];
-            for (const child of children) {
-                buildTemplateMap(child, '');
+            const effectiveMap = buildEffectivePermissionsMap(children);
+            for (const [path, perms] of Object.entries(effectiveMap)) {
+                templateMap.set(path, perms);
             }
         }
     }
 
-    console.log(`[ENFORCE] Template map built: ${templateMap.size} folders from ${phaseNamesToProcess.join(' + ')}`);
+    console.log(`[ENFORCE] Template map built: ${templateMap.size} folders from ${phaseNamesToProcess.join(' + ')} (effective)`);
 
     // Step 2: Get scope from event metadata directly (no DB query needed)
     const scope = eventMetadata?.scope || 'full';
