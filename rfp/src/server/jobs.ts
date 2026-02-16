@@ -1872,9 +1872,17 @@ async function enforceProjectPermissionsWithReset(
         ? ['Bidding']
         : ['Bidding', 'Project Delivery'];
 
-    // Build template map using EFFECTIVE permissions (includes inherited from parent template nodes)
-    // This matches exactly what the Audit uses (buildEffectivePermissionsMap)
+    // Build template map - uses explicit node data (groups/users/limitedAccess)
     const templateMap = new Map<string, any>();
+    function buildTemplateMap(node: any, parentPath = '') {
+        const nodeName = node.name || node.text || '';
+        const currentPath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
+        templateMap.set(currentPath, node);
+        const children = node.children || node.nodes || [];
+        for (const child of children) {
+            buildTemplateMap(child, currentPath);
+        }
+    }
 
     let phasesFound = 0;
     for (const phaseNodeName of phaseNamesToProcess) {
@@ -1884,30 +1892,27 @@ async function enforceProjectPermissionsWithReset(
         });
 
         if (phaseNode?.children) {
-            const effectiveMap = buildEffectivePermissionsMap(phaseNode.children);
-            for (const [path, perms] of Object.entries(effectiveMap)) {
-                templateMap.set(path, perms);
+            for (const child of phaseNode.children) {
+                buildTemplateMap(child, '');
             }
             phasesFound++;
-            console.log(`[ENFORCE] Template phase '${phaseNodeName}': ${Object.keys(effectiveMap).length} folders (effective permissions)`);
+            console.log(`[ENFORCE] Template phase '${phaseNodeName}': ${phaseNode.children.length} root folders`);
         } else {
             console.warn(`[ENFORCE] Template phase '${phaseNodeName}' not found`);
         }
     }
 
     if (phasesFound === 0) {
-        // Fallback: collect from all nodes if no phase matching succeeded
         console.warn(`[ENFORCE] No phase nodes found, using all template nodes`);
         for (const topNode of templateNodes) {
             const children = topNode.children || topNode.nodes || [];
-            const effectiveMap = buildEffectivePermissionsMap(children);
-            for (const [path, perms] of Object.entries(effectiveMap)) {
-                templateMap.set(path, perms);
+            for (const child of children) {
+                buildTemplateMap(child, '');
             }
         }
     }
 
-    console.log(`[ENFORCE] Template map built: ${templateMap.size} folders from ${phaseNamesToProcess.join(' + ')} (effective)`);
+    console.log(`[ENFORCE] Template map built: ${templateMap.size} folders from ${phaseNamesToProcess.join(' + ')}`);
 
     // Step 2: Get scope from event metadata directly (no DB query needed)
     const scope = eventMetadata?.scope || 'full';
