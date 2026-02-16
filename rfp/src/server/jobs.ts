@@ -1863,9 +1863,13 @@ async function enforceProjectPermissionsWithReset(
         ? template.template_json
         : template.template_json.template || [];
 
-    // Phase-filtered template map: only match folders for the project's phase
+    // Phase-filtered template map: match folders for the project's active phases
+    // Bidding projects → Bidding only
+    // Execution/PD projects → BOTH Bidding and Project Delivery
     const projectPhase = project.phase || 'bidding';
-    const phaseNodeName = projectPhase === 'bidding' ? 'Bidding' : 'Project Delivery';
+    const phaseNamesToProcess = projectPhase === 'bidding'
+        ? ['Bidding']
+        : ['Bidding', 'Project Delivery'];
 
     const templateMap = new Map<string, any>();
     function buildTemplateMap(node: any, parentPath = '') {
@@ -1878,19 +1882,28 @@ async function enforceProjectPermissionsWithReset(
         }
     }
 
-    // Find the matching phase node
-    const phaseNode = templateNodes.find((n: any) => {
-        const nodeName = (n.name || n.text || '').trim();
-        return nodeName === phaseNodeName;
-    });
+    // Build template map from ALL relevant phases
+    let phasesFound = 0;
+    for (const phaseNodeName of phaseNamesToProcess) {
+        const phaseNode = templateNodes.find((n: any) => {
+            const nodeName = (n.name || n.text || '').trim();
+            return nodeName === phaseNodeName;
+        });
 
-    if (phaseNode?.children) {
-        for (const child of phaseNode.children) {
-            buildTemplateMap(child, '');
+        if (phaseNode?.children) {
+            for (const child of phaseNode.children) {
+                buildTemplateMap(child, '');
+            }
+            phasesFound++;
+            console.log(`[ENFORCE] Template phase '${phaseNodeName}': ${phaseNode.children.length} root folders`);
+        } else {
+            console.warn(`[ENFORCE] Template phase '${phaseNodeName}' not found`);
         }
-    } else {
-        // Fallback: collect from all nodes if phase matching fails
-        console.warn(`[ENFORCE] Phase node '${phaseNodeName}' not found, using all`);
+    }
+
+    if (phasesFound === 0) {
+        // Fallback: collect from all nodes if no phase matching succeeded
+        console.warn(`[ENFORCE] No phase nodes found, using all template nodes`);
         for (const topNode of templateNodes) {
             const children = topNode.children || topNode.nodes || [];
             for (const child of children) {
@@ -1898,6 +1911,8 @@ async function enforceProjectPermissionsWithReset(
             }
         }
     }
+
+    console.log(`[ENFORCE] Template map built: ${templateMap.size} folders from ${phaseNamesToProcess.join(' + ')}`);
 
     // Step 2: Get scope from event metadata directly (no DB query needed)
     const scope = eventMetadata?.scope || 'full';
