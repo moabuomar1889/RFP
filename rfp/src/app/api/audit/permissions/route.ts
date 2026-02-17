@@ -171,16 +171,25 @@ function comparePermissions(
     // They must be excluded from compliance comparison entirely.
     const actualEmailsProcessed = new Set<string>();
 
-    // On Limited Access folders, add inherited permissions as informational 'no_effective_access' rows
-    if (expected.limitedAccess) {
-        for (const p of inheritedActual) {
-            const email = p.emailAddress?.toLowerCase();
-            if (!email || protectedEmails.includes(email)) continue;
-            if (actualEmailsProcessed.has(email)) continue;
-            actualEmailsProcessed.add(email);
+    // Include ALL actual permissions — filtering happens inside the loop
+    const allActual = [...directActual, ...inheritedActual];
+
+    for (const p of allActual) {
+        const email = p.emailAddress?.toLowerCase();
+        if (!email) continue;
+        if (actualEmailsProcessed.has(email)) continue;
+        actualEmailsProcessed.add(email);
+
+        const isInherited = (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false);
+
+        // ═══ EFFECTIVE ACCESS RULE ═══
+        // On Limited Access folders, inherited permissions = "Access Removed" = NO effective access
+        // This covers BOTH pure inherited AND dual permissions (direct+inherited)
+        // The top-level inherited flag from Drive API is the definitive check
+        if (expected.limitedAccess && isInherited) {
             const actualCanonical = normalizeRole(p.role);
             rows.push({
-                type: p.type === 'group' ? 'group' : 'user',
+                type: expectedTypeMap.get(email) || (p.type === 'group' ? 'group' : 'user'),
                 identifier: email,
                 expectedRole: expectedRoleMap.has(email) ? canonicalRoleLabel(expectedRoleMap.get(email)!) : null,
                 expectedRoleRaw: expectedRoleMap.get(email) || null,
@@ -192,34 +201,10 @@ function comparePermissions(
             });
             // Remove from expected so it's NOT double-counted as missing
             expectedEmails.delete(email);
-        }
-    }
-
-    // On Limited Access folders: only direct permissions have effective access
-    // On non-limited folders: both direct and inherited have access
-    const allActual = expected.limitedAccess
-        ? [...directActual]
-        : [...directActual, ...inheritedActual];
-
-    for (const p of allActual) {
-        const email = p.emailAddress?.toLowerCase();
-        if (!email) continue;
-        if (actualEmailsProcessed.has(email)) continue;
-        actualEmailsProcessed.add(email);
-
-        const isInherited = (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false);
-
-        // On Limited Access folders with dual permissions (direct + inherited),
-        // use the DIRECT component's role — the inherited part is "Access Removed"
-        let effectiveRole = p.role;
-        if (expected.limitedAccess && p.permissionDetails?.length > 0) {
-            const directDetail = (p.permissionDetails as any[]).find((d: any) => d.inherited === false);
-            if (directDetail?.role) {
-                effectiveRole = directDetail.role;
-            }
+            continue; // Skip normal comparison
         }
 
-        const actualCanonical = normalizeRole(effectiveRole);
+        const actualCanonical = normalizeRole(p.role);
         const actualRank = CANONICAL_RANK[actualCanonical] ?? 0;
 
         if (expectedEmails.has(email)) {

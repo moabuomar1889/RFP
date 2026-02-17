@@ -1,0 +1,27 @@
+{
+  "export_version": "v2",
+  "exported_at": "2026-02-17T23:08:22.368Z",
+  "policy": {
+    "protected_principals": [
+      "mo.abuomar@dtgsa.com"
+    ],
+    "inheritance_rules": "limitedAccess=true blocks inheritance; limitedAccess=false allows inheritance"
+  },
+  "projects": [
+    {
+      "project_code": "PRJ-002",
+      "project_name": "Kents-Flare Walls",
+      "folders": [],
+      "summary": {
+        "totalFolders": 0,
+        "exactMatch": 0,
+        "compliant": 0,
+        "nonCompliant": 0
+      }
+    }
+  ],
+  "summary": {
+    "totalProjects": 1,
+    "totalFolders": 0
+  }
+}
