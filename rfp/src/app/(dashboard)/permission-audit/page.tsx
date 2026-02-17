@@ -56,7 +56,7 @@ interface ComparisonRow {
     expectedRoleRaw: string | null;
     actualRole: string | null;
     actualRoleRaw: string | null;
-    status: 'match' | 'missing' | 'extra' | 'mismatch' | 'drive_member';
+    status: 'match' | 'missing' | 'extra' | 'mismatch' | 'drive_member' | 'no_effective_access';
     tags: string[];
     inherited: boolean;
 }
@@ -375,7 +375,7 @@ interface DiffRow {
     expectedRole: string | null;
     actualRole: string | null;
     inherited: boolean;
-    diffStatus: "match" | "missing" | "extra" | "role_mismatch" | "mismatch" | "drive_member";
+    diffStatus: "match" | "missing" | "extra" | "role_mismatch" | "mismatch" | "drive_member" | "no_effective_access";
     tags?: string[];
 }
 
@@ -395,7 +395,7 @@ function buildDiffRows(comp: PermissionComparison): DiffRow[] {
             expectedRole: r.expectedRole,  // Already a canonical label from API
             actualRole: r.actualRole,      // Already a canonical label from API
             inherited: r.inherited,
-            diffStatus: r.status === 'mismatch' ? 'role_mismatch' : r.status,
+            diffStatus: r.status === 'mismatch' ? 'role_mismatch' : r.status === 'no_effective_access' ? 'no_effective_access' : r.status,
             tags: r.tags,
         }));
     }
@@ -475,7 +475,7 @@ function buildDiffRows(comp: PermissionComparison): DiffRow[] {
         });
     }
 
-    const order = { missing: 0, role_mismatch: 1, extra: 2, match: 3, drive_member: 4 };
+    const order = { missing: 0, role_mismatch: 1, extra: 2, match: 3, no_effective_access: 4, drive_member: 5 };
     rows.sort((a, b) => (order[a.diffStatus as keyof typeof order] ?? 5) - (order[b.diffStatus as keyof typeof order] ?? 5));
 
     return rows;
@@ -494,6 +494,8 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
                 return "bg-orange-500/5";
             case "drive_member":
                 return "bg-slate-500/5 opacity-60";
+            case "no_effective_access":
+                return "bg-blue-500/5 opacity-70";
             default:
                 return "";
         }
@@ -561,6 +563,21 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
                             </TooltipTrigger>
                             <TooltipContent>
                                 Actual role has higher privilege than expected
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                );
+            case "no_effective_access":
+                return (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/20">
+                                    👁 Visible — No Access
+                                </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Access removed by Limited Access — can see folder name but cannot open contents
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>

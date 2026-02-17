@@ -21,7 +21,7 @@ interface ComparisonRow {
     expectedRoleRaw: string | null;   // canonical key (e.g. "manager")
     actualRole: string | null;        // canonical label
     actualRoleRaw: string | null;     // canonical key
-    status: 'match' | 'missing' | 'extra' | 'mismatch' | 'drive_member';
+    status: 'match' | 'missing' | 'extra' | 'mismatch' | 'drive_member' | 'no_effective_access';
     tags: string[];                   // e.g. ["More restrictive"], ["Drive Member"]
     inherited: boolean;
 }
@@ -166,9 +166,40 @@ function comparePermissions(
     }).length;
     const totalActualCount = directActualCount + inheritedActualCount;
 
-    // Build lookup of actual emails → permission data (direct + inherited, excluding drive members)
+    // Build lookup of actual emails → permission data
+    // On Limited Access folders: inherited permissions have NO effective access ("Access Removed")
+    // They must be excluded from compliance comparison entirely.
     const actualEmailsProcessed = new Set<string>();
-    const allActual = [...directActual, ...inheritedActual];
+
+    // On Limited Access folders, add inherited permissions as informational 'no_effective_access' rows
+    if (expected.limitedAccess) {
+        for (const p of inheritedActual) {
+            const email = p.emailAddress?.toLowerCase();
+            if (!email || protectedEmails.includes(email)) continue;
+            if (actualEmailsProcessed.has(email)) continue;
+            actualEmailsProcessed.add(email);
+            const actualCanonical = normalizeRole(p.role);
+            rows.push({
+                type: p.type === 'group' ? 'group' : 'user',
+                identifier: email,
+                expectedRole: expectedRoleMap.has(email) ? canonicalRoleLabel(expectedRoleMap.get(email)!) : null,
+                expectedRoleRaw: expectedRoleMap.get(email) || null,
+                actualRole: canonicalRoleLabel(actualCanonical),
+                actualRoleRaw: actualCanonical,
+                status: 'no_effective_access',
+                tags: ['Access Removed'],
+                inherited: true,
+            });
+            // Remove from expected so it's NOT double-counted as missing
+            expectedEmails.delete(email);
+        }
+    }
+
+    // On Limited Access folders: only direct permissions have effective access
+    // On non-limited folders: both direct and inherited have access
+    const allActual = expected.limitedAccess
+        ? [...directActual]
+        : [...directActual, ...inheritedActual];
 
     for (const p of allActual) {
         const email = p.emailAddress?.toLowerCase();
@@ -177,7 +208,18 @@ function comparePermissions(
         actualEmailsProcessed.add(email);
 
         const isInherited = (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false);
-        const actualCanonical = normalizeRole(p.role);
+
+        // On Limited Access folders with dual permissions (direct + inherited),
+        // use the DIRECT component's role — the inherited part is "Access Removed"
+        let effectiveRole = p.role;
+        if (expected.limitedAccess && p.permissionDetails?.length > 0) {
+            const directDetail = (p.permissionDetails as any[]).find((d: any) => d.inherited === false);
+            if (directDetail?.role) {
+                effectiveRole = directDetail.role;
+            }
+        }
+
+        const actualCanonical = normalizeRole(effectiveRole);
         const actualRank = CANONICAL_RANK[actualCanonical] ?? 0;
 
         if (expectedEmails.has(email)) {
@@ -284,8 +326,8 @@ function comparePermissions(
     }
 
     // Sort: issues first, drive_member at bottom
-    const order: Record<string, number> = { missing: 0, mismatch: 1, extra: 2, match: 3, drive_member: 4 };
-    rows.sort((a, b) => (order[a.status] ?? 5) - (order[b.status] ?? 5));
+    const order: Record<string, number> = { missing: 0, mismatch: 1, extra: 2, match: 3, no_effective_access: 4, drive_member: 5 };
+    rows.sort((a, b) => (order[a.status] ?? 6) - (order[b.status] ?? 6));
 
     // Determine folder status (excluding drive members)
     let status: 'exact_match' | 'compliant' | 'non_compliant';
