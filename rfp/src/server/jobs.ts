@@ -2151,17 +2151,45 @@ async function enforceProjectPermissionsWithReset(
                 }
             }
 
-            // 3b. Add groups from template
+            // 3b. Add groups and users from template — apply overrides first
+            // Build override maps to handle downgrade/remove before adding
+            const overrideRemoveSet = new Set<string>();
+            const overrideDowngradeMap = new Map<string, string>();
+            if (expectedPerms.overrides?.remove) {
+                for (const r of expectedPerms.overrides.remove) {
+                    if (r.identifier) overrideRemoveSet.add(r.identifier.toLowerCase());
+                }
+            }
+            if (expectedPerms.overrides?.downgrade) {
+                for (const d of expectedPerms.overrides.downgrade) {
+                    if (d.identifier && d.role) overrideDowngradeMap.set(d.identifier.toLowerCase(), d.role);
+                }
+            }
+
             const groups = expectedPerms.groups || [];
             for (const group of groups) {
                 if (!group.email) continue;
 
+                const emailKey = group.email.toLowerCase();
+
+                // Skip removed principals
+                if (overrideRemoveSet.has(emailKey)) continue;
+
+                // Apply downgrade override if present
+                let role = group.role || 'reader';
+                const downgradedRole = overrideDowngradeMap.get(emailKey);
+                if (downgradedRole) {
+                    console.log(`[ENFORCE] Override downgrade: ${group.email} ${role} → ${downgradedRole}`);
+                    role = downgradedRole;
+                }
+
                 try {
-                    await addPermission(folder.drive_folder_id, 'group', group.role || 'reader', group.email);
+                    await addPermission(folder.drive_folder_id, 'group', role, group.email);
                     added++;
                     await writeJobLog(jobId, project.id, project.name, templatePath, 'added_group', 'success', {
                         email: group.email,
-                        role: group.role
+                        role,
+                        overridden: !!downgradedRole
                     });
                     await sleep(RATE_LIMIT_DELAY);
                 } catch (err: any) {
@@ -2173,17 +2201,28 @@ async function enforceProjectPermissionsWithReset(
                 }
             }
 
-            // 3c. Add users from template
+            // 3c. Add users from template (with same override handling)
             const users = expectedPerms.users || [];
             for (const user of users) {
                 if (!user.email) continue;
 
+                const emailKey = user.email.toLowerCase();
+                if (overrideRemoveSet.has(emailKey)) continue;
+
+                let role = user.role || 'reader';
+                const downgradedRole = overrideDowngradeMap.get(emailKey);
+                if (downgradedRole) {
+                    console.log(`[ENFORCE] Override downgrade: ${user.email} ${role} → ${downgradedRole}`);
+                    role = downgradedRole;
+                }
+
                 try {
-                    await addPermission(folder.drive_folder_id, 'user', user.role || 'reader', user.email);
+                    await addPermission(folder.drive_folder_id, 'user', role, user.email);
                     added++;
                     await writeJobLog(jobId, project.id, project.name, templatePath, 'added_user', 'success', {
                         email: user.email,
-                        role: user.role
+                        role,
+                        overridden: !!downgradedRole
                     });
                     await sleep(RATE_LIMIT_DELAY);
                 } catch (err: any) {
