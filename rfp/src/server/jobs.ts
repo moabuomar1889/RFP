@@ -1456,7 +1456,7 @@ async function enforceProjectPermissionsWithReset(
         let folderErrors = 0;
         let laEnabled = false;
 
-        // 2a. Add groups from template (with override handling)
+        // 2a. Add groups from template (PARALLEL EXECUTION)
         const overrideRemoveSet = new Set<string>();
         const overrideDowngradeMap = new Map<string, string>();
         if (expectedPerms.overrides?.remove) {
@@ -1471,10 +1471,10 @@ async function enforceProjectPermissionsWithReset(
         }
 
         const groups = expectedPerms.groups || [];
-        for (const group of groups) {
-            if (!group.email) continue;
+        const groupPromises = groups.map(async (group: any) => {
+            if (!group.email) return;
             const emailKey = group.email.toLowerCase();
-            if (overrideRemoveSet.has(emailKey)) continue;
+            if (overrideRemoveSet.has(emailKey)) return;
 
             let role = group.role || 'reader';
             const downgradedRole = overrideDowngradeMap.get(emailKey);
@@ -1484,7 +1484,6 @@ async function enforceProjectPermissionsWithReset(
                 await addPermission(folder.drive_folder_id, 'group', role, group.email);
                 folderAdded++;
                 added++;
-                await sleep(RATE_LIMIT_DELAY);
             } catch (err: any) {
                 folderErrors++;
                 errors++;
@@ -1493,14 +1492,15 @@ async function enforceProjectPermissionsWithReset(
                     error: err.message
                 });
             }
-        }
+        });
+        await Promise.all(groupPromises);
 
-        // 2b. Add users from template (with override handling)
+        // 2b. Add users from template (PARALLEL EXECUTION)
         const users = expectedPerms.users || [];
-        for (const user of users) {
-            if (!user.email) continue;
+        const userPromises = users.map(async (user: any) => {
+            if (!user.email) return;
             const emailKey = user.email.toLowerCase();
-            if (overrideRemoveSet.has(emailKey)) continue;
+            if (overrideRemoveSet.has(emailKey)) return;
 
             let role = user.role || 'reader';
             const downgradedRole = overrideDowngradeMap.get(emailKey);
@@ -1510,7 +1510,6 @@ async function enforceProjectPermissionsWithReset(
                 await addPermission(folder.drive_folder_id, 'user', role, user.email);
                 folderAdded++;
                 added++;
-                await sleep(RATE_LIMIT_DELAY);
             } catch (err: any) {
                 folderErrors++;
                 errors++;
@@ -1519,7 +1518,8 @@ async function enforceProjectPermissionsWithReset(
                     error: err.message
                 });
             }
-        }
+        });
+        await Promise.all(userPromises);
 
         // 2c. Enable Limited Access if template requires it
         if (expectedPerms.limitedAccess) {
