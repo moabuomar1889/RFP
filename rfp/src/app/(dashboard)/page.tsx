@@ -30,8 +30,9 @@ interface DashboardStats {
   usersWithoutGroups: number;
   totalGroups: number;
   lastSync: string | null;
-  pendingViolations: number;
+  violations: number;
   activeJobs: number;
+  compliantFolders: number;
 }
 
 export default function DashboardPage() {
@@ -46,8 +47,9 @@ export default function DashboardPage() {
     usersWithoutGroups: 0,
     totalGroups: 0,
     lastSync: null,
-    pendingViolations: 0,
+    violations: 0,
     activeJobs: 0,
+    compliantFolders: 0,
   });
 
   const fetchStats = async () => {
@@ -259,39 +261,73 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-          <Link href="/projects/new">
-            <CardHeader>
-              <CardTitle className="text-lg">Create New Project</CardTitle>
-              <CardDescription>
-                Create a new project with the current template
-              </CardDescription>
-            </CardHeader>
-          </Link>
+      {/* Health & Status Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Compliance Health */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Compliance Rate</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {stats.totalFolders > 0
+                ? Math.round((stats.compliantFolders / stats.totalFolders) * 100)
+                : 0}%
+            </div>
+            <Progress
+              value={stats.totalFolders > 0
+                ? (stats.compliantFolders / stats.totalFolders) * 100
+                : 0}
+              className="mt-2 h-2"
+            />
+            <p className="text-xs text-muted-foreground mt-2">
+              {stats.compliantFolders} of {stats.totalFolders} folders compliant
+            </p>
+          </CardContent>
         </Card>
 
-        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-          <Link href="/users">
-            <CardHeader>
-              <CardTitle className="text-lg">Manage Users</CardTitle>
-              <CardDescription>
-                View users and assign them to groups
-              </CardDescription>
-            </CardHeader>
-          </Link>
+        {/* Sync Status */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Sync Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 mb-2">
+              {stats.activeJobs > 0 ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              )}
+              <span className="text-2xl font-bold">
+                {stats.activeJobs > 0 ? 'Syncing' : 'Idle'}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {stats.activeJobs} active jobs • Last scan: {stats.lastSync ? new Date(stats.lastSync).toLocaleDateString() : 'Never'}
+            </p>
+          </CardContent>
         </Card>
 
-        <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-          <Link href="/settings">
-            <CardHeader>
-              <CardTitle className="text-lg">Settings</CardTitle>
-              <CardDescription>
-                Configure system settings and scan Drive
-              </CardDescription>
-            </CardHeader>
-          </Link>
+        {/* Violations */}
+        <Card className={stats.violations > 0 ? "border-amber-500/50" : ""}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Non-Compliant Folders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              {stats.violations > 0 ? (
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+              ) : (
+                <Shield className="h-5 w-5 text-green-500" />
+              )}
+              <span className={`text-2xl font-bold ${stats.violations > 0 ? 'text-amber-500' : 'text-green-500'}`}>
+                {stats.violations}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Folders requiring enforcement
+            </p>
+          </CardContent>
         </Card>
       </div>
     </div>
