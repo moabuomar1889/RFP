@@ -1079,10 +1079,116 @@ async function enforceProjectPermissionsWithLogging(
     }
 
 
-    // Step 3: Process each folder
+    // ╔══════════════════════════════════════════════════════════╗
+    // ║  PASS 1: GLOBAL RESET — Clean ALL folders first        ║
+    // ║  1a. Disable Limited Access on ALL folders              ║
+    // ║  1b. Remove ALL direct permissions (keep Drive Members) ║
+    // ╚══════════════════════════════════════════════════════════╝
+
+    await writeJobLog(jobId, project.id, project.name, null, 'pass1_start', 'info', {
+        message: 'PASS 1: GLOBAL RESET — Disabling Limited Access and removing all direct permissions',
+        folderCount: folders.length
+    });
+
     for (const folder of folders) {
-        // Use normalized path for matching against template
         const templatePath = folder.normalized_template_path || folder.template_path;
+        const folderId = folder.drive_folder_id;
+
+        // 1a. Disable Limited Access (so inherited perms become removable)
+        try {
+            await setLimitedAccess(folderId, false);
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_disabled', 'info', {
+                action: 'LIMITED_ACCESS_DISABLED',
+                message: 'Disabled Limited Access for reset phase'
+            });
+        } catch (err: any) {
+            // If it fails, it might already be disabled — continue
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_disable_skipped', 'info', {
+                message: err.message?.includes('verification FAILED') ? 'Already disabled' : err.message
+            });
+        }
+        await sleep(RATE_LIMIT_DELAY);
+
+        // 1b. Remove ALL direct permissions (keep only Drive Members & protected)
+        try {
+            const currentPerms = await listPermissions(folderId);
+
+            // Fetch driveId for classification
+            let driveId: string | undefined;
+            try {
+                const { getDriveClient } = await import('@/server/google-drive');
+                const drive = await getDriveClient();
+                const folderMeta = await drive.files.get({
+                    fileId: folderId,
+                    supportsAllDrives: true,
+                    fields: 'id,driveId',
+                });
+                driveId = (folderMeta.data as any).driveId;
+            } catch (_) { /* continue without driveId */ }
+
+            let removedCount = 0;
+            for (const perm of currentPerms) {
+                const email = perm.emailAddress?.toLowerCase();
+
+                // Skip protected principals
+                if (email && protectedPrincipals.some(p => p.toLowerCase() === email)) continue;
+
+                // Skip Drive Members (non-removable)
+                const cls = classifyInheritedPermission(perm, driveId);
+                if (cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') continue;
+
+                // Skip inherited (can't remove, will be blocked by Limited Access later)
+                if (perm.inherited === true && cls !== 'NOT_INHERITED') continue;
+
+                // Skip deleted/metadata-only
+                if (perm.deleted === true) continue;
+                if (perm.view === 'metadata') continue;
+
+                // Remove this direct permission
+                try {
+                    await removePermission(folderId, perm.id!);
+                    removedCount++;
+                    reverted++;
+                } catch (err: any) {
+                    // If "Permission not found" or can't delete — skip silently
+                    if (!err.message?.includes('not found')) {
+                        await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_remove_failed', 'warning', {
+                            email: perm.emailAddress,
+                            error: err.message
+                        });
+                    }
+                }
+                await sleep(RATE_LIMIT_DELAY);
+            }
+
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_complete', 'success', {
+                removedCount,
+                message: `Removed ${removedCount} direct permissions`
+            });
+        } catch (err: any) {
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_failed', 'error', {
+                error: err.message
+            });
+        }
+    }
+
+    await writeJobLog(jobId, project.id, project.name, null, 'pass1_complete', 'success', {
+        message: 'PASS 1 COMPLETE — All folders reset'
+    });
+
+    // ╔══════════════════════════════════════════════════════════╗
+    // ║  PASS 2: APPLY — Add template permissions + Limited     ║
+    // ║  For each folder: add groups/users then set Ltd Access   ║
+    // ╚══════════════════════════════════════════════════════════╝
+
+    await writeJobLog(jobId, project.id, project.name, null, 'pass2_start', 'info', {
+        message: 'PASS 2: APPLY — Adding template permissions and enabling Limited Access',
+        folderCount: folders.length
+    });
+
+    for (const folder of folders) {
+        const templatePath = folder.normalized_template_path || folder.template_path;
+        const folderId = folder.drive_folder_id;
         const expectedPerms = permissionsMap[templatePath];
 
         if (!expectedPerms) {
@@ -1092,457 +1198,91 @@ async function enforceProjectPermissionsWithLogging(
             continue;
         }
 
-        // DISABLED: Folder rename feature - was creating duplicates
-        // TODO: Fix rename logic to properly rename in-place instead of creating duplicates
-        /*
-        // Check if Drive folder name matches expected name and rename if needed
-        try {
-            const actualFolder = await getFolder(folder.drive_folder_id);
-            const actualFolderName = actualFolder?.name;
-
-            if (actualFolderName) {
-                // Calculate expected Drive folder name based on template path and phase
-                const pathParts = templatePath.split('/');
-                const expectedBaseName = pathParts[pathParts.length - 1];
-                const phasePrefix = pathParts[0]; // "Bidding" or "Project Delivery"
-
-                // Different naming convention per phase:
-                // Bidding: PRJ-XXX-RFP-{basename}
-                // Project Delivery: PRJ-XXX-{basename}
-                const projectCode = project.prNumber || project.pr_number;
-                const expectedDriveName = phasePrefix === 'Bidding'
-                    ? `${projectCode}-RFP-${expectedBaseName}`
-                    : `${projectCode}-${expectedBaseName}`;
-
-                if (actualFolderName !== expectedDriveName) {
-                    try {
-                        await renameFolder(folder.drive_folder_id, expectedDriveName);
-                        await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_renamed', 'success', {
-                            oldName: actualFolderName,
-                            newName: expectedDriveName
-                        });
-                        await sleep(RATE_LIMIT_DELAY);
-                    } catch (err: any) {
-                        await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_rename_failed', 'warning', {
-                            actualName: actualFolderName,
-                            expectedName: expectedDriveName,
-                            error: err.message
-                        });
-                    }
-                }
-            }
-        } catch (err: any) {
-            // Continue even if rename check fails - not critical
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_check_failed', 'warning', {
-                error: err.message
-            });
-        }
-        */
-
-
-        // Debug: Log matched folder with counts
-        await writeJobLog(jobId, project.id, project.name, templatePath, 'matched_folder', 'info', {
-            groupCount: expectedPerms.groups?.length || 0,
-            userCount: expectedPerms.users?.length || 0,
-            limitedAccess: expectedPerms.limitedAccess
-        });
-
-        // Get actual permissions from Drive
-        let actualPerms;
-        let driveId: string | undefined;
-        try {
-            actualPerms = await listPermissions(folder.drive_folder_id);
-
-            // Fetch driveId for accurate inherited permission classification
-            const { getDriveClient } = await import('@/server/google-drive');
-            const drive = await getDriveClient();
-            const folderMeta = await drive.files.get({
-                fileId: folder.drive_folder_id,
-                supportsAllDrives: true,
-                fields: 'id,driveId',
-            });
-            driveId = (folderMeta.data as any).driveId;
-        } catch (err: any) {
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'error', 'error', {
-                message: `Failed to get permissions: ${err.message}`
-            });
-            continue;
-        }
-
-        // Build set of expected emails
-        const expectedEmails = new Set<string>();
-        for (const g of expectedPerms.groups) {
-            if (g.email) expectedEmails.add(g.email.toLowerCase());
-        }
-        for (const u of expectedPerms.users) {
-            if (u.email) expectedEmails.add(u.email.toLowerCase());
-        }
-
-        // Compute desired effective policy with overrides
-        const desiredPrincipals = computeDesiredEffectivePolicy(expectedPerms);
-        const overrideRemoveSet = new Set(
-            desiredPrincipals.filter(p => p.overrideAction === 'removed').map(p => p.identifier)
-        );
-        const overrideDowngradeMap = new Map(
-            desiredPrincipals.filter(p => p.overrideAction === 'downgraded').map(p => [p.identifier, p.role])
-        );
-
-        // Remove overridden principals from expectedEmails so they get caught by removal logic
-        for (const email of overrideRemoveSet) {
-            expectedEmails.delete(email);
-        }
-
-        // Build map of actual ACTIVE emails (exclude deleted and "Access removed" permissions)
-        const actualEmailsMap = new Map<string, any>();
-        for (const perm of actualPerms) {
-            // Skip permissions that were removed due to Limited Access
-            // These have "deleted" set to true
-            if (perm.deleted === true) continue;
-            // Skip "Access removed" permissions (view=metadata) — phantom perms on limited-access folders
-            if (perm.view === 'metadata') continue;
-            if (perm.emailAddress) {
-                actualEmailsMap.set(perm.emailAddress.toLowerCase(), perm);
-            }
-        }
-
-        // Debug: Log RAW permissions from Google API to understand structure
-        await writeJobLog(jobId, project.id, project.name, templatePath, 'debug_raw_perms', 'info', {
-            rawPermsSample: actualPerms.slice(0, 3).map((p: any) => ({
-                email: p.emailAddress,
-                type: p.type,
-                role: p.role,
-                deleted: p.deleted,
-                pendingOwner: p.pendingOwner,
-                inherited: p.inherited,
-                allFields: Object.keys(p)
-            }))
-        });
-
-        // Debug: Log expected vs actual permissions
-        await writeJobLog(jobId, project.id, project.name, templatePath, 'debug_permissions', 'info', {
-            expectedGroupCount: expectedPerms.groups.length,
-            expectedGroups: expectedPerms.groups.map((g: any) => g.email),
-            actualEmails: Array.from(actualEmailsMap.keys())
-        });
-
-        // Step 3a: ADD group permissions (with pre-check)
+        // 2a. Add group permissions
         for (const group of expectedPerms.groups) {
             if (!group.email) continue;
-            const groupEmailLower = group.email.toLowerCase();
-            const expectedRole = group.role || 'reader';
-
-            // Check if permission already exists with correct or lower role
-            const existingPerm = actualEmailsMap.get(groupEmailLower);
-            if (existingPerm) {
-                const actualRank = CANONICAL_RANK[normalizeRole(existingPerm.role)] ?? 0;
-                const expectedRank = CANONICAL_RANK[normalizeRole(expectedRole)] ?? 0;
-                if (actualRank <= expectedRank) {
-                    // No-escalation guard: actual is same or lower privilege — do nothing
-                    continue;
-                }
-                // actualRank > expectedRank: over-privileged, will be handled by downgrade logic
-                continue;
-            }
-
+            const role = group.role || 'reader';
             try {
-                await addPermission(folder.drive_folder_id, 'group', expectedRole, group.email);
+                await addPermission(folderId, 'group', role, group.email);
                 added++;
                 await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
                     email: group.email,
                     type: 'group',
-                    role: expectedRole,
-                    action: existingPerm ? 'UPDATED' : 'ADDED'
+                    role
                 });
             } catch (err: any) {
-                // Ignore "already has access" errors
-                if (err.message?.includes('already')) {
-                    // Log as info, not success
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'permission_already_exists', 'info', {
-                        email: group.email,
-                        type: 'group',
-                        role: expectedRole
-                    });
-                } else {
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
-                        email: group.email,
-                        error: err.message
-                    });
-                }
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
+                    email: group.email,
+                    type: 'group',
+                    role,
+                    error: err.message
+                });
             }
             await sleep(RATE_LIMIT_DELAY);
         }
 
+        // 2b. Add user permissions
         for (const user of expectedPerms.users) {
             if (!user.email) continue;
-            const emailLower = user.email.toLowerCase();
-            const existingPerm = actualEmailsMap.get(emailLower);
-            if (existingPerm) {
-                const actualRank = CANONICAL_RANK[normalizeRole(existingPerm.role)] ?? 0;
-                const expectedRank = CANONICAL_RANK[normalizeRole(user.role || 'reader')] ?? 0;
-                if (actualRank <= expectedRank) {
-                    // No-escalation guard: actual is same or lower privilege — do nothing
-                    continue;
-                }
-                // actualRank > expectedRank: over-privileged, will be handled by downgrade logic
-                continue;
-            }
-            // Missing — add permission
+            const role = user.role || 'reader';
             try {
-                await addPermission(folder.drive_folder_id, 'user', user.role || 'reader', user.email);
+                await addPermission(folderId, 'user', role, user.email);
                 added++;
                 await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
                     email: user.email,
                     type: 'user',
-                    role: user.role
+                    role
                 });
             } catch (err: any) {
                 await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
                     email: user.email,
+                    type: 'user',
+                    role,
                     error: err.message
                 });
             }
             await sleep(RATE_LIMIT_DELAY);
         }
 
-        // Step 3b: REMOVE unauthorized permissions
-        for (const actual of actualPerms) {
-            if (!actual.emailAddress) continue;
-            const emailLower = actual.emailAddress.toLowerCase();
-
-            // Skip protected principals
-            if (protectedPrincipals.some(p => p.toLowerCase() === emailLower)) {
-                continue;
-            }
-
-            // Check if this permission is expected
-            if (!expectedEmails.has(emailLower)) {
-                // Classify inherited permissions BEFORE counting as violation
-                const inheritedClassification = classifyInheritedPermission(actual, driveId);
-                const isInherited = inheritedClassification !== 'NOT_INHERITED';
-                const inheritedFrom = actual.inheritedFrom ?? actual.permissionDetails?.[0]?.inheritedFrom;
-
-                // RULE 0: NON-REMOVABLE Shared Drive membership — NEVER count as violation, NEVER attempt delete
-                if (inheritedClassification === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') {
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'drive_membership_skipped', 'info', {
-                        action: 'SKIPPED',
-                        reason: 'NON_REMOVABLE_DRIVE_MEMBERSHIP',
-                        classification: 'non-removable-drive',
-                        email: actual.emailAddress,
-                        role: actual.role,
-                        type: actual.type,
-                        inheritedFrom,
-                        message: 'Shared Drive membership permission — cannot be removed via file API.'
-                    });
-                    continue;
-                }
-
-                // RULE 1: Skip inherited permissions when limitedAccess=false (inheritance allowed)
-                if (!expectedPerms.limitedAccess && isInherited) {
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_permission_allowed', 'info', {
-                        action: 'SKIPPED',
-                        reason: 'INHERITANCE_ALLOWED',
-                        classification: 'removable',
-                        email: actual.emailAddress,
-                        role: actual.role,
-                        type: actual.type,
-                        inheritedFrom,
-                        message: 'Permission is inherited and inheritance is allowed for this folder (limitedAccess=false).'
-                    });
-                    continue;
-                }
-
-                // RULE 2: Skip domain/anyone when limitedAccess=false (no hard reset)
-                if (!expectedPerms.limitedAccess && (actual.type === 'domain' || actual.type === 'anyone')) {
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'domain_permission_allowed', 'info', {
-                        action: 'SKIPPED',
-                        reason: 'NO_HARD_RESET_ON_NON_LIMITED',
-                        type: actual.type,
-                        domain: actual.domain,
-                        message: 'Domain/anyone permission allowed on non-limited folder (no hard reset).'
-                    });
-                    continue;
-                }
-
-                // If limitedAccess=true and isInherited from parent folder: these should already be removed
-                if (isInherited) {
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_permission_violation', 'warning', {
-                        action: 'BLOCKED',
-                        reason: 'INHERITED_ON_LIMITED_FOLDER',
-                        classification: 'removable',
-                        email: actual.emailAddress,
-                        role: actual.role,
-                        type: actual.type,
-                        permissionId: actual.id,
-                        inheritedFrom,
-                        sourceLink: inheritedFrom ? `https://drive.google.com/drive/folders/${inheritedFrom}` : null,
-                        message: 'Permission is inherited from parent folder on a Limited Access folder.'
-                    });
-                    continue;
-                }
-
-                // This is a REAL unauthorized direct permission — count as violation
-                violations++;
-
-                try {
-                    await removePermission(folder.drive_folder_id, actual.id!);
-                    reverted++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission', 'warning', {
-                        email: actual.emailAddress,
-                        role: actual.role
-                    });
-                } catch (err: any) {
-                    // "Permission not found" means it was already removed (e.g., by Limited Access)
-                    if (err.message?.includes('Permission not found') || err.message?.includes('not found')) {
-                        reverted++; // Count as success since the goal was achieved
-                        await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission', 'success', {
-                            email: actual.emailAddress,
-                            role: actual.role,
-                            note: 'Already removed (Limited Access)'
-                        });
-                    } else {
-                        // Check if this is an inherited permission issue
-                        const isInherited = actual.permissionDetails?.[0]?.inherited;
-                        const inheritedFrom = actual.permissionDetails?.[0]?.inheritedFrom;
-
-                        if (isInherited || err.message?.includes('required access to delete')) {
-                            await writeJobLog(jobId, project.id, project.name, templatePath, 'permission_delete_blocked', 'error', {
-                                reason: 'INHERITED_PERMISSION',
-                                email: actual.emailAddress,
-                                role: actual.role,
-                                type: actual.type,
-                                permissionId: actual.id,
-                                sourceFolderId: inheritedFrom || 'unknown',
-                                message: 'Cannot delete inherited permission. Must be removed from source folder.',
-                                sourceLink: inheritedFrom ? `https://drive.google.com/drive/folders/${inheritedFrom}` : null
-                            });
-                        } else {
-                            await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_permission_failed', 'error', {
-                                email: actual.emailAddress,
-                                role: actual.role,
-                                type: actual.type,
-                                permissionId: actual.id,
-                                inherited: isInherited,
-                                error: err.message
-                            });
-                        }
-                    }
-                }
-                await sleep(RATE_LIMIT_DELAY);
-            }
-        }
-
-        // Step 3c: Enable Limited Access if needed
+        // 2c. Enable Limited Access if template requires it
         if (expectedPerms.limitedAccess) {
             try {
-                await setLimitedAccess(folder.drive_folder_id, true);
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access', 'success', {});
-            } catch (err: any) {
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_failed', 'error', {
-                    error: err.message
-                });
-            }
-        }
-
-        // Step 3d: Override enforcement — downgrade roles for principals targeted by override.downgrade
-        for (const [email, desiredRole] of overrideDowngradeMap) {
-            const existingPerm = actualEmailsMap.get(email);
-            if (!existingPerm) continue;
-
-            const actualRole = normalizeRole(existingPerm.role);
-            const targetRole = normalizeRole(desiredRole);
-            if (actualRole === targetRole) continue; // Already at correct role
-
-            // Classify: drive memberships cannot be role-changed at folder level
-            const cls = classifyInheritedPermission(existingPerm, driveId);
-            if (cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') {
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'override_downgrade_blocked', 'warning', {
-                    action: 'BLOCKED',
-                    reason: 'NON_REMOVABLE_DRIVE_MEMBERSHIP',
-                    email,
-                    actualRole,
-                    desiredRole: targetRole,
-                    message: 'Cannot downgrade Shared Drive membership role at folder level.'
-                });
-                continue;
-            }
-
-            // For direct permissions: delete and re-add with lower role
-            if (cls === 'NOT_INHERITED') {
-                try {
-                    await removePermission(folder.drive_folder_id, existingPerm.id!);
-                    await sleep(RATE_LIMIT_DELAY);
-                    await addPermission(folder.drive_folder_id, existingPerm.type, targetRole as any, existingPerm.emailAddress);
-                    reverted++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'override_downgrade', 'success', {
-                        email,
-                        fromRole: actualRole,
-                        toRole: targetRole,
-                        action: 'DOWNGRADED'
-                    });
-                } catch (err: any) {
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'override_downgrade_failed', 'error', {
-                        email,
-                        fromRole: actualRole,
-                        toRole: targetRole,
-                        error: err.message
-                    });
-                }
-                await sleep(RATE_LIMIT_DELAY);
-            } else {
-                // Inherited from parent folder — log that it needs attention
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'override_downgrade_inherited', 'warning', {
-                    action: 'BLOCKED',
-                    reason: 'INHERITED_PERMISSION',
-                    email,
-                    actualRole,
-                    desiredRole: targetRole,
-                    message: 'Cannot downgrade inherited permission. Must be changed at source folder.'
-                });
-            }
-        }
-        // Step 3d: SET LIMITED ACCESS on Drive folder if template requires it
-        if (expectedPerms.limitedAccess) {
-            try {
-                await setLimitedAccess(folder.drive_folder_id, true);
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'set_limited_access', 'success', {
+                await setLimitedAccess(folderId, true);
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_enabled', 'success', {
                     action: 'LIMITED_ACCESS_ENABLED',
                     message: 'Set inheritedPermissionsDisabled=true on folder'
                 });
             } catch (err: any) {
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'set_limited_access_failed', 'error', {
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_failed', 'error', {
                     error: err.message,
-                    message: 'Failed to enable Limited Access on folder'
+                    message: 'Failed to enable Limited Access'
                 });
             }
             await sleep(RATE_LIMIT_DELAY);
         }
 
-        // Step 4: POST-ENFORCEMENT RE-READ — verify final Drive state
+        // 2d. POST-APPLY verification — log final state
         try {
             await sleep(RATE_LIMIT_DELAY);
-            const finalPerms = await listPermissions(folder.drive_folder_id);
-            const debugPayload = buildFolderDebugPayload(
-                templatePath,
-                expectedPerms.limitedAccess,
-                null,
-                finalPerms,
-                driveId
-            );
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'post_enforcement_state', 'info', {
-                ...debugPayload,
+            const finalPerms = await listPermissions(folderId);
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'post_apply_state', 'info', {
                 total_permissions: finalPerms.length,
                 emails: finalPerms
                     .filter((p: any) => p.emailAddress)
                     .map((p: any) => `${p.emailAddress} (${p.role}${p.inherited ? ' inherited' : ''})`),
             });
         } catch (err: any) {
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'post_enforcement_read_failed', 'warning', {
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'post_apply_read_failed', 'warning', {
                 error: err.message
             });
         }
 
         await sleep(RATE_LIMIT_DELAY);
     }
+
+    await writeJobLog(jobId, project.id, project.name, null, 'pass2_complete', 'success', {
+        message: 'PASS 2 COMPLETE — All folders enforced'
+    });
 
     return { violations, reverted, added };
 }
