@@ -216,6 +216,24 @@ function getLogMessage(log: JobLog): string {
             return `Error: ${details.message}`;
         case "warning":
             return `Warning: ${details.message}`;
+        case "pass1_start":
+            return `🔄 PASS 1: GLOBAL RESET — ${details.folderCount || 0} folders`;
+        case "pass1_complete":
+            return `✅ PASS 1 COMPLETE — All folders reset`;
+        case "pass2_start":
+            return `🔄 PASS 2: APPLY — ${details.folderCount || 0} folders`;
+        case "pass2_complete":
+            return `✅ PASS 2 COMPLETE — All folders enforced`;
+        case "reset_complete":
+            return `Reset complete: ${log.folder_path || "folder"}`;
+        case "limited_access_enabled":
+            return `Limited Access: enabled`;
+        case "limited_access_failed":
+            return `Limited Access failed: ${details.error}`;
+        case "limited_access_disable_info":
+            return `Limited Access: ${details.message}`;
+        case "folders_to_process":
+            return `${details.count || 0} folders to process (${details.scope || "full"})`;
         default:
             return log.action.replace(/_/g, " ");
     }
