@@ -800,88 +800,91 @@ function StatsRow({ result }: { result: AuditResult }) {
 
     return (
         <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            return (
+            <div className="flex flex-wrap xl:flex-nowrap gap-4 w-full overflow-x-auto pb-2">
+                {/* Stats Cards */}
                 {stats.map((s) => (
-                    <Card key={s.label}>
-                        <CardContent className="p-4 flex items-center gap-3">
+                    <Card key={s.label} className="min-w-[180px] flex-1">
+                        <CardContent className="p-3 flex items-center gap-3">
                             <div className={`p-2 rounded-full ${s.bg}`}>{s.icon}</div>
                             <div>
-                                <p className="text-xl font-bold">{s.value}</p>
-                                <p className="text-xs text-muted-foreground">{s.label}</p>
+                                <p className="text-lg font-bold">{s.value}</p>
+                                <p className="text-xs text-muted-foreground whitespace-nowrap">{s.label}</p>
                             </div>
                         </CardContent>
                     </Card>
                 ))}
-            </div>
 
-            {result.templateFolderCounts && result.templateFolderCounts.length > 0 && (
-                <div className="grid grid-cols-3 gap-4 mt-4">
-                    {result.templateFolderCounts.map((tc) => (
-                        <Card key={tc.phase}>
-                            <CardContent className="p-4 flex items-center gap-3">
-                                <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900">
-                                    <FolderOpen className="h-4 w-4 text-blue-500" />
+                {/* Template Count Cards */}
+                {result.templateFolderCounts && result.templateFolderCounts.length > 0 && (
+                    <>
+                        {result.templateFolderCounts.map((tc) => (
+                            <Card key={tc.phase} className="min-w-[180px] flex-1">
+                                <CardContent className="p-3 flex items-center gap-3">
+                                    <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900">
+                                        <FolderOpen className="h-4 w-4 text-blue-500" />
+                                    </div>
+                                    <div>
+                                        <p className="text-lg font-bold">{tc.count}</p>
+                                        <p className="text-xs text-muted-foreground whitespace-nowrap">
+                                            {tc.phase === 'Bidding' ? 'RFP' : 'PD'} Template
+                                        </p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                        <Card className="min-w-[180px] flex-1">
+                            <CardContent className="p-3 flex items-center gap-3">
+                                <div className={`p-2 rounded-full ${isFullyIndexed ? 'bg-green-100 dark:bg-green-900' : 'bg-amber-100 dark:bg-amber-900'}`}>
+                                    <FolderOpen className={`h-4 w-4 ${isFullyIndexed ? 'text-green-500' : 'text-amber-500'}`} />
                                 </div>
                                 <div>
-                                    <p className="text-xl font-bold">{tc.count}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {tc.phase === 'Bidding' ? 'RFP' : 'PD'} Template
+                                    <p className="text-lg font-bold">
+                                        {result.indexedFolderCount ?? 0}
+                                        <span className="text-xs font-normal text-muted-foreground ml-1">
+                                            / {templateTotal}
+                                        </span>
                                     </p>
+                                    <p className="text-xs text-muted-foreground whitespace-nowrap">Indexed</p>
                                 </div>
                             </CardContent>
                         </Card>
-                    ))}
-                    <Card>
-                        <CardContent className="p-4 flex items-center gap-3">
-                            <div className={`p-2 rounded-full ${isFullyIndexed ? 'bg-green-100 dark:bg-green-900' : 'bg-amber-100 dark:bg-amber-900'}`}>
-                                <FolderOpen className={`h-4 w-4 ${isFullyIndexed ? 'text-green-500' : 'text-amber-500'}`} />
-                            </div>
-                            <div>
-                                <p className="text-xl font-bold">
-                                    {result.indexedFolderCount ?? 0}
-                                    <span className="text-xs font-normal text-muted-foreground ml-1">
-                                        / {templateTotal}
-                                    </span>
-                                </p>
-                                <p className="text-xs text-muted-foreground">Indexed</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-            )}
-        </>
-    );
+                    </>
+                )}
+            </div>
+
+            );
 }
 
-// ─── Main Page ──────────────────────────────────────────────
-export default function PermissionAuditPage() {
+            // ─── Main Page ──────────────────────────────────────────────
+            export default function PermissionAuditPage() {
     const [projects, setProjects] = useState<Project[]>([]);
-    const [selectedProjectId, setSelectedProjectId] = useState<string>("");
-    const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [enforcing, setEnforcing] = useState(false);
+            const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+                const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+                const [loading, setLoading] = useState(false);
+                const [enforcing, setEnforcing] = useState(false);
 
-    // Tree state
-    const [selectedPath, setSelectedPath] = useState<string | null>(null);
-    const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
-    const [filter, setFilter] = useState<"all" | "issues">("all");
+                // Tree state
+                const [selectedPath, setSelectedPath] = useState<string | null>(null);
+                const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+                    const [filter, setFilter] = useState<"all" | "issues">("all");
 
     // Restore cached audit results on mount
     useEffect(() => {
         try {
             const cached = sessionStorage.getItem('rfp_audit_cache');
-            if (cached) {
-                const { projectId, result } = JSON.parse(cached);
-                if (projectId && result) {
-                    setSelectedProjectId(projectId);
+                    if (cached) {
+                const {projectId, result} = JSON.parse(cached);
+                    if (projectId && result) {
+                        setSelectedProjectId(projectId);
                     setAuditResult(result);
                     if (result.comparisons?.length > 0) {
                         const tree = buildFolderTree(result.comparisons);
-                        const allPaths = new Set<string>();
+                    const allPaths = new Set<string>();
                         // Auto-expand phase root and top-level folders
                         function collectPaths(nodes: TreeNode[]) {
                             for (const n of nodes) {
-                                allPaths.add(n.path);
+                            allPaths.add(n.path);
                                 if (n.children.length > 0) collectPaths(n.children);
                             }
                         }
@@ -892,15 +895,15 @@ export default function PermissionAuditPage() {
                 }
             }
         } catch {
-            // Ignore parse errors
-        }
+                            // Ignore parse errors
+                        }
     }, []);
 
-    // Context menu state
-    const [contextMenu, setContextMenu] = useState<{
+                        // Context menu state
+                        const [contextMenu, setContextMenu] = useState<{
         folderPath: string;
-        x: number;
-        y: number;
+                        x: number;
+                        y: number;
     } | null>(null);
 
     // Fetch projects
@@ -908,466 +911,466 @@ export default function PermissionAuditPage() {
         const fetchProjects = async () => {
             try {
                 const res = await fetch("/api/projects");
-                const data = await res.json();
-                if (data.success) setProjects(data.projects || []);
+                        const data = await res.json();
+                        if (data.success) setProjects(data.projects || []);
             } catch (error) {
-                console.error("Error fetching projects:", error);
+                            console.error("Error fetching projects:", error);
             }
         };
-        fetchProjects();
+                        fetchProjects();
     }, []);
 
     // Run audit
     const runAudit = useCallback(async () => {
         if (!selectedProjectId) return;
-        setLoading(true);
-        setAuditResult(null);
-        setSelectedPath(null);
-        try {
+                        setLoading(true);
+                        setAuditResult(null);
+                        setSelectedPath(null);
+                        try {
             const res = await fetch(
-                `/api/audit/permissions?projectId=${selectedProjectId}`
-            );
-            const data = await res.json();
-            if (data.success) {
-                setAuditResult(data.result);
-                // Cache results in sessionStorage for persistence across navigation
-                try {
-                    sessionStorage.setItem('rfp_audit_cache', JSON.stringify({
-                        projectId: selectedProjectId,
-                        result: data.result
-                    }));
-                } catch { /* quota exceeded — ignore */ }
+                        `/api/audit/permissions?projectId=${selectedProjectId}`
+                        );
+                        const data = await res.json();
+                        if (data.success) {
+                            setAuditResult(data.result);
+                        // Cache results in sessionStorage for persistence across navigation
+                        try {
+                            sessionStorage.setItem('rfp_audit_cache', JSON.stringify({
+                                projectId: selectedProjectId,
+                                result: data.result
+                            }));
+                } catch { /* quota exceeded — ignore */}
                 // Auto-expand and select first
                 if (data.result.comparisons.length > 0) {
                     const tree = buildFolderTree(data.result.comparisons);
-                    const allPaths = new Set<string>();
-                    function collectPaths(nodes: TreeNode[]) {
+                        const allPaths = new Set<string>();
+                            function collectPaths(nodes: TreeNode[]) {
                         for (const n of nodes) {
-                            allPaths.add(n.path);
+                                allPaths.add(n.path);
                             if (n.children.length > 0) collectPaths(n.children);
                         }
                     }
-                    collectPaths(tree);
-                    setExpandedPaths(allPaths);
-                    setSelectedPath(data.result.comparisons[0].normalizedPath);
+                            collectPaths(tree);
+                            setExpandedPaths(allPaths);
+                            setSelectedPath(data.result.comparisons[0].normalizedPath);
                 }
-                toast.success(
-                    `Audit complete: ${data.result.totalFolders} folders analyzed`
-                );
+                            toast.success(
+                            `Audit complete: ${data.result.totalFolders} folders analyzed`
+                            );
             } else {
-                toast.error("Audit failed: " + (data.error || "Unknown error"));
+                                toast.error("Audit failed: " + (data.error || "Unknown error"));
             }
         } catch (error) {
-            console.error("Error running audit:", error);
-            toast.error("Error running audit");
+                                console.error("Error running audit:", error);
+                            toast.error("Error running audit");
         } finally {
-            setLoading(false);
+                                setLoading(false);
         }
     }, [selectedProjectId]);
 
     // Enforce THIS project only (FIX: was sending {all: true })
     const enforceProject = useCallback(async () => {
         if (!selectedProjectId) return;
-        setEnforcing(true);
-        try {
+                            setEnforcing(true);
+                            try {
             const res = await fetch("/api/jobs/enforce-permissions", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ projectId: selectedProjectId }),
+                                method: "POST",
+                            headers: {"Content-Type": "application/json" },
+                            body: JSON.stringify({projectId: selectedProjectId }),
             });
-            const data = await res.json();
-            if (data.success) {
-                toast.success("Enforcement job started for selected project");
-                window.location.href = "/jobs";
+                            const data = await res.json();
+                            if (data.success) {
+                                toast.success("Enforcement job started for selected project");
+                            window.location.href = "/jobs";
             } else {
-                toast.error("Failed: " + (data.error || "Unknown error"));
+                                toast.error("Failed: " + (data.error || "Unknown error"));
             }
         } catch (error) {
-            console.error("Error enforcing:", error);
-            toast.error("Error starting enforcement job");
+                                console.error("Error enforcing:", error);
+                            toast.error("Error starting enforcement job");
         } finally {
-            setEnforcing(false);
+                                setEnforcing(false);
         }
     }, [selectedProjectId]);
 
     // Enforce ALL projects
     const enforceAllProjects = useCallback(async () => {
         const confirmed = confirm(
-            "Enforce permissions for ALL projects? This will create a job for each project."
-        );
-        if (!confirmed) return;
-        setEnforcing(true);
-        try {
+                            "Enforce permissions for ALL projects? This will create a job for each project."
+                            );
+                            if (!confirmed) return;
+                            setEnforcing(true);
+                            try {
             const res = await fetch("/api/jobs/enforce-permissions", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({}), // No projectId = all
+                                method: "POST",
+                            headers: {"Content-Type": "application/json" },
+                            body: JSON.stringify({ }), // No projectId = all
             });
-            const data = await res.json();
-            if (data.success) {
-                toast.success("Enforcement jobs started for all projects");
-                window.location.href = "/jobs";
+                            const data = await res.json();
+                            if (data.success) {
+                                toast.success("Enforcement jobs started for all projects");
+                            window.location.href = "/jobs";
             } else {
-                toast.error("Failed: " + (data.error || "Unknown error"));
+                                toast.error("Failed: " + (data.error || "Unknown error"));
             }
         } catch (error) {
-            console.error("Error enforcing all:", error);
-            toast.error("Error starting enforcement jobs");
+                                console.error("Error enforcing all:", error);
+                            toast.error("Error starting enforcement jobs");
         } finally {
-            setEnforcing(false);
+                                setEnforcing(false);
         }
     }, []);
 
     // Enforce single folder
     const enforceSingleFolder = useCallback(async (folderPath: string) => {
         if (!selectedProjectId) return;
-        setEnforcing(true);
-        try {
+                            setEnforcing(true);
+                            try {
             const res = await fetch('/api/jobs/enforce-permissions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    projectId: selectedProjectId,
-                    metadata: { scope: 'single', targetPath: folderPath }
+                                method: 'POST',
+                            headers: {'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                projectId: selectedProjectId,
+                            metadata: {scope: 'single', targetPath: folderPath }
                 })
             });
-            const data = await res.json();
-            if (data.success) {
-                toast.success(`Enforcing: ${folderPath.split('/').pop()}`);
-                window.location.href = '/jobs';
+                            const data = await res.json();
+                            if (data.success) {
+                                toast.success(`Enforcing: ${folderPath.split('/').pop()}`);
+                            window.location.href = '/jobs';
             } else {
-                toast.error('Failed: ' + (data.error || 'Unknown error'));
+                                toast.error('Failed: ' + (data.error || 'Unknown error'));
             }
         } catch (error) {
-            toast.error('Error starting enforcement job');
+                                toast.error('Error starting enforcement job');
         } finally {
-            setEnforcing(false);
+                                setEnforcing(false);
         }
     }, [selectedProjectId]);
 
     // Enforce folder + children
     const enforceFolderBranch = useCallback(async (folderPath: string) => {
         if (!selectedProjectId) return;
-        setEnforcing(true);
-        try {
+                            setEnforcing(true);
+                            try {
             const res = await fetch('/api/jobs/enforce-permissions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    projectId: selectedProjectId,
-                    metadata: { scope: 'branch', targetPath: folderPath }
+                                method: 'POST',
+                            headers: {'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                projectId: selectedProjectId,
+                            metadata: {scope: 'branch', targetPath: folderPath }
                 })
             });
-            const data = await res.json();
-            if (data.success) {
-                toast.success(`Enforcing: ${folderPath.split('/').pop()} + children`);
-                window.location.href = '/jobs';
+                            const data = await res.json();
+                            if (data.success) {
+                                toast.success(`Enforcing: ${folderPath.split('/').pop()} + children`);
+                            window.location.href = '/jobs';
             } else {
-                toast.error('Failed: ' + (data.error || 'Unknown error'));
+                                toast.error('Failed: ' + (data.error || 'Unknown error'));
             }
         } catch (error) {
-            toast.error('Error starting enforcement');
+                                toast.error('Error starting enforcement');
         } finally {
-            setEnforcing(false);
+                                setEnforcing(false);
         }
     }, [selectedProjectId]);
 
     // Export
     const exportAudit = async (format: "csv" | "json") => {
         if (!selectedProjectId) return;
-        try {
+                            try {
             const res = await fetch(
-                `/api/audit/export?projectId=${selectedProjectId}&format=${format}`
-            );
-            if (format === "json") {
+                            `/api/audit/export?projectId=${selectedProjectId}&format=${format}`
+                            );
+                            if (format === "json") {
                 const data = await res.json();
-                const blob = new Blob([JSON.stringify(data, null, 2)], {
-                    type: "application/json",
+                            const blob = new Blob([JSON.stringify(data, null, 2)], {
+                                type: "application/json",
                 });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `audit_${auditResult?.projectCode}_${new Date().toISOString().split("T")[0]}.json`;
-                a.click();
-                URL.revokeObjectURL(url);
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `audit_${auditResult?.projectCode}_${new Date().toISOString().split("T")[0]}.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
             } else {
                 const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `audit_${auditResult?.projectCode}_${new Date().toISOString().split("T")[0]}.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `audit_${auditResult?.projectCode}_${new Date().toISOString().split("T")[0]}.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
             }
-            toast.success(`Exported as ${format.toUpperCase()}`);
+                            toast.success(`Exported as ${format.toUpperCase()}`);
         } catch (error) {
-            console.error("Export failed:", error);
-            toast.error("Export failed");
+                                console.error("Export failed:", error);
+                            toast.error("Export failed");
         }
     };
 
     const handleToggleExpand = useCallback((path: string) => {
-        setExpandedPaths((prev) => {
-            const next = new Set(prev);
-            if (next.has(path)) next.delete(path);
-            else next.add(path);
-            return next;
-        });
+                                setExpandedPaths((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(path)) next.delete(path);
+                                    else next.add(path);
+                                    return next;
+                                });
     }, []);
 
-    // Build tree + filter
-    const tree = auditResult ? buildFolderTree(auditResult.comparisons) : [];
-    const selectedComp = auditResult?.comparisons.find(
+                            // Build tree + filter
+                            const tree = auditResult ? buildFolderTree(auditResult.comparisons) : [];
+                            const selectedComp = auditResult?.comparisons.find(
         (c) => c.normalizedPath === selectedPath
-    );
+                            );
 
-    // Filter comparisons for tree
-    const filteredComparisons =
-        filter === "issues"
+                            // Filter comparisons for tree
+                            const filteredComparisons =
+                            filter === "issues"
             ? auditResult?.comparisons.filter((c) => c.status !== "exact_match") || []
-            : auditResult?.comparisons || [];
-    const filteredTree = buildFolderTree(filteredComparisons);
+                            : auditResult?.comparisons || [];
+                            const filteredTree = buildFolderTree(filteredComparisons);
 
-    return (
-        <div className="space-y-4">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
-                        Permission Audit
-                    </h1>
-                    <p className="text-muted-foreground text-sm">
-                        Compare template permissions with actual Google Drive permissions
-                    </p>
-                </div>
-                {auditResult && (
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => exportAudit("csv")}
-                        >
-                            <Download className="h-4 w-4 mr-1" />
-                            CSV
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => exportAudit("json")}
-                        >
-                            <Download className="h-4 w-4 mr-1" />
-                            JSON
-                        </Button>
-                    </div>
-                )}
-            </div>
-
-            {/* Project Selector + Run Audit */}
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                            <Select
-                                value={selectedProjectId}
-                                onValueChange={setSelectedProjectId}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a project to audit" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {projects.map((p) => (
-                                        <SelectItem key={p.id} value={p.id}>
-                                            {p.pr_number} — {p.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <Button
-                            onClick={runAudit}
-                            disabled={!selectedProjectId || loading}
-                        >
-                            {loading ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <RefreshCw className="h-4 w-4 mr-2" />
-                            )}
-                            Run Audit
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Stats Row */}
-            {auditResult && <StatsRow result={auditResult} />}
-
-            {/* Master-Detail Layout */}
-            {auditResult && (
-                <div className="grid gap-4 lg:grid-cols-[350px_1fr]">
-                    {/* LEFT: Folder Tree */}
-                    <Card className="h-[calc(100vh-420px)] flex flex-col">
-                        <CardHeader className="py-3 px-4 flex-shrink-0">
-                            <div className="flex items-center justify-between">
-                                <CardTitle className="text-sm">
-                                    Folders ({filteredComparisons.length})
-                                </CardTitle>
-                                <div className="flex gap-1">
-                                    <Button
-                                        variant={filter === "all" ? "default" : "ghost"}
-                                        size="sm"
-                                        className="h-6 text-xs px-2"
-                                        onClick={() => setFilter("all")}
-                                    >
-                                        All
-                                    </Button>
-                                    <Button
-                                        variant={filter === "issues" ? "default" : "ghost"}
-                                        size="sm"
-                                        className="h-6 text-xs px-2"
-                                        onClick={() => setFilter("issues")}
-                                    >
-                                        Issues
-                                    </Button>
+                            return (
+                            <div className="space-y-4">
+                                {/* Header */}
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h1 className="text-3xl font-bold tracking-tight">
+                                            Permission Audit
+                                        </h1>
+                                        <p className="text-muted-foreground text-sm">
+                                            Compare template permissions with actual Google Drive permissions
+                                        </p>
+                                    </div>
+                                    {auditResult && (
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => exportAudit("csv")}
+                                            >
+                                                <Download className="h-4 w-4 mr-1" />
+                                                CSV
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => exportAudit("json")}
+                                            >
+                                                <Download className="h-4 w-4 mr-1" />
+                                                JSON
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="flex-1 overflow-hidden px-2 pb-2">
-                            <ScrollArea className="h-full">
-                                {filteredTree.map((node) => (
-                                    <AuditTreeNode
-                                        key={node.path}
-                                        node={node}
-                                        selectedPath={selectedPath}
-                                        expandedPaths={expandedPaths}
-                                        onSelect={setSelectedPath}
-                                        onToggleExpand={handleToggleExpand}
-                                        onContextMenu={(e, path) => {
-                                            e.preventDefault();
-                                            setContextMenu({
-                                                folderPath: path,
-                                                x: e.clientX,
-                                                y: e.clientY
-                                            });
-                                        }}
-                                    />
-                                ))}
-                                {filteredTree.length === 0 && (
-                                    <div className="text-center py-8 text-sm text-muted-foreground">
-                                        {filter === "issues"
-                                            ? "No issues found! All permissions match."
-                                            : "No folders to display."}
+
+                                {/* Project Selector + Run Audit */}
+                                <Card>
+                                    <CardContent className="pt-6">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex-1">
+                                                <Select
+                                                    value={selectedProjectId}
+                                                    onValueChange={setSelectedProjectId}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select a project to audit" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {projects.map((p) => (
+                                                            <SelectItem key={p.id} value={p.id}>
+                                                                {p.pr_number} — {p.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <Button
+                                                onClick={runAudit}
+                                                disabled={!selectedProjectId || loading}
+                                            >
+                                                {loading ? (
+                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                ) : (
+                                                    <RefreshCw className="h-4 w-4 mr-2" />
+                                                )}
+                                                Run Audit
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Stats Row */}
+                                {auditResult && <StatsRow result={auditResult} />}
+
+                                {/* Master-Detail Layout */}
+                                {auditResult && (
+                                    <div className="grid gap-4 lg:grid-cols-[350px_1fr]">
+                                        {/* LEFT: Folder Tree */}
+                                        <Card className="h-[calc(100vh-420px)] flex flex-col">
+                                            <CardHeader className="py-3 px-4 flex-shrink-0">
+                                                <div className="flex items-center justify-between">
+                                                    <CardTitle className="text-sm">
+                                                        Folders ({filteredComparisons.length})
+                                                    </CardTitle>
+                                                    <div className="flex gap-1">
+                                                        <Button
+                                                            variant={filter === "all" ? "default" : "ghost"}
+                                                            size="sm"
+                                                            className="h-6 text-xs px-2"
+                                                            onClick={() => setFilter("all")}
+                                                        >
+                                                            All
+                                                        </Button>
+                                                        <Button
+                                                            variant={filter === "issues" ? "default" : "ghost"}
+                                                            size="sm"
+                                                            className="h-6 text-xs px-2"
+                                                            onClick={() => setFilter("issues")}
+                                                        >
+                                                            Issues
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="flex-1 overflow-hidden px-2 pb-2">
+                                                <ScrollArea className="h-full">
+                                                    {filteredTree.map((node) => (
+                                                        <AuditTreeNode
+                                                            key={node.path}
+                                                            node={node}
+                                                            selectedPath={selectedPath}
+                                                            expandedPaths={expandedPaths}
+                                                            onSelect={setSelectedPath}
+                                                            onToggleExpand={handleToggleExpand}
+                                                            onContextMenu={(e, path) => {
+                                                                e.preventDefault();
+                                                                setContextMenu({
+                                                                    folderPath: path,
+                                                                    x: e.clientX,
+                                                                    y: e.clientY
+                                                                });
+                                                            }}
+                                                        />
+                                                    ))}
+                                                    {filteredTree.length === 0 && (
+                                                        <div className="text-center py-8 text-sm text-muted-foreground">
+                                                            {filter === "issues"
+                                                                ? "No issues found! All permissions match."
+                                                                : "No folders to display."}
+                                                        </div>
+                                                    )}
+                                                </ScrollArea>
+                                            </CardContent>
+                                        </Card>
+
+                                        {/* RIGHT: Details Panel */}
+                                        <div className="h-[calc(100vh-420px)] overflow-hidden">
+                                            {selectedComp ? (
+                                                <Card className="h-full flex flex-col">
+                                                    <CardHeader className="py-3 px-4 flex-shrink-0 border-b">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <CardTitle className="text-lg flex items-center gap-2">
+                                                                    <Folder className="h-5 w-5 text-amber-500" />
+                                                                    {selectedComp.normalizedPath
+                                                                        .split("/")
+                                                                        .pop()}
+                                                                </CardTitle>
+                                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                                    {selectedComp.normalizedPath}
+                                                                </p>
+                                                            </div>
+                                                            {getStatusBadge(selectedComp.status)}
+                                                        </div>
+                                                    </CardHeader>
+                                                    <CardContent className="flex-1 overflow-auto px-4 py-3">
+                                                        <ScrollArea className="h-full">
+                                                            <div className="space-y-6 pr-2">
+                                                                <AuditSummaryBar comp={selectedComp} />
+                                                                <div className="border-t" />
+                                                                <AuditComparisonTable comp={selectedComp} />
+                                                                <div className="border-t" />
+                                                                <AuditDiscrepancyList comp={selectedComp} />
+                                                            </div>
+                                                        </ScrollArea>
+                                                    </CardContent>
+                                                </Card>
+                                            ) : (
+                                                <Card className="h-full flex items-center justify-center">
+                                                    <div className="text-center text-muted-foreground">
+                                                        <Folder className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                                                        <p className="font-medium">Select a folder</p>
+                                                        <p className="text-sm">
+                                                            Click a folder in the tree to view its audit details
+                                                        </p>
+                                                    </div>
+                                                </Card>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
 
-                    {/* RIGHT: Details Panel */}
-                    <div className="h-[calc(100vh-420px)] overflow-hidden">
-                        {selectedComp ? (
-                            <Card className="h-full flex flex-col">
-                                <CardHeader className="py-3 px-4 flex-shrink-0 border-b">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <CardTitle className="text-lg flex items-center gap-2">
-                                                <Folder className="h-5 w-5 text-amber-500" />
-                                                {selectedComp.normalizedPath
-                                                    .split("/")
-                                                    .pop()}
-                                            </CardTitle>
-                                            <p className="text-xs text-muted-foreground mt-0.5">
-                                                {selectedComp.normalizedPath}
-                                            </p>
-                                        </div>
-                                        {getStatusBadge(selectedComp.status)}
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="flex-1 overflow-auto px-4 py-3">
-                                    <ScrollArea className="h-full">
-                                        <div className="space-y-6 pr-2">
-                                            <AuditSummaryBar comp={selectedComp} />
-                                            <div className="border-t" />
-                                            <AuditComparisonTable comp={selectedComp} />
-                                            <div className="border-t" />
-                                            <AuditDiscrepancyList comp={selectedComp} />
-                                        </div>
-                                    </ScrollArea>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <Card className="h-full flex items-center justify-center">
-                                <div className="text-center text-muted-foreground">
-                                    <Folder className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                                    <p className="font-medium">Select a folder</p>
-                                    <p className="text-sm">
-                                        Click a folder in the tree to view its audit details
-                                    </p>
-                                </div>
-                            </Card>
-                        )}
-                    </div>
-                </div>
-            )}
+                                {/* Enforcement Footer */}
+                                {auditResult && (
+                                    <Card>
+                                        <CardContent className="py-4">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm text-muted-foreground">
+                                                    Enforce template permissions on Google Drive
+                                                </p>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        onClick={enforceProject}
+                                                        disabled={!selectedProjectId || enforcing}
+                                                        className="bg-blue-600 hover:bg-blue-700"
+                                                    >
+                                                        {enforcing ? (
+                                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                        ) : (
+                                                            <Shield className="h-4 w-4 mr-2" />
+                                                        )}
+                                                        Enforce This Project
+                                                    </Button>
+                                                    <Button
+                                                        onClick={enforceAllProjects}
+                                                        disabled={enforcing}
+                                                        variant="destructive"
+                                                    >
+                                                        {enforcing ? (
+                                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                        ) : (
+                                                            <Shield className="h-4 w-4 mr-2" />
+                                                        )}
+                                                        Enforce All Projects
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                )}
 
-            {/* Enforcement Footer */}
-            {auditResult && (
-                <Card>
-                    <CardContent className="py-4">
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">
-                                Enforce template permissions on Google Drive
-                            </p>
-                            <div className="flex gap-2">
-                                <Button
-                                    onClick={enforceProject}
-                                    disabled={!selectedProjectId || enforcing}
-                                    className="bg-blue-600 hover:bg-blue-700"
-                                >
-                                    {enforcing ? (
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    ) : (
-                                        <Shield className="h-4 w-4 mr-2" />
-                                    )}
-                                    Enforce This Project
-                                </Button>
-                                <Button
-                                    onClick={enforceAllProjects}
-                                    disabled={enforcing}
-                                    variant="destructive"
-                                >
-                                    {enforcing ? (
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    ) : (
-                                        <Shield className="h-4 w-4 mr-2" />
-                                    )}
-                                    Enforce All Projects
-                                </Button>
+                                {/* Context Menu */}
+                                {contextMenu && (
+                                    <ContextMenu
+                                        x={contextMenu.x}
+                                        y={contextMenu.y}
+                                        onClose={() => setContextMenu(null)}
+                                        options={[
+                                            {
+                                                label: "Enforce This Folder Only",
+                                                icon: Shield,
+                                                onClick: () => enforceSingleFolder(contextMenu.folderPath)
+                                            },
+                                            {
+                                                label: "Enforce Folder + Children",
+                                                icon: FolderOpen,
+                                                onClick: () => enforceFolderBranch(contextMenu.folderPath)
+                                            }
+                                        ]}
+                                    />
+                                )}
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            {/* Context Menu */}
-            {contextMenu && (
-                <ContextMenu
-                    x={contextMenu.x}
-                    y={contextMenu.y}
-                    onClose={() => setContextMenu(null)}
-                    options={[
-                        {
-                            label: "Enforce This Folder Only",
-                            icon: Shield,
-                            onClick: () => enforceSingleFolder(contextMenu.folderPath)
-                        },
-                        {
-                            label: "Enforce Folder + Children",
-                            icon: FolderOpen,
-                            onClick: () => enforceFolderBranch(contextMenu.folderPath)
-                        }
-                    ]}
-                />
-            )}
-        </div>
-    );
+                            );
 }

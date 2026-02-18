@@ -17,6 +17,7 @@ export async function GET() {
 
         // 1. Get projects (Direct Query)
         const { data: projects, error: projectsError } = await supabase
+            .schema('rfp')
             .from('projects')
             .select('*');
 
@@ -24,6 +25,7 @@ export async function GET() {
 
         // 2. Count indexed folders (Direct Query)
         const { count: folderCount, error: folderError } = await supabase
+            .schema('rfp')
             .from('folder_index')
             .select('*', { count: 'exact', head: true });
 
@@ -31,6 +33,7 @@ export async function GET() {
 
         // 2b. Count compliant folders
         const { count: compliantCount } = await supabase
+            .schema('rfp')
             .from('folder_index')
             .select('*', { count: 'exact', head: true })
             .eq('is_compliant', true);
@@ -52,6 +55,7 @@ export async function GET() {
 
         // 5. Active jobs
         const { count: jobsCount } = await supabase
+            .schema('rfp')
             .from('reset_jobs')
             .select('*', { count: 'exact', head: true })
             .in('status', ['running', 'pending']);
@@ -61,6 +65,7 @@ export async function GET() {
         // 6. Last Scan (Project updated_at?)
         // We can get the max updated_at from folder_index
         const { data: lastFolder } = await supabase
+            .schema('rfp')
             .from('folder_index')
             .select('updated_at')
             .order('updated_at', { ascending: false })

@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
         // User request: Clear ONLY completed/failed/cancelled jobs. Preserve running/pending.
         // Table is 'reset_jobs' in 'rfp' schema.
         const { count, error } = await supabase
+            .schema('rfp')
             .from('reset_jobs')
             .delete({ count: 'exact' })
             .in('status', ['completed', 'failed', 'cancelled']); // Note: enum uses 'completed', 'failed', 'cancelled'. Previous used 'success'/'error' which might be wrong for enum.
