@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -7,89 +8,38 @@ export const fetchCache = 'force-no-store';
 
 /**
  * GET /api/dashboard/stats
- * Get dashboard statistics using RPCs (not .schema which doesn't work from API)
+ * Get dashboard statistics using Prisma (direct PostgreSQL, bypasses PostgREST)
  */
 export async function GET() {
     try {
-        const supabase = getSupabaseAdmin();
+        // ── Prisma queries (direct DB, no PostgREST) ──
 
-        // Use RPCs instead of .schema('rfp') queries
+        // 1. Projects
+        const projects = await prisma.project.findMany();
+        const totalProjects = projects.length;
 
-        // 1. Get projects (Direct Query)
-        const { data: projects, error: projectsError } = await supabase
-            .schema('rfp')
-            .from('projects')
-            .select('*');
+        // 2. Folder counts
+        const totalFolders = await prisma.folderIndex.count();
+        const compliantFolders = await prisma.folderIndex.count({
+            where: { is_compliant: true }
+        });
+        const violations = totalFolders - compliantFolders;
 
-        if (projectsError) console.error('Error fetching projects:', projectsError);
+        // 3. Active jobs
+        const activeJobs = await prisma.resetJob.count({
+            where: { status: { in: ['running', 'pending'] } }
+        });
 
-        // 2. Count indexed folders (Direct Query)
-        const { count: folderCount, error: folderError } = await supabase
-            .schema('rfp')
-            .from('folder_index')
-            .select('*', { count: 'exact', head: true });
-
-        const indexedFolders = folderCount || 0;
-
-        // 2b. Count compliant folders
-        const { count: compliantCount } = await supabase
-            .schema('rfp')
-            .from('folder_index')
-            .select('*', { count: 'exact', head: true })
-            .eq('is_compliant', true);
-
-        const compliantFolders = compliantCount || 0;
-
-        // 3. Count pending requests (Direct Query - Assuming table 'requests' or similar, but let's keep RPC if complicated, or just set 0 if table unknown. 
-        // Checking schema... there is NO 'requests' table in schema.prisma! 
-        // 'requests' might be for a feature not fully in schema yet? Or in 'public' schema?
-        // I'll keep the RPC for requests/violations if they are complex views. But violations might come from 'permission_audit'.
-        // Let's stick to what we know.
-
-        // 4. Count violations (PermissionAudit with result='failed'?)
-        // Let's use RPC for violations/requests if strictly needed, or just 0 if not critical.
-        // User asked for "Cards to show projects health". 
-        // Compliant vs Non-Compliant is best health metric.
-
-        const violations = (indexedFolders - compliantFolders);
-
-        // 5. Active jobs
-        const { count: jobsCount } = await supabase
-            .schema('rfp')
-            .from('reset_jobs')
-            .select('*', { count: 'exact', head: true })
-            .in('status', ['running', 'pending']);
-
-        const activeJobs = jobsCount || 0;
-
-        // 6. Last Scan (Project updated_at?)
-        // We can get the max updated_at from folder_index
-        const { data: lastFolder } = await supabase
-            .schema('rfp')
-            .from('folder_index')
-            .select('updated_at')
-            .order('updated_at', { ascending: false })
-            .limit(1)
-            .single();
-
+        // 4. Last scan (most recent folder update)
+        const lastFolder = await prisma.folderIndex.findFirst({
+            orderBy: { updated_at: 'desc' },
+            select: { updated_at: true }
+        });
         const lastScan = lastFolder?.updated_at || null;
 
-        // Calculate stats
-        const projectList = projects || [];
-        const totalProjects = projectList.length;
-        // Phase is not in Project model in schema.prisma? 
-        // specific user schema might have it as JSON or separate column. 
-        // Schema says: id, name, pr_number, drive_folder_id, created_at. NO PHASE.
-        // So bidding/execution counts might be wrong or based on name?
-        // User's previous dashboard had them. 
-        // I will assume they are 0 or logic was based on something else.
-        // I'll keep them as 0 if I can't find phase.
+        // ── Supabase RPCs (for users/groups from auth schema) ──
+        const supabase = getSupabaseAdmin();
 
-        const biddingCount = 0; // Placeholder
-        const executionCount = 0; // Placeholder
-
-        // 7. Users/Groups (from Admin API, usually separate). 
-        // We can keep RPCs for these as they might query public schema or admin directory.
         const { data: users } = await supabase.rpc('get_users_with_groups');
         const totalUsers = users?.length || 0;
         const usersWithoutGroups = users?.filter((u: any) => !u.groups || u.groups.length === 0).length || 0;
@@ -99,33 +49,25 @@ export async function GET() {
 
         const stats = {
             totalProjects,
-            biddingProjects: biddingCount,
-            executionProjects: executionCount,
-            totalFolders: indexedFolders,
+            biddingProjects: 0,   // No phase column in schema
+            executionProjects: 0, // No phase column in schema
+            totalFolders,
             totalUsers,
             usersWithoutGroups,
             totalGroups,
             pendingRequests: 0,
-            violations, // Now represents Non-Compliant folders
+            violations,
             activeJobs,
             lastSync: lastScan,
-            compliantFolders, // NEW metric
+            compliantFolders,
         };
 
-        console.log('Dashboard stats (from RPCs):', stats);
-
-        // Debug info to find out why data is 0
-        const debug = {
-            projectsError,
-            folderError,
-            // compliantError missing ref?
-        };
+        console.log('Dashboard stats (Prisma):', stats);
 
         const response = NextResponse.json({
             success: true,
             stats,
-            debug, // Exposed for debugging
-            source: 'database-rpc',
+            source: 'prisma-direct',
         });
         response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         return response;
@@ -139,13 +81,14 @@ export async function GET() {
             details: error.message,
             stats: {
                 totalProjects: 0,
-                biddingCount: 0,
-                executionCount: 0,
+                biddingProjects: 0,
+                executionProjects: 0,
                 pendingRequests: 0,
-                indexedFolders: 0,
+                totalFolders: 0,
                 violations: 0,
                 activeJobs: 0,
-                lastScan: null,
+                lastSync: null,
+                compliantFolders: 0,
             },
             source: 'error-fallback',
         }, { status: 500 });
