@@ -11,8 +11,11 @@ export async function POST(request: NextRequest) {
     try {
         const supabase = getSupabaseAdmin();
 
-        // Use RPC to clear jobs
-        const { data, error } = await supabase.rpc('clear_all_jobs');
+        // User request: Clear ONLY completed/failed/cancelled jobs. Preserve running/pending.
+        const { count, error } = await supabase
+            .from('jobs')
+            .delete({ count: 'exact' })
+            .in('status', ['success', 'failed', 'cancelled', 'error']);
 
         if (error) {
             console.error('Error clearing jobs:', error);
@@ -24,8 +27,8 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            deleted: data || 0,
-            message: 'Jobs cleared successfully'
+            deleted: count || 0,
+            message: 'Completed jobs cleared successfully'
         });
     } catch (error: any) {
         console.error('Error clearing jobs:', error);

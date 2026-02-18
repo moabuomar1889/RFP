@@ -69,6 +69,32 @@ export default function DashboardPage() {
     fetchStats();
   }, []);
 
+  const [rebuilding, setRebuilding] = useState(false);
+
+  const handleRebuildAll = async () => {
+    try {
+      setRebuilding(true);
+      toast.info('Starting full folder index rebuild from Drive...');
+
+      const res = await fetch('/api/jobs/rebuild-index', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}) // Empty body triggers rebuild_all
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success(`Rebuild job started (ID: ${data.jobId}). Check Jobs page.`);
+      } else {
+        toast.error(data.error || 'Rebuild failed to start');
+      }
+    } catch (error) {
+      toast.error('Failed to trigger rebuild');
+    } finally {
+      setRebuilding(false);
+    }
+  };
+
   const handleSyncAll = async () => {
     try {
       setSyncing(true);
@@ -109,6 +135,14 @@ export default function DashboardPage() {
           <Button variant="outline" onClick={handleRefresh} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+          <Button variant="outline" onClick={handleRebuildAll} disabled={rebuilding}>
+            {rebuilding ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <FileStack className="mr-2 h-4 w-4" />
+            )}
+            Rebuild All Projects
           </Button>
           <Button variant="outline" onClick={handleSyncAll} disabled={syncing}>
             {syncing ? (
