@@ -519,6 +519,11 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
                                 ↓ More restrictive
                             </Badge>
                         )}
+                        {tags.includes('Higher Privilege') && (
+                            <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-500 border-blue-500/20">
+                                ↑ Higher Privilege
+                            </Badge>
+                        )}
                     </span>
                 );
             case "missing":

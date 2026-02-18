@@ -208,6 +208,7 @@ export function buildEffectivePermissionsMap(
     parentPath: string = '',
     parentGroups: any[] = [],
     parentUsers: any[] = [],
+    parentLimitedAccess: boolean = false,
 ): Record<string, FolderPermissions> {
     const map: Record<string, FolderPermissions> = {};
 
@@ -281,14 +282,19 @@ export function buildEffectivePermissionsMap(
             }
         }
 
+        // limitedAccess: explicit on node > inherited from parent
+        const effectiveLimitedAccess = node.limitedAccess === true ? true
+            : node.limitedAccess === false ? false
+                : parentLimitedAccess;
+
         map[path] = {
             groups: effectiveGroups,
             users: effectiveUsers,
-            limitedAccess: node.limitedAccess || false,
+            limitedAccess: effectiveLimitedAccess,
             overrides: node.overrides,
         };
 
-        // Recurse into children, passing this node's effective principals as parent
+        // Recurse into children, passing this node's effective principals and limitedAccess as parent
         const children = node.nodes || node.children || [];
         if (children.length > 0) {
             const childMap = buildEffectivePermissionsMap(
@@ -296,6 +302,7 @@ export function buildEffectivePermissionsMap(
                 path,
                 effectiveGroups,
                 effectiveUsers,
+                effectiveLimitedAccess,
             );
             Object.assign(map, childMap);
         }

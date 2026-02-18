@@ -182,28 +182,6 @@ function comparePermissions(
 
         const isInherited = (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false);
 
-        // ═══ EFFECTIVE ACCESS RULE ═══
-        // On Limited Access folders, inherited permissions = "Access Removed" = NO effective access
-        // This covers BOTH pure inherited AND dual permissions (direct+inherited)
-        // The top-level inherited flag from Drive API is the definitive check
-        if (expected.limitedAccess && isInherited) {
-            const actualCanonical = normalizeRole(p.role);
-            rows.push({
-                type: expectedTypeMap.get(email) || (p.type === 'group' ? 'group' : 'user'),
-                identifier: email,
-                expectedRole: expectedRoleMap.has(email) ? canonicalRoleLabel(expectedRoleMap.get(email)!) : null,
-                expectedRoleRaw: expectedRoleMap.get(email) || null,
-                actualRole: canonicalRoleLabel(actualCanonical),
-                actualRoleRaw: actualCanonical,
-                status: 'no_effective_access',
-                tags: ['Access Removed'],
-                inherited: true,
-            });
-            // Remove from expected so it's NOT double-counted as missing
-            expectedEmails.delete(email);
-            continue; // Skip normal comparison
-        }
-
         const actualCanonical = normalizeRole(p.role);
         const actualRank = CANONICAL_RANK[actualCanonical] ?? 0;
 
@@ -214,9 +192,10 @@ function comparePermissions(
             const tags: string[] = [];
 
             if (actualRank > expectedRank) {
-                // Higher privilege than expected — MISMATCH
-                mismatchCount++;
-                discrepancies.push(`Role mismatch: ${email} (expected=${canonicalRoleLabel(expectedCanonical)}, actual=${canonicalRoleLabel(actualCanonical)})`);
+                // Higher privilege than expected — still COMPLIANT (authorized principal)
+                // They can do everything the expected role can do, plus more
+                tags.push('Higher Privilege');
+                matchCount++;
                 rows.push({
                     type: expectedTypeMap.get(email) || (p.type === 'group' ? 'group' : 'user'),
                     identifier: email,
@@ -224,7 +203,7 @@ function comparePermissions(
                     expectedRoleRaw: expectedCanonical,
                     actualRole: canonicalRoleLabel(actualCanonical),
                     actualRoleRaw: actualCanonical,
-                    status: 'mismatch',
+                    status: 'match',
                     tags,
                     inherited: isInherited,
                 });
