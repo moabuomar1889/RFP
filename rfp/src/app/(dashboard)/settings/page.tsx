@@ -21,8 +21,10 @@ import {
     Info,
     HardDrive,
     Loader2,
+    Book,
 } from "lucide-react";
 import { toast } from "sonner";
+import PermissionsGuidePage from "./permissions-guide/page";
 
 export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
@@ -196,6 +198,7 @@ export default function SettingsPage() {
                     <TabsTrigger value="security">Security</TabsTrigger>
                     <TabsTrigger value="google">Google Auth</TabsTrigger>
                     <TabsTrigger value="enforcement">Enforcement</TabsTrigger>
+                    <TabsTrigger value="guide">Permissions Guide</TabsTrigger>
                     <TabsTrigger value="advanced">Advanced</TabsTrigger>
                 </TabsList>
 
@@ -635,6 +638,9 @@ export default function SettingsPage() {
                             </div>
                         </CardContent>
                     </Card>
+                </TabsContent>
+                <TabsContent value="guide" className="mt-6">
+                    <PermissionsGuidePage />
                 </TabsContent>
             </Tabs>
         </div>

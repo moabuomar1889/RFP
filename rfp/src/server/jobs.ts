@@ -1369,6 +1369,10 @@ async function enforceProjectPermissionsWithReset(
     const totalFolders = foldersToProcess.length;
     const BATCH_SIZE = 4; // Process 4 folders concurrently
 
+    // Map to track inherited roles for "Upgrade Ceiling" check (Pass 1 -> Pass 2)
+    // Map<folderId, Map<email, rank>>
+    const inheritedRolesByFolder = new Map<string, Map<string, number>>();
+
     for (let i = 0; i < totalFolders; i += BATCH_SIZE) {
         const batch = foldersToProcess.slice(i, i + BATCH_SIZE);
         await Promise.all(batch.map(async ({ templatePath, folder }, batchIdx) => {
@@ -1397,6 +1401,19 @@ async function enforceProjectPermissionsWithReset(
 
                     if (perm.inherited || perm.permissionDetails?.[0]?.inherited) {
                         folderInherited++;
+                        // Capture inherited role for ceiling check match against canonical rank
+                        // We use the highest inherited role if multiple exist (unlikely but safe)
+                        if (perm.emailAddress && perm.role) {
+                            const folderIdKey = folder.drive_folder_id;
+                            if (!inheritedRolesByFolder.has(folderIdKey)) {
+                                inheritedRolesByFolder.set(folderIdKey, new Map());
+                            }
+                            const rank = CANONICAL_RANK[normalizeRole(perm.role)] || 0;
+                            const currentMax = inheritedRolesByFolder.get(folderIdKey)!.get(perm.emailAddress.toLowerCase()) || 0;
+                            if (rank > currentMax) {
+                                inheritedRolesByFolder.get(folderIdKey)!.set(perm.emailAddress.toLowerCase(), rank);
+                            }
+                        }
                         continue;
                     }
 
@@ -1498,6 +1515,34 @@ async function enforceProjectPermissionsWithReset(
                 const emailKey = group.email.toLowerCase();
                 if (overrideRemoveSet.has(emailKey)) continue;
 
+                // Strict Hierarchy Check: If Limited Access is OFF, prevent Adding > Inherited
+                // Exception: if inherited rank is 0 (not in parent), we allow adding (standard new access)
+                // BUT user rule says: "does not allow upgrading role more than parent"
+                // If parent has rank 0, and we add rank 1. 1 > 0.
+                // We decided to ALLOW adding new users, but BLOCK upgrading existing inherited users.
+                if (!expectedPerms.limitedAccess) {
+                    const inheritedMap = inheritedRolesByFolder.get(folder.drive_folder_id);
+                    const bucketRank = inheritedMap?.get(emailKey) || 0;
+                    // We check if bucketRank > 0 implies user IS inherited.
+                    if (bucketRank > 0) {
+                        const targetRole = group.role || 'reader';
+                        // Note: normalizeRole correctly handles 'organizer' -> 'manager'
+                        const targetRank = CANONICAL_RANK[normalizeRole(targetRole)] || 0;
+
+                        if (targetRank > bucketRank) {
+                            await writeJobLog(jobId, project.id, project.name, templatePath, 'upgrade_blocked', 'warning', {
+                                message: 'Upgrade blocked by Strict Hierarchy Rule (LimitedAccess=False)',
+                                email: emailKey,
+                                targetRole,
+                                inheritedRank: bucketRank,
+                                targetRank,
+                                rule: 'Cannot exceed inherited role without Limited Access'
+                            });
+                            continue; // Skip adding this permission
+                        }
+                    }
+                }
+
                 let role = group.role || 'reader';
                 const downgradedRole = overrideDowngradeMap.get(emailKey);
                 if (downgradedRole) role = downgradedRole;
@@ -1522,6 +1567,29 @@ async function enforceProjectPermissionsWithReset(
                 if (!user.email) continue;
                 const emailKey = user.email.toLowerCase();
                 if (overrideRemoveSet.has(emailKey)) continue;
+
+                // Strict Hierarchy Check: If Limited Access is OFF, prevent Adding > Inherited
+                if (!expectedPerms.limitedAccess) {
+                    const inheritedMap = inheritedRolesByFolder.get(folder.drive_folder_id);
+                    const bucketRank = inheritedMap?.get(emailKey) || 0;
+
+                    if (bucketRank > 0) {
+                        const targetRole = user.role || 'reader';
+                        const targetRank = CANONICAL_RANK[normalizeRole(targetRole)] || 0;
+
+                        if (targetRank > bucketRank) {
+                            await writeJobLog(jobId, project.id, project.name, templatePath, 'upgrade_blocked', 'warning', {
+                                message: 'Upgrade blocked by Strict Hierarchy Rule (LimitedAccess=False)',
+                                email: emailKey,
+                                targetRole,
+                                inheritedRank: bucketRank,
+                                targetRank,
+                                rule: 'Cannot exceed inherited role without Limited Access'
+                            });
+                            continue; // Skip adding this permission
+                        }
+                    }
+                }
 
                 let role = user.role || 'reader';
                 const downgradedRole = overrideDowngradeMap.get(emailKey);
@@ -1852,6 +1920,7 @@ export const upgradeToProjectDelivery = inngest.createFunction(
  */
 async function createSubfoldersFromTemplate(
     parentId: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     folders: any[],
     prNumber: string,
     phasePrefix: string,
