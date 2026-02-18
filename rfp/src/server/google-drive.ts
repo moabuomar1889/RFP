@@ -383,7 +383,9 @@ export async function addPermission(
 
     const permissionBody: drive_v3.Schema$Permission = {
         type,
-        role: role === 'organizer' ? 'fileOrganizer' : role, // organizer only at drive root
+        // 'organizer' and 'fileOrganizer' are Shared Drive-only roles.
+        // On regular My Drive folders, both must be downgraded to 'writer'.
+        role: (role === 'organizer' || role === 'fileOrganizer') ? 'writer' : role,
     };
 
     if (type === 'user' || type === 'group') {
