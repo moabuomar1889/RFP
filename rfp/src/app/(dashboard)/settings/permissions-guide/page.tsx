@@ -75,9 +75,13 @@ export default function PermissionsGuidePage() {
                             <TableRow>
                                 <TableCell className="font-medium">4. تحويل الأدوار (Role Mapping)</TableCell>
                                 <TableCell>الدور في Template هو <code>Manager</code></TableCell>
-                                <TableCell>يتم تحويله تلقائياً</TableCell>
-                                <TableCell><strong>Contributor (writer)</strong></TableCell>
-                                <TableCell>قاعدة ثابتة: الكود يحول <code>Manager</code> و <code>Content Manager</code> إلى <code>Writer</code> دائماً.</TableCell>
+                                <TableCell>يتم تطبيقه كما هو (Trust Template)</TableCell>
+                                <TableCell><strong>نفس الدور (Same Role)</strong></TableCell>
+                                <TableCell>
+                                    سيتم تطبيق الدور كما هو في الـ Template تماماً.
+                                    <br />
+                                    (مثال: <code>Manager</code> سيمنح صلاحية Manager فعلياً في Shared Drives).
+                                </TableCell>
                             </TableRow>
 
                             {/* Row 5: Protected */}
