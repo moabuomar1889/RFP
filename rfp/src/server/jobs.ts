@@ -1628,18 +1628,8 @@ async function enforceProjectPermissionsWithReset(
         ? ['Bidding']
         : ['Bidding', 'Project Delivery'];
 
-    // Build template map - uses explicit node data (groups/users/limitedAccess)
-    const templateMap = new Map<string, any>();
-    function buildTemplateMap(node: any, parentPath = '') {
-        const nodeName = node.name || node.text || '';
-        const currentPath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
-        templateMap.set(currentPath, node);
-        const children = node.children || node.nodes || [];
-        for (const child of children) {
-            buildTemplateMap(child, currentPath);
-        }
-    }
-
+    // Build effective permissions map using shared helper (inherits groups + limitedAccess from parents)
+    const effectivePermissionsMap: Record<string, any> = {};
     let phasesFound = 0;
     for (const phaseNodeName of phaseNamesToProcess) {
         const phaseNode = templateNodes.find((n: any) => {
@@ -1648,9 +1638,8 @@ async function enforceProjectPermissionsWithReset(
         });
 
         if (phaseNode?.children) {
-            for (const child of phaseNode.children) {
-                buildTemplateMap(child, '');
-            }
+            const phasePerms = buildEffectivePermissionsMap(phaseNode.children);
+            Object.assign(effectivePermissionsMap, phasePerms);
             phasesFound++;
             console.log(`[ENFORCE] Template phase '${phaseNodeName}': ${phaseNode.children.length} root folders`);
         } else {
@@ -1662,10 +1651,15 @@ async function enforceProjectPermissionsWithReset(
         console.warn(`[ENFORCE] No phase nodes found, using all template nodes`);
         for (const topNode of templateNodes) {
             const children = topNode.children || topNode.nodes || [];
-            for (const child of children) {
-                buildTemplateMap(child, '');
-            }
+            const fallbackPerms = buildEffectivePermissionsMap(children);
+            Object.assign(effectivePermissionsMap, fallbackPerms);
         }
+    }
+
+    // Build a templateMap for path lookup (needed for driveFolderMap matching)
+    const templateMap = new Map<string, any>();
+    for (const [path, perms] of Object.entries(effectivePermissionsMap)) {
+        templateMap.set(path, perms);
     }
 
     console.log(`[ENFORCE] Template map built: ${templateMap.size} folders from ${phaseNamesToProcess.join(' + ')}`);
@@ -1786,23 +1780,18 @@ async function enforceProjectPermissionsWithReset(
         projectCode
     });
 
-    // Step 4: Process each folder FROM TEMPLATE (not from Drive!)
-    // This ensures we ONLY process folders defined in template, ignoring extra Drive folders
+    // ╔══════════════════════════════════════════════════════════════════╗
+    // ║  Build list of folder entries to process (template → Drive)    ║
+    // ╚══════════════════════════════════════════════════════════════════╝
+    const foldersToProcess: Array<{ templatePath: string; expectedPerms: any; folder: any }> = [];
+
     for (const [templatePath, expectedPerms] of templateMap.entries()) {
         // Apply scope filtering
-        if (scope === 'single' && targetPath && templatePath !== targetPath) {
-            continue;
-        }
-        if (scope === 'branch' && targetPath && templatePath !== targetPath && !templatePath.startsWith(`${targetPath}/`)) {
-            continue;
-        }
+        if (scope === 'single' && targetPath && templatePath !== targetPath) continue;
+        if (scope === 'branch' && targetPath && templatePath !== targetPath && !templatePath.startsWith(`${targetPath}/`)) continue;
 
-        // Find the corresponding Drive folder
         const folder = driveFolderMap.get(templatePath);
-
         if (!folder) {
-            // Folder exists in template but not in Drive
-            // This should have been created by createMissingFoldersFromTemplate
             await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_missing_in_drive', 'warning', {
                 message: 'Template folder not found in Drive (should have been created)',
                 templatePath
@@ -1810,11 +1799,38 @@ async function enforceProjectPermissionsWithReset(
             continue;
         }
 
-        await writeJobLog(jobId, project.id, project.name, templatePath, 'start_reset_apply', 'info', {
-            folderId: folder.drive_folder_id
-        });
+        foldersToProcess.push({ templatePath, expectedPerms, folder });
+    }
 
-        // === PHASE 1: RESET - Remove all non-protected permissions ===
+    await writeJobLog(jobId, project.id, project.name, null, 'folders_to_process', 'info', {
+        count: foldersToProcess.length,
+        scope
+    });
+
+    // ╔══════════════════════════════════════════════════════════════════╗
+    // ║  PASS 1: GLOBAL RESET — Clean ALL folders first               ║
+    // ║  1a. Disable Limited Access on ALL folders                     ║
+    // ║  1b. Remove ALL direct permissions (keep Drive Members only)   ║
+    // ╚══════════════════════════════════════════════════════════════════╝
+
+    await writeJobLog(jobId, project.id, project.name, null, 'pass1_start', 'info', {
+        message: 'PASS 1: GLOBAL RESET — Disabling Limited Access and removing all direct permissions',
+        folderCount: foldersToProcess.length
+    });
+
+    for (const { templatePath, folder } of foldersToProcess) {
+        // 1a. Disable Limited Access (so inherited perms become removable)
+        try {
+            await setLimitedAccess(folder.drive_folder_id, false);
+            await sleep(RATE_LIMIT_DELAY);
+        } catch (err: any) {
+            // If it fails, it might already be disabled — continue
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_disable_info', 'info', {
+                message: err.message?.includes('verification FAILED') ? 'Already disabled' : err.message
+            });
+        }
+
+        // 1b. Remove ALL direct permissions
         try {
             const currentPerms = await listPermissions(folder.drive_folder_id);
             const inheritedPerms: Array<{ email: string; role: string }> = [];
@@ -1823,21 +1839,15 @@ async function enforceProjectPermissionsWithReset(
                 if (!perm.emailAddress) continue;
 
                 // Skip protected principals
-                if (protectedPrincipals.some(p => p.toLowerCase() === perm.emailAddress?.toLowerCase())) {
-                    // Skip protected — no log needed for performance
-                    continue;
-                }
+                if (protectedPrincipals.some(p => p.toLowerCase() === perm.emailAddress?.toLowerCase())) continue;
 
                 // Collect inherited permissions (cannot be removed at folder level)
                 if (perm.inherited || perm.permissionDetails?.[0]?.inherited) {
-                    inheritedPerms.push({
-                        email: perm.emailAddress,
-                        role: perm.role || 'unknown'
-                    });
+                    inheritedPerms.push({ email: perm.emailAddress, role: perm.role || 'unknown' });
                     continue;
                 }
 
-                // Remove permission
+                // Remove this direct permission
                 try {
                     await removePermission(folder.drive_folder_id, perm.id!);
                     removed++;
@@ -1847,12 +1857,8 @@ async function enforceProjectPermissionsWithReset(
                     });
                     await sleep(RATE_LIMIT_DELAY);
                 } catch (err: any) {
-                    // Permission not found = already removed (success)
-                    if (err.message?.includes('Permission not found') || err.message?.includes('not found')) {
+                    if (err.message?.includes('not found')) {
                         removed++;
-                        await writeJobLog(jobId, project.id, project.name, templatePath, 'already_removed', 'info', {
-                            email: perm.emailAddress
-                        });
                     } else {
                         errors++;
                         await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_failed', 'error', {
@@ -1863,144 +1869,139 @@ async function enforceProjectPermissionsWithReset(
                 }
             }
 
-            // Log inherited permissions summary (instead of individual entries)
             if (inheritedPerms.length > 0) {
                 await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_summary', 'info', {
                     count: inheritedPerms.length,
-                    sample: inheritedPerms.slice(0, 3) // First 3 for reference
+                    sample: inheritedPerms.slice(0, 3)
                 });
             }
 
-            // === PHASE 2: Clear Limited Access ===
-            try {
-                await setLimitedAccess(folder.drive_folder_id, false);
-                await sleep(RATE_LIMIT_DELAY);
-            } catch (err: any) {
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'clear_limited_failed', 'warning', {
-                    error: err.message
-                });
-            }
-
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_complete', 'success', {
+                message: `Reset complete`
+            });
         } catch (err: any) {
             errors++;
             await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_phase_failed', 'error', {
                 error: err.message
             });
-            continue; // Skip to next folder
         }
-
-        // === PHASE 3: APPLY TEMPLATE ===
-        try {
-            // 3a. Set Limited Access if required
-            if (expectedPerms.limitedAccess) {
-                try {
-                    await setLimitedAccess(folder.drive_folder_id, true);
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'set_limited_access', 'success', {
-                        enabled: true
-                    });
-                    await sleep(RATE_LIMIT_DELAY);
-                } catch (err: any) {
-                    errors++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'set_limited_failed', 'error', {
-                        error: err.message
-                    });
-                }
-            }
-
-            // 3b. Add groups and users from template — apply overrides first
-            // Build override maps to handle downgrade/remove before adding
-            const overrideRemoveSet = new Set<string>();
-            const overrideDowngradeMap = new Map<string, string>();
-            if (expectedPerms.overrides?.remove) {
-                for (const r of expectedPerms.overrides.remove) {
-                    if (r.identifier) overrideRemoveSet.add(r.identifier.toLowerCase());
-                }
-            }
-            if (expectedPerms.overrides?.downgrade) {
-                for (const d of expectedPerms.overrides.downgrade) {
-                    if (d.identifier && d.role) overrideDowngradeMap.set(d.identifier.toLowerCase(), d.role);
-                }
-            }
-
-            const groups = expectedPerms.groups || [];
-            for (const group of groups) {
-                if (!group.email) continue;
-
-                const emailKey = group.email.toLowerCase();
-
-                // Skip removed principals
-                if (overrideRemoveSet.has(emailKey)) continue;
-
-                // Apply downgrade override if present
-                let role = group.role || 'reader';
-                const downgradedRole = overrideDowngradeMap.get(emailKey);
-                if (downgradedRole) {
-                    console.log(`[ENFORCE] Override downgrade: ${group.email} ${role} → ${downgradedRole}`);
-                    role = downgradedRole;
-                }
-
-                try {
-                    await addPermission(folder.drive_folder_id, 'group', role, group.email);
-                    added++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'added_group', 'success', {
-                        email: group.email,
-                        role,
-                        overridden: !!downgradedRole
-                    });
-                    await sleep(RATE_LIMIT_DELAY);
-                } catch (err: any) {
-                    errors++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_group_failed', 'error', {
-                        email: group.email,
-                        error: err.message
-                    });
-                }
-            }
-
-            // 3c. Add users from template (with same override handling)
-            const users = expectedPerms.users || [];
-            for (const user of users) {
-                if (!user.email) continue;
-
-                const emailKey = user.email.toLowerCase();
-                if (overrideRemoveSet.has(emailKey)) continue;
-
-                let role = user.role || 'reader';
-                const downgradedRole = overrideDowngradeMap.get(emailKey);
-                if (downgradedRole) {
-                    console.log(`[ENFORCE] Override downgrade: ${user.email} ${role} → ${downgradedRole}`);
-                    role = downgradedRole;
-                }
-
-                try {
-                    await addPermission(folder.drive_folder_id, 'user', role, user.email);
-                    added++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'added_user', 'success', {
-                        email: user.email,
-                        role,
-                        overridden: !!downgradedRole
-                    });
-                    await sleep(RATE_LIMIT_DELAY);
-                } catch (err: any) {
-                    errors++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_user_failed', 'error', {
-                        email: user.email,
-                        error: err.message
-                    });
-                }
-            }
-
-            // folder_complete logged only on errors to reduce DB writes
-
-        } catch (err: any) {
-            errors++;
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'apply_phase_failed', 'error', {
-                error: err.message
-            });
-        }
-
-        // No sleep between folders (sleep only after Drive API calls)
     }
+
+    await writeJobLog(jobId, project.id, project.name, null, 'pass1_complete', 'success', {
+        message: 'PASS 1 COMPLETE — All folders reset, all Limited Access disabled, all direct permissions removed'
+    });
+
+    // ╔══════════════════════════════════════════════════════════════════╗
+    // ║  PASS 2: APPLY — Add template permissions + Limited Access     ║
+    // ║  For each folder: add groups/users then set Limited Access      ║
+    // ╚══════════════════════════════════════════════════════════════════╝
+
+    await writeJobLog(jobId, project.id, project.name, null, 'pass2_start', 'info', {
+        message: 'PASS 2: APPLY — Adding template permissions and enabling Limited Access',
+        folderCount: foldersToProcess.length
+    });
+
+    for (const { templatePath, expectedPerms, folder } of foldersToProcess) {
+        // 2a. Add groups from template (with override handling)
+        const overrideRemoveSet = new Set<string>();
+        const overrideDowngradeMap = new Map<string, string>();
+        if (expectedPerms.overrides?.remove) {
+            for (const r of expectedPerms.overrides.remove) {
+                if (r.identifier) overrideRemoveSet.add(r.identifier.toLowerCase());
+            }
+        }
+        if (expectedPerms.overrides?.downgrade) {
+            for (const d of expectedPerms.overrides.downgrade) {
+                if (d.identifier && d.role) overrideDowngradeMap.set(d.identifier.toLowerCase(), d.role);
+            }
+        }
+
+        const groups = expectedPerms.groups || [];
+        for (const group of groups) {
+            if (!group.email) continue;
+            const emailKey = group.email.toLowerCase();
+
+            // Skip removed principals
+            if (overrideRemoveSet.has(emailKey)) continue;
+
+            // Apply downgrade override if present
+            let role = group.role || 'reader';
+            const downgradedRole = overrideDowngradeMap.get(emailKey);
+            if (downgradedRole) {
+                console.log(`[ENFORCE] Override downgrade: ${group.email} ${role} → ${downgradedRole}`);
+                role = downgradedRole;
+            }
+
+            try {
+                await addPermission(folder.drive_folder_id, 'group', role, group.email);
+                added++;
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'added_group', 'success', {
+                    email: group.email,
+                    role,
+                    overridden: !!downgradedRole
+                });
+                await sleep(RATE_LIMIT_DELAY);
+            } catch (err: any) {
+                errors++;
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_group_failed', 'error', {
+                    email: group.email,
+                    error: err.message
+                });
+            }
+        }
+
+        // 2b. Add users from template (with override handling)
+        const users = expectedPerms.users || [];
+        for (const user of users) {
+            if (!user.email) continue;
+            const emailKey = user.email.toLowerCase();
+            if (overrideRemoveSet.has(emailKey)) continue;
+
+            let role = user.role || 'reader';
+            const downgradedRole = overrideDowngradeMap.get(emailKey);
+            if (downgradedRole) {
+                console.log(`[ENFORCE] Override downgrade: ${user.email} ${role} → ${downgradedRole}`);
+                role = downgradedRole;
+            }
+
+            try {
+                await addPermission(folder.drive_folder_id, 'user', role, user.email);
+                added++;
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'added_user', 'success', {
+                    email: user.email,
+                    role,
+                    overridden: !!downgradedRole
+                });
+                await sleep(RATE_LIMIT_DELAY);
+            } catch (err: any) {
+                errors++;
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_user_failed', 'error', {
+                    email: user.email,
+                    error: err.message
+                });
+            }
+        }
+
+        // 2c. Enable Limited Access if template requires it
+        if (expectedPerms.limitedAccess) {
+            try {
+                await setLimitedAccess(folder.drive_folder_id, true);
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_enabled', 'success', {
+                    enabled: true
+                });
+                await sleep(RATE_LIMIT_DELAY);
+            } catch (err: any) {
+                errors++;
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_failed', 'error', {
+                    error: err.message
+                });
+            }
+        }
+    }
+
+    await writeJobLog(jobId, project.id, project.name, null, 'pass2_complete', 'success', {
+        message: 'PASS 2 COMPLETE — All folders enforced'
+    });
 
     return { removed, added, errors };
 }
