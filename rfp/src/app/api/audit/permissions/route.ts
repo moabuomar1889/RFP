@@ -172,7 +172,7 @@ function comparePermissions(
     const actualEmailsProcessed = new Set<string>();
 
     // Include ALL actual permissions — filtering happens inside the loop
-    const allActual = [...directActual, ...inheritedActual];
+    const allActual = [...directActual, ...inheritedActual, ...driveMembers];
 
     for (const p of allActual) {
         const email = p.emailAddress?.toLowerCase();
