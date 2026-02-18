@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { ProjectDistributionChart, ComplianceChart } from "@/components/dashboard-charts";
 
 interface DashboardStats {
   totalProjects: number;
@@ -261,31 +262,20 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* Health & Status Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* Compliance Health */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Compliance Rate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.totalFolders > 0
-                ? Math.round((stats.compliantFolders / stats.totalFolders) * 100)
-                : 0}%
-            </div>
-            <Progress
-              value={stats.totalFolders > 0
-                ? (stats.compliantFolders / stats.totalFolders) * 100
-                : 0}
-              className="mt-2 h-2"
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              {stats.compliantFolders} of {stats.totalFolders} folders compliant
-            </p>
-          </CardContent>
-        </Card>
+      {/* Charts Row */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <ProjectDistributionChart
+          biddingCount={stats.biddingProjects}
+          executionCount={stats.executionProjects}
+        />
+        <ComplianceChart
+          compliantCount={stats.compliantFolders}
+          violationCount={stats.violations}
+        />
+      </div>
 
+      {/* Sync Status & Alerts Row */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Sync Status */}
         <Card>
           <CardHeader className="pb-2">

@@ -103,13 +103,13 @@ export default function PermissionsGuidePage() {
                             </TableRow>
 
                             {/* Row 7: Upgrade Ceiling */}
-                            <TableRow className="bg-yellow-50/50">
+                            <TableRow className="bg-amber-500/10 hover:bg-amber-500/20">
                                 <TableCell className="font-medium">7. الترقية (Upgrade Ceiling)</TableCell>
                                 <TableCell>Template Role {'>'} Parent Role</TableCell>
                                 <TableCell>Limited Access <code>False</code></TableCell>
                                 <TableCell><strong>يتم منع الترقية (Blocked)</strong>.</TableCell>
                                 <TableCell>
-                                    <Badge variant="outline" className="text-yellow-600 border-yellow-400">قاعدة جديدة</Badge>
+                                    <Badge variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-500/50">قاعدة جديدة</Badge>
                                     <br />
                                     إذا لم يكن Limited Access مفعلاً، لا يسمح بمنح صلاحية أعلى من الموروثة.
                                 </TableCell>

@@ -800,16 +800,14 @@ function StatsRow({ result }: { result: AuditResult }) {
 
     return (
         <>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {stats.map((s) => (
                     <Card key={s.label}>
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-4">
-                                <div className={`p-3 rounded-full ${s.bg}`}>{s.icon}</div>
-                                <div>
-                                    <p className="text-2xl font-bold">{s.value}</p>
-                                    <p className="text-sm text-muted-foreground">{s.label}</p>
-                                </div>
+                        <CardContent className="p-4 flex items-center gap-3">
+                            <div className={`p-2 rounded-full ${s.bg}`}>{s.icon}</div>
+                            <div>
+                                <p className="text-xl font-bold">{s.value}</p>
+                                <p className="text-xs text-muted-foreground">{s.label}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -820,36 +818,32 @@ function StatsRow({ result }: { result: AuditResult }) {
                 <div className="grid grid-cols-3 gap-4 mt-4">
                     {result.templateFolderCounts.map((tc) => (
                         <Card key={tc.phase}>
-                            <CardContent className="pt-6">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900">
-                                        <FolderOpen className="h-5 w-5 text-blue-500" />
-                                    </div>
-                                    <div>
-                                        <p className="text-2xl font-bold">{tc.count}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {tc.phase === 'Bidding' ? 'RFP' : 'PD'} Template
-                                        </p>
-                                    </div>
+                            <CardContent className="p-4 flex items-center gap-3">
+                                <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900">
+                                    <FolderOpen className="h-4 w-4 text-blue-500" />
+                                </div>
+                                <div>
+                                    <p className="text-xl font-bold">{tc.count}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {tc.phase === 'Bidding' ? 'RFP' : 'PD'} Template
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
                     ))}
                     <Card>
-                        <CardContent className="pt-6">
-                            <div className="flex items-center gap-4">
-                                <div className={`p-3 rounded-full ${isFullyIndexed ? 'bg-green-100 dark:bg-green-900' : 'bg-amber-100 dark:bg-amber-900'}`}>
-                                    <FolderOpen className={`h-5 w-5 ${isFullyIndexed ? 'text-green-500' : 'text-amber-500'}`} />
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold">
-                                        {result.indexedFolderCount ?? 0}
-                                        <span className="text-sm font-normal text-muted-foreground">
-                                            {' / '}{templateTotal}
-                                        </span>
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">Indexed</p>
-                                </div>
+                        <CardContent className="p-4 flex items-center gap-3">
+                            <div className={`p-2 rounded-full ${isFullyIndexed ? 'bg-green-100 dark:bg-green-900' : 'bg-amber-100 dark:bg-amber-900'}`}>
+                                <FolderOpen className={`h-4 w-4 ${isFullyIndexed ? 'text-green-500' : 'text-amber-500'}`} />
+                            </div>
+                            <div>
+                                <p className="text-xl font-bold">
+                                    {result.indexedFolderCount ?? 0}
+                                    <span className="text-xs font-normal text-muted-foreground ml-1">
+                                        / {templateTotal}
+                                    </span>
+                                </p>
+                                <p className="text-xs text-muted-foreground">Indexed</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -1209,7 +1203,7 @@ export default function PermissionAuditPage() {
 
             {/* Master-Detail Layout */}
             {auditResult && (
-                <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+                <div className="grid gap-4 lg:grid-cols-[350px_1fr]">
                     {/* LEFT: Folder Tree */}
                     <Card className="h-[calc(100vh-420px)] flex flex-col">
                         <CardHeader className="py-3 px-4 flex-shrink-0">

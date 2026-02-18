@@ -47,7 +47,6 @@ const menuItems = [
     { title: "Roles", icon: Shield, href: "/roles" },
     { title: "Jobs", icon: History, href: "/jobs" },
     { title: "Audit Log", icon: ClipboardList, href: "/audit" },
-    { title: "Audit Log", icon: ClipboardList, href: "/audit" },
     { title: "Permission Audit", icon: ShieldCheck, href: "/permission-audit" },
     { title: "Settings", icon: Cog, href: "/settings" },
     { title: "Theme", icon: Palette, href: "/settings/theme" },
