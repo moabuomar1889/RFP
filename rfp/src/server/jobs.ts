@@ -310,7 +310,7 @@ export const enforcePermissions = inngest.createFunction(
     {
         id: 'enforce-permissions',
         name: 'Enforce Strict Permissions',
-        retries: 2,
+        retries: 0,  // DO NOT RETRY — retries restart from scratch, re-resetting all permissions
         concurrency: { limit: 1 },
     },
     { event: 'permissions/enforce' },
