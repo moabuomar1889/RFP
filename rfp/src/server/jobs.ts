@@ -1367,73 +1367,78 @@ async function enforceProjectPermissionsWithReset(
     });
 
     const totalFolders = foldersToProcess.length;
-    for (let fi = 0; fi < totalFolders; fi++) {
-        const { templatePath, folder } = foldersToProcess[fi];
-        let folderRemoved = 0;
-        let folderInherited = 0;
-        let folderErrors = 0;
-        let laDisabled = false;
+    const BATCH_SIZE = 4; // Process 4 folders concurrently
 
-        // 1a. Disable Limited Access (so inherited perms become removable)
-        try {
-            await setLimitedAccessFast(folder.drive_folder_id, false);
-            laDisabled = true;
-        } catch (err: any) {
-            // If it fails, it might already be disabled — continue
-            laDisabled = err.message?.includes('verification FAILED');
-        }
+    for (let i = 0; i < totalFolders; i += BATCH_SIZE) {
+        const batch = foldersToProcess.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async ({ templatePath, folder }, batchIdx) => {
+            const fi = i + batchIdx;
+            let folderRemoved = 0;
+            let folderInherited = 0;
+            let folderErrors = 0;
+            let laDisabled = false;
 
-        // 1b. Remove ALL direct permissions
-        try {
-            const currentPerms = await listPermissions(folder.drive_folder_id);
+            // 1a. Disable Limited Access (so inherited perms become removable)
+            try {
+                await setLimitedAccessFast(folder.drive_folder_id, false);
+                laDisabled = true;
+            } catch (err: any) {
+                // If it fails, it might already be disabled — continue
+                laDisabled = err.message?.includes('verification FAILED');
+            }
 
-            for (const perm of currentPerms) {
-                if (!perm.emailAddress) continue;
-                if (protectedPrincipals.some(p => p.toLowerCase() === perm.emailAddress?.toLowerCase())) continue;
+            // 1b. Remove ALL direct permissions
+            try {
+                const currentPerms = await listPermissions(folder.drive_folder_id);
 
-                if (perm.inherited || perm.permissionDetails?.[0]?.inherited) {
-                    folderInherited++;
-                    continue;
-                }
+                for (const perm of currentPerms) {
+                    if (!perm.emailAddress) continue;
+                    if (protectedPrincipals.some(p => p.toLowerCase() === perm.emailAddress?.toLowerCase())) continue;
 
-                try {
-                    await removePermission(folder.drive_folder_id, perm.id!);
-                    folderRemoved++;
-                    removed++;
-                    await sleep(RATE_LIMIT_DELAY);
-                } catch (err: any) {
-                    if (err.message?.includes('not found')) {
+                    if (perm.inherited || perm.permissionDetails?.[0]?.inherited) {
+                        folderInherited++;
+                        continue;
+                    }
+
+                    try {
+                        await removePermission(folder.drive_folder_id, perm.id!);
                         folderRemoved++;
                         removed++;
-                    } else {
-                        folderErrors++;
-                        errors++;
-                        await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_failed', 'error', {
-                            email: perm.emailAddress,
-                            error: err.message
-                        });
+                        // Removed sleep for speed
+                    } catch (err: any) {
+                        if (err.message?.includes('not found')) {
+                            folderRemoved++;
+                            removed++;
+                        } else {
+                            folderErrors++;
+                            errors++;
+                            await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_failed', 'error', {
+                                email: perm.emailAddress,
+                                error: err.message
+                            });
+                        }
                     }
                 }
+            } catch (err: any) {
+                folderErrors++;
+                errors++;
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_phase_failed', 'error', {
+                    error: err.message
+                });
             }
-        } catch (err: any) {
-            folderErrors++;
-            errors++;
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_phase_failed', 'error', {
-                error: err.message
+
+            // Batch summary log for this folder
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_reset_summary', 'success', {
+                removed: folderRemoved,
+                inherited: folderInherited,
+                laDisabled,
+                errors: folderErrors
             });
-        }
 
-        // Batch summary log for this folder
-        await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_reset_summary', 'success', {
-            removed: folderRemoved,
-            inherited: folderInherited,
-            laDisabled,
-            errors: folderErrors
-        });
-
-        // Update progress: Pass 1 = 0-50%
-        const pass1Progress = Math.round(((fi + 1) / totalFolders) * 50);
-        await updateJobProgress(jobId, pass1Progress, 0, totalFolders * 2, JOB_STATUS.RUNNING);
+            // Update progress: Pass 1 = 0-50%
+            const pass1Progress = Math.round(((fi + 1) / totalFolders) * 50);
+            await updateJobProgress(jobId, pass1Progress, 0, totalFolders * 2, JOB_STATUS.RUNNING);
+        }));
     }
 
     await writeJobLog(jobId, project.id, project.name, null, 'pass1_complete', 'success', {
@@ -1450,101 +1455,104 @@ async function enforceProjectPermissionsWithReset(
         folderCount: foldersToProcess.length
     });
 
-    for (let fi = 0; fi < totalFolders; fi++) {
-        const { templatePath, expectedPerms, folder } = foldersToProcess[fi];
-        let folderAdded = 0;
-        let folderErrors = 0;
-        let laEnabled = false;
+    for (let i = 0; i < totalFolders; i += BATCH_SIZE) {
+        const batch = foldersToProcess.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async ({ templatePath, expectedPerms, folder }, batchIdx) => {
+            const fi = i + batchIdx;
+            let folderAdded = 0;
+            let folderErrors = 0;
+            let laEnabled = false;
 
-        // 2a. Add groups from template (PARALLEL EXECUTION)
-        const overrideRemoveSet = new Set<string>();
-        const overrideDowngradeMap = new Map<string, string>();
-        if (expectedPerms.overrides?.remove) {
-            for (const r of expectedPerms.overrides.remove) {
-                if (r.identifier) overrideRemoveSet.add(r.identifier.toLowerCase());
+            // 2a. Add groups from template (PARALLEL EXECUTION)
+            const overrideRemoveSet = new Set<string>();
+            const overrideDowngradeMap = new Map<string, string>();
+            if (expectedPerms.overrides?.remove) {
+                for (const r of expectedPerms.overrides.remove) {
+                    if (r.identifier) overrideRemoveSet.add(r.identifier.toLowerCase());
+                }
             }
-        }
-        if (expectedPerms.overrides?.downgrade) {
-            for (const d of expectedPerms.overrides.downgrade) {
-                if (d.identifier && d.role) overrideDowngradeMap.set(d.identifier.toLowerCase(), d.role);
+            if (expectedPerms.overrides?.downgrade) {
+                for (const d of expectedPerms.overrides.downgrade) {
+                    if (d.identifier && d.role) overrideDowngradeMap.set(d.identifier.toLowerCase(), d.role);
+                }
             }
-        }
 
-        const groups = expectedPerms.groups || [];
-        const groupPromises = groups.map(async (group: any) => {
-            if (!group.email) return;
-            const emailKey = group.email.toLowerCase();
-            if (overrideRemoveSet.has(emailKey)) return;
+            const groups = expectedPerms.groups || [];
+            const groupPromises = groups.map(async (group: any) => {
+                if (!group.email) return;
+                const emailKey = group.email.toLowerCase();
+                if (overrideRemoveSet.has(emailKey)) return;
 
-            let role = group.role || 'reader';
-            const downgradedRole = overrideDowngradeMap.get(emailKey);
-            if (downgradedRole) role = downgradedRole;
+                let role = group.role || 'reader';
+                const downgradedRole = overrideDowngradeMap.get(emailKey);
+                if (downgradedRole) role = downgradedRole;
 
-            try {
-                await addPermission(folder.drive_folder_id, 'group', role, group.email);
-                folderAdded++;
-                added++;
-            } catch (err: any) {
-                folderErrors++;
-                errors++;
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_failed', 'error', {
-                    email: group.email,
-                    error: err.message
-                });
+                try {
+                    await addPermission(folder.drive_folder_id, 'group', role, group.email);
+                    folderAdded++;
+                    added++;
+                } catch (err: any) {
+                    folderErrors++;
+                    errors++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_failed', 'error', {
+                        email: group.email,
+                        error: err.message
+                    });
+                }
+            });
+            await Promise.all(groupPromises);
+
+            // 2b. Add users from template (PARALLEL EXECUTION)
+            const users = expectedPerms.users || [];
+            const userPromises = users.map(async (user: any) => {
+                if (!user.email) return;
+                const emailKey = user.email.toLowerCase();
+                if (overrideRemoveSet.has(emailKey)) return;
+
+                let role = user.role || 'reader';
+                const downgradedRole = overrideDowngradeMap.get(emailKey);
+                if (downgradedRole) role = downgradedRole;
+
+                try {
+                    await addPermission(folder.drive_folder_id, 'user', role, user.email);
+                    folderAdded++;
+                    added++;
+                } catch (err: any) {
+                    folderErrors++;
+                    errors++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'add_failed', 'error', {
+                        email: user.email,
+                        error: err.message
+                    });
+                }
+            });
+            await Promise.all(userPromises);
+
+            // 2c. Enable Limited Access if template requires it
+            if (expectedPerms.limitedAccess) {
+                try {
+                    await setLimitedAccessFast(folder.drive_folder_id, true);
+                    laEnabled = true;
+                } catch (err: any) {
+                    folderErrors++;
+                    errors++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_failed', 'error', {
+                        error: err.message
+                    });
+                }
             }
-        });
-        await Promise.all(groupPromises);
 
-        // 2b. Add users from template (PARALLEL EXECUTION)
-        const users = expectedPerms.users || [];
-        const userPromises = users.map(async (user: any) => {
-            if (!user.email) return;
-            const emailKey = user.email.toLowerCase();
-            if (overrideRemoveSet.has(emailKey)) return;
+            // Batch summary log for this folder
+            await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_apply_summary', 'success', {
+                added: folderAdded,
+                laEnabled,
+                errors: folderErrors
+            });
 
-            let role = user.role || 'reader';
-            const downgradedRole = overrideDowngradeMap.get(emailKey);
-            if (downgradedRole) role = downgradedRole;
-
-            try {
-                await addPermission(folder.drive_folder_id, 'user', role, user.email);
-                folderAdded++;
-                added++;
-            } catch (err: any) {
-                folderErrors++;
-                errors++;
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_failed', 'error', {
-                    email: user.email,
-                    error: err.message
-                });
-            }
-        });
-        await Promise.all(userPromises);
-
-        // 2c. Enable Limited Access if template requires it
-        if (expectedPerms.limitedAccess) {
-            try {
-                await setLimitedAccessFast(folder.drive_folder_id, true);
-                laEnabled = true;
-            } catch (err: any) {
-                folderErrors++;
-                errors++;
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_failed', 'error', {
-                    error: err.message
-                });
-            }
-        }
-
-        // Batch summary log for this folder
-        await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_apply_summary', 'success', {
-            added: folderAdded,
-            laEnabled,
-            errors: folderErrors
-        });
-
-        // Update progress: Pass 2 = 50-100%
-        const pass2Progress = 50 + Math.round(((fi + 1) / totalFolders) * 50);
-        await updateJobProgress(jobId, pass2Progress, 0, totalFolders * 2, JOB_STATUS.RUNNING);
+            // Update progress: Pass 2 = 50-100%
+            const pass2Progress = 50 + Math.round(((fi + 1) / totalFolders) * 50);
+            await updateJobProgress(jobId, pass2Progress, 0, totalFolders * 2, JOB_STATUS.RUNNING);
+        }));
     }
 
     await writeJobLog(jobId, project.id, project.name, null, 'pass2_complete', 'success', {
