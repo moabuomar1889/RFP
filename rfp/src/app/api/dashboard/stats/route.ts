@@ -9,14 +9,21 @@ export const fetchCache = 'force-no-store';
 /**
  * GET /api/dashboard/stats
  * Get dashboard statistics using Prisma (direct PostgreSQL, bypasses PostgREST)
+ * Uses raw SQL for projects to access columns not in Prisma schema (phase, status)
  */
 export async function GET() {
     try {
         // ── Prisma queries (direct DB, no PostgREST) ──
 
-        // 1. Projects
-        const projects = await prisma.project.findMany();
+        // 1. Projects - use raw SQL to get phase column (not in Prisma schema)
+        const projects: any[] = await prisma.$queryRaw`
+            SELECT id, name, pr_number, status, phase, drive_folder_id, 
+                   last_synced_at, last_enforced_at, created_at
+            FROM rfp.projects
+        `;
         const totalProjects = projects.length;
+        const biddingProjects = projects.filter(p => p.phase?.toLowerCase() === 'bidding').length;
+        const executionProjects = projects.filter(p => p.phase?.toLowerCase() === 'execution').length;
 
         // 2. Folder counts
         const totalFolders = await prisma.folderIndex.count();
@@ -49,8 +56,8 @@ export async function GET() {
 
         const stats = {
             totalProjects,
-            biddingProjects: 0,   // No phase column in schema
-            executionProjects: 0, // No phase column in schema
+            biddingProjects,
+            executionProjects,
             totalFolders,
             totalUsers,
             usersWithoutGroups,
