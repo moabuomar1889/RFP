@@ -886,7 +886,7 @@ async function enforceProjectPermissionsWithLogging(
 
     // Build permissions map from ONLY the phase-matching node's children
     const phaseTemplateNodes = phaseNode.children || phaseNode.nodes || [];
-    const permissionsMap = buildPermissionsMap(phaseTemplateNodes);
+    const permissionsMap = buildEffectivePermissionsMap(phaseTemplateNodes);
 
     // Debug: Log permissions map keys
     await writeJobLog(jobId, project.id, project.name, null, 'debug_map', 'info', {
@@ -1499,6 +1499,22 @@ async function enforceProjectPermissionsWithLogging(
                     message: 'Cannot downgrade inherited permission. Must be changed at source folder.'
                 });
             }
+        }
+        // Step 3d: SET LIMITED ACCESS on Drive folder if template requires it
+        if (expectedPerms.limitedAccess) {
+            try {
+                await setLimitedAccess(folder.drive_folder_id, true);
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'set_limited_access', 'success', {
+                    action: 'LIMITED_ACCESS_ENABLED',
+                    message: 'Set inheritedPermissionsDisabled=true on folder'
+                });
+            } catch (err: any) {
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'set_limited_access_failed', 'error', {
+                    error: err.message,
+                    message: 'Failed to enable Limited Access on folder'
+                });
+            }
+            await sleep(RATE_LIMIT_DELAY);
         }
 
         // Step 4: POST-ENFORCEMENT RE-READ — verify final Drive state
