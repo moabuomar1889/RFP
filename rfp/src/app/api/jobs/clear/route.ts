@@ -12,10 +12,13 @@ export async function POST(request: NextRequest) {
         const supabase = getSupabaseAdmin();
 
         // User request: Clear ONLY completed/failed/cancelled jobs. Preserve running/pending.
+        // User request: Clear ONLY completed/failed/cancelled jobs. Preserve running/pending.
+        // Table is 'reset_jobs' in 'rfp' schema.
         const { count, error } = await supabase
-            .from('jobs')
+            .schema('rfp')
+            .from('reset_jobs')
             .delete({ count: 'exact' })
-            .in('status', ['success', 'failed', 'cancelled', 'error']);
+            .in('status', ['completed', 'failed', 'cancelled']); // Note: enum uses 'completed', 'failed', 'cancelled'. Previous used 'success'/'error' which might be wrong for enum.
 
         if (error) {
             console.error('Error clearing jobs:', error);
