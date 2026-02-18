@@ -228,6 +228,7 @@ function comparePermissions(
             expectedEmails.delete(email); // Mark as processed
         } else {
             // Not expected — is it extra?
+            if (driveMembers.includes(p)) continue; // Drive membership is not an extra violation
             if (protectedEmails.includes(email)) continue;
 
             // Domain/anyone on non-limited folders: skip
