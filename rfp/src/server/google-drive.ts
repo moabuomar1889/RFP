@@ -284,6 +284,26 @@ export async function setLimitedAccess(
 }
 
 /**
+ * Fast version of setLimitedAccess — skips verification.
+ * Used during bulk enforce where verification is wasteful.
+ * Returns void instead of verified boolean.
+ */
+export async function setLimitedAccessFast(
+    folderId: string,
+    enabled: boolean
+): Promise<void> {
+    const drive = await getDriveClient();
+    await drive.files.update({
+        fileId: folderId,
+        requestBody: {
+            inheritedPermissionsDisabled: enabled
+        } as any,
+        supportsAllDrives: true,
+        fields: 'id'
+    });
+}
+
+/**
  * List permissions on a folder with full inheritance details (AC-4)
  * Returns enhanced PermissionDetails interface
  */

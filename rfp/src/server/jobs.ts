@@ -25,6 +25,7 @@ import {
     removePermission,
     isProtectedPermission,
     setLimitedAccess,
+    setLimitedAccessFast,
     hardResetPermissions,
 } from '@/server/google-drive';
 import { JOB_STATUS, TASK_STATUS } from '@/lib/config';
@@ -1375,9 +1376,8 @@ async function enforceProjectPermissionsWithReset(
 
         // 1a. Disable Limited Access (so inherited perms become removable)
         try {
-            await setLimitedAccess(folder.drive_folder_id, false);
+            await setLimitedAccessFast(folder.drive_folder_id, false);
             laDisabled = true;
-            await sleep(RATE_LIMIT_DELAY);
         } catch (err: any) {
             // If it fails, it might already be disabled — continue
             laDisabled = err.message?.includes('verification FAILED');
@@ -1524,9 +1524,8 @@ async function enforceProjectPermissionsWithReset(
         // 2c. Enable Limited Access if template requires it
         if (expectedPerms.limitedAccess) {
             try {
-                await setLimitedAccess(folder.drive_folder_id, true);
+                await setLimitedAccessFast(folder.drive_folder_id, true);
                 laEnabled = true;
-                await sleep(RATE_LIMIT_DELAY);
             } catch (err: any) {
                 folderErrors++;
                 errors++;
