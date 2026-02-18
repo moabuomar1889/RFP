@@ -234,6 +234,14 @@ function getLogMessage(log: JobLog): string {
             return `Limited Access: ${details.message}`;
         case "folders_to_process":
             return `${details.count || 0} folders to process (${details.scope || "full"})`;
+        case "folder_reset_summary":
+            return `↩ Reset: ${details.removed || 0} removed${details.inherited ? `, ${details.inherited} inherited` : ""}${details.laDisabled ? ", LA off" : ""}`;
+        case "folder_apply_summary":
+            return `✓ Applied: ${details.added || 0} permissions${details.laEnabled ? ", LA on" : ""}`;
+        case "folder_missing_in_drive":
+            return `⚠ Missing in Drive: ${log.folder_path || details.templatePath || "folder"}`;
+        case "add_failed":
+            return `Failed to add ${details.email}: ${details.error}`;
         default:
             return log.action.replace(/_/g, " ");
     }

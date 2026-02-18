@@ -831,461 +831,8 @@ async function applyChangeToProject(project: any, change: any): Promise<void> {
     }
 }
 
-// NOTE: enforceProjectPermissions (non-logging version) was removed.
-// Only enforceProjectPermissionsWithLogging is used by the enforce-permissions job.
-
-/**
- * Enforce permissions with detailed job logging
- */
-async function enforceProjectPermissionsWithLogging(
-    project: any,
-    protectedPrincipals: string[],
-    jobId: string
-): Promise<{ violations: number; reverted: number; added: number }> {
-    let violations = 0;
-    let reverted = 0;
-    let added = 0;
-
-    console.log(`\n========== ENFORCING PERMISSIONS FOR ${project.prNumber || project.pr_number} ==========`);
-
-    // Step 1: Get the active template
-    const { data: templateData } = await supabaseAdmin.rpc('get_active_template');
-    const template = Array.isArray(templateData) ? templateData[0] : templateData;
-
-    if (!template?.template_json) {
-        await writeJobLog(jobId, project.id, project.name, null, 'error', 'error', { message: 'No active template found' });
-        return { violations: 0, reverted: 0, added: 0 };
-    }
-
-    // Parse template and build path-to-permissions map
-    const templateNodes = Array.isArray(template.template_json)
-        ? template.template_json
-        : template.template_json.template || [];
-
-    // PHASE-AWARE FILTERING: Only process folders matching the project's current phase
-    // Template has 2 top-level nodes: "Bidding" and "Project Delivery"
-    // - bidding phase → use "Bidding" node's children
-    // - execution phase → use "Project Delivery" node's children
-    const projectPhase = project.phase || 'bidding';
-    const phaseNode = templateNodes.find((n: any) => {
-        const nodeName = (n.text || n.name || '').trim();
-        if (projectPhase === 'execution') {
-            return nodeName === 'Project Delivery';
-        } else {
-            return nodeName === 'Bidding';
-        }
-    });
-
-    if (!phaseNode) {
-        await writeJobLog(jobId, project.id, project.name, null, 'error', 'error', {
-            message: `No template node found for phase: ${projectPhase}`,
-            availableNodes: templateNodes.map((n: any) => n.text || n.name)
-        });
-        return { violations: 0, reverted: 0, added: 0 };
-    }
-
-    // Build permissions map from ONLY the phase-matching node's children
-    const phaseTemplateNodes = phaseNode.children || phaseNode.nodes || [];
-    const permissionsMap = buildEffectivePermissionsMap(phaseTemplateNodes);
-
-    // Debug: Log permissions map keys
-    await writeJobLog(jobId, project.id, project.name, null, 'debug_map', 'info', {
-        message: 'Built permissions map',
-        totalPaths: Object.keys(permissionsMap).length,
-        samplePaths: Object.keys(permissionsMap).slice(0, 5)
-    });
-
-    // Step 2: Get all indexed folders for this project
-    let { data: folders } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
-
-    if (!folders || folders.length === 0) {
-        await writeJobLog(jobId, project.id, project.name, null, 'warning', 'warning', { message: 'No folders indexed' });
-        return { violations: 0, reverted: 0, added: 0 };
-    }
-
-    await writeJobLog(jobId, project.id, project.name, null, 'folders_found', 'info', { count: folders.length });
-
-    // Step 2a: Apply scope filtering if specified in job metadata
-    // Fetch job metadata from database
-    const { data: jobData } = await supabaseAdmin
-        .from('jobs')
-        .select('metadata')
-        .eq('id', jobId)
-        .single();
-
-    const scope = jobData?.metadata?.scope || 'full';
-    const targetPath = jobData?.metadata?.targetPath;
-
-    if (scope === 'single' && targetPath) {
-        // Only process the specific folder
-        folders = folders.filter((f: any) =>
-            (f.normalized_template_path || f.template_path) === targetPath
-        );
-        await writeJobLog(jobId, project.id, project.name, null, 'scope_applied', 'info', {
-            scope: 'single',
-            targetPath,
-            filteredCount: folders.length
-        });
-    } else if (scope === 'branch' && targetPath) {
-        // Process folder and all children
-        folders = folders.filter((f: any) => {
-            const path = f.normalized_template_path || f.template_path;
-            return path === targetPath || path.startsWith(targetPath + '/');
-        });
-        await writeJobLog(jobId, project.id, project.name, null, 'scope_applied', 'info', {
-            scope: 'branch',
-            targetPath,
-            filteredCount: folders.length
-        });
-    }
-    // else: full enforcement (default - no filtering)
-
-    if (folders.length === 0) {
-        await writeJobLog(jobId, project.id, project.name, null, 'warning', 'warning', {
-            message: scope !== 'full'
-                ? `No folders matched scope filter (${scope}: ${targetPath})`
-                : 'No folders indexed'
-        });
-        return { violations: 0, reverted: 0, added: 0 };
-    }
-
-
-    // Step 2b: Auto-create missing folders that exist in template but not in Drive
-    const indexedTemplatePaths = new Set(
-        folders.map((f: any) => f.normalized_template_path || f.template_path)
-    );
-    // Build a map of template paths → Drive folder IDs for parent lookup
-    const pathToDriveId = new Map<string, string>();
-    for (const f of folders) {
-        const tp = f.normalized_template_path || f.template_path;
-        pathToDriveId.set(tp, f.drive_folder_id);
-    }
-
-    // Also store the project's root Drive folder ID for top-level children
-    const projectDriveFolderId = project.drive_folder_id || project.driveFolderId;
-
-
-    // Helper: Get Drive folder name based on phase and folder type
-    function getDriveFolderName(templatePath: string, folderBaseName: string): string {
-        const projectCode = project.prNumber || project.pr_number;
-
-        // Special case: Phase containers themselves
-        if (templatePath === 'Bidding') {
-            return `${projectCode}-RFP`;
-        }
-        if (templatePath === 'Project Delivery') {
-            return `${projectCode}-PD`;
-        }
-
-        // Regular folders: check which phase they belong to
-        const isInBiddingPhase = templatePath.startsWith('Bidding/');
-        return isInBiddingPhase
-            ? `${projectCode}-RFP-${folderBaseName}`
-            : `${projectCode}-${folderBaseName}`;
-    }
-
-
-    // Step 2: Create missing folders
-    // Sort template paths by depth so parents are created before children
-    const allTemplatePaths = Object.keys(permissionsMap).sort(
-        (a, b) => a.split('/').length - b.split('/').length
-    );
-
-    for (const templatePath of allTemplatePaths) {
-        if (indexedTemplatePaths.has(templatePath)) continue;
-
-        // Determine parent path and folder name
-        const parts = templatePath.split('/');
-        const folderName = parts[parts.length - 1];
-        const parentPath = parts.slice(0, -1).join('/');
-
-        // Find parent's Drive folder ID from indexed folders
-        let parentDriveId: string | undefined;
-        if (parentPath) {
-            // Look up parent in indexed folders
-            const parentFolder = folders.find((f: any) =>
-                (f.normalized_template_path || f.template_path) === parentPath
-            );
-            parentDriveId = parentFolder?.drive_folder_id;
-        } else {
-            // Top-level folder (e.g., "SOW" in "Bidding/SOW" becomes top-level after stripping)
-            // Parent is the project root folder
-            parentDriveId = projectDriveFolderId;
-        }
-
-        if (!parentDriveId) {
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'create_folder_skipped', 'warning', {
-                reason: 'PARENT_NOT_FOUND',
-                parentPath,
-                message: `Cannot create folder "${folderName}" — parent folder not found in index.`
-            });
-            continue;
-        }
-
-        try {
-            // Get correct Drive folder name based on phase
-            const driveFolderName = getDriveFolderName(templatePath, folderName);
-            const newFolder = await createFolder(driveFolderName, parentDriveId);
-            const newFolderId = newFolder.id!;
-
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'create_folder', 'success', {
-                folderName: driveFolderName,
-                driveFolderId: newFolderId,
-                parentDriveId,
-            });
-
-            // Register in DB via upsert_folder_index
-            const client = getRawSupabaseAdmin();
-            const expectedPerms = permissionsMap[templatePath];
-
-            // Compute normalized path by stripping phase prefix
-            let normalizedPath: string | null = templatePath;
-            if (normalizedPath === 'Bidding' || normalizedPath === 'Project Delivery') {
-                normalizedPath = null;
-            } else if (normalizedPath.startsWith('Bidding/')) {
-                normalizedPath = normalizedPath.substring('Bidding/'.length);
-            } else if (normalizedPath.startsWith('Project Delivery/')) {
-                normalizedPath = normalizedPath.substring('Project Delivery/'.length);
-            }
-
-            await client.rpc('upsert_folder_index', {
-                p_project_id: project.id,
-                p_template_path: templatePath,
-                p_drive_folder_id: newFolderId,
-                p_normalized_template_path: normalizedPath,
-                p_expected_limited_access: expectedPerms?.limitedAccess || false,
-                p_expected_groups: expectedPerms?.groups || [],
-                p_expected_users: expectedPerms?.users || [],
-            });
-
-            // Add to processing arrays so permissions get applied
-            const newFolderEntry = {
-                drive_folder_id: newFolderId,
-                template_path: templatePath,
-                normalized_template_path: templatePath,
-            };
-            folders.push(newFolderEntry);
-            indexedTemplatePaths.add(templatePath);
-            pathToDriveId.set(templatePath, newFolderId);
-
-            await sleep(RATE_LIMIT_DELAY);
-        } catch (err: any) {
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'create_folder_failed', 'error', {
-                folderName,
-                parentDriveId,
-                error: err.message,
-            });
-        }
-    }
-
-
-    // ╔══════════════════════════════════════════════════════════╗
-    // ║  PASS 1: GLOBAL RESET — Clean ALL folders first        ║
-    // ║  1a. Disable Limited Access on ALL folders              ║
-    // ║  1b. Remove ALL direct permissions (keep Drive Members) ║
-    // ╚══════════════════════════════════════════════════════════╝
-
-    await writeJobLog(jobId, project.id, project.name, null, 'pass1_start', 'info', {
-        message: 'PASS 1: GLOBAL RESET — Disabling Limited Access and removing all direct permissions',
-        folderCount: folders.length
-    });
-
-    for (const folder of folders) {
-        const templatePath = folder.normalized_template_path || folder.template_path;
-        const folderId = folder.drive_folder_id;
-
-        // 1a. Disable Limited Access (so inherited perms become removable)
-        try {
-            await setLimitedAccess(folderId, false);
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_disabled', 'info', {
-                action: 'LIMITED_ACCESS_DISABLED',
-                message: 'Disabled Limited Access for reset phase'
-            });
-        } catch (err: any) {
-            // If it fails, it might already be disabled — continue
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_disable_skipped', 'info', {
-                message: err.message?.includes('verification FAILED') ? 'Already disabled' : err.message
-            });
-        }
-        await sleep(RATE_LIMIT_DELAY);
-
-        // 1b. Remove ALL direct permissions (keep only Drive Members & protected)
-        try {
-            const currentPerms = await listPermissions(folderId);
-
-            // Fetch driveId for classification
-            let driveId: string | undefined;
-            try {
-                const { getDriveClient } = await import('@/server/google-drive');
-                const drive = await getDriveClient();
-                const folderMeta = await drive.files.get({
-                    fileId: folderId,
-                    supportsAllDrives: true,
-                    fields: 'id,driveId',
-                });
-                driveId = (folderMeta.data as any).driveId;
-            } catch (_) { /* continue without driveId */ }
-
-            let removedCount = 0;
-            for (const perm of currentPerms) {
-                const email = perm.emailAddress?.toLowerCase();
-
-                // Skip protected principals
-                if (email && protectedPrincipals.some(p => p.toLowerCase() === email)) continue;
-
-                // Skip Drive Members (non-removable)
-                const cls = classifyInheritedPermission(perm, driveId);
-                if (cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') continue;
-
-                // Skip inherited (can't remove, will be blocked by Limited Access later)
-                if (perm.inherited === true && cls !== 'NOT_INHERITED') continue;
-
-                // Skip deleted/metadata-only
-                if (perm.deleted === true) continue;
-                if (perm.view === 'metadata') continue;
-
-                // Remove this direct permission
-                try {
-                    await removePermission(folderId, perm.id!);
-                    removedCount++;
-                    reverted++;
-                } catch (err: any) {
-                    // If "Permission not found" or can't delete — skip silently
-                    if (!err.message?.includes('not found')) {
-                        await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_remove_failed', 'warning', {
-                            email: perm.emailAddress,
-                            error: err.message
-                        });
-                    }
-                }
-                await sleep(RATE_LIMIT_DELAY);
-            }
-
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_complete', 'success', {
-                removedCount,
-                message: `Removed ${removedCount} direct permissions`
-            });
-        } catch (err: any) {
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_failed', 'error', {
-                error: err.message
-            });
-        }
-    }
-
-    await writeJobLog(jobId, project.id, project.name, null, 'pass1_complete', 'success', {
-        message: 'PASS 1 COMPLETE — All folders reset'
-    });
-
-    // ╔══════════════════════════════════════════════════════════╗
-    // ║  PASS 2: APPLY — Add template permissions + Limited     ║
-    // ║  For each folder: add groups/users then set Ltd Access   ║
-    // ╚══════════════════════════════════════════════════════════╝
-
-    await writeJobLog(jobId, project.id, project.name, null, 'pass2_start', 'info', {
-        message: 'PASS 2: APPLY — Adding template permissions and enabling Limited Access',
-        folderCount: folders.length
-    });
-
-    for (const folder of folders) {
-        const templatePath = folder.normalized_template_path || folder.template_path;
-        const folderId = folder.drive_folder_id;
-        const expectedPerms = permissionsMap[templatePath];
-
-        if (!expectedPerms) {
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'template_not_found', 'warning', {
-                message: `No template found for path: ${templatePath}`
-            });
-            continue;
-        }
-
-        // 2a. Add group permissions
-        for (const group of expectedPerms.groups) {
-            if (!group.email) continue;
-            const role = group.role || 'reader';
-            try {
-                await addPermission(folderId, 'group', role, group.email);
-                added++;
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
-                    email: group.email,
-                    type: 'group',
-                    role
-                });
-            } catch (err: any) {
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
-                    email: group.email,
-                    type: 'group',
-                    role,
-                    error: err.message
-                });
-            }
-            await sleep(RATE_LIMIT_DELAY);
-        }
-
-        // 2b. Add user permissions
-        for (const user of expectedPerms.users) {
-            if (!user.email) continue;
-            const role = user.role || 'reader';
-            try {
-                await addPermission(folderId, 'user', role, user.email);
-                added++;
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission', 'success', {
-                    email: user.email,
-                    type: 'user',
-                    role
-                });
-            } catch (err: any) {
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_permission_failed', 'error', {
-                    email: user.email,
-                    type: 'user',
-                    role,
-                    error: err.message
-                });
-            }
-            await sleep(RATE_LIMIT_DELAY);
-        }
-
-        // 2c. Enable Limited Access if template requires it
-        if (expectedPerms.limitedAccess) {
-            try {
-                await setLimitedAccess(folderId, true);
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_enabled', 'success', {
-                    action: 'LIMITED_ACCESS_ENABLED',
-                    message: 'Set inheritedPermissionsDisabled=true on folder'
-                });
-            } catch (err: any) {
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_failed', 'error', {
-                    error: err.message,
-                    message: 'Failed to enable Limited Access'
-                });
-            }
-            await sleep(RATE_LIMIT_DELAY);
-        }
-
-        // 2d. POST-APPLY verification — log final state
-        try {
-            await sleep(RATE_LIMIT_DELAY);
-            const finalPerms = await listPermissions(folderId);
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'post_apply_state', 'info', {
-                total_permissions: finalPerms.length,
-                emails: finalPerms
-                    .filter((p: any) => p.emailAddress)
-                    .map((p: any) => `${p.emailAddress} (${p.role}${p.inherited ? ' inherited' : ''})`),
-            });
-        } catch (err: any) {
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'post_apply_read_failed', 'warning', {
-                error: err.message
-            });
-        }
-
-        await sleep(RATE_LIMIT_DELAY);
-    }
-
-    await writeJobLog(jobId, project.id, project.name, null, 'pass2_complete', 'success', {
-        message: 'PASS 2 COMPLETE — All folders enforced'
-    });
-
-    return { violations, reverted, added };
-}
+// NOTE: enforceProjectPermissionsWithLogging was removed (dead code).
+// The enforce-permissions job uses enforceProjectPermissionsWithReset exclusively.
 
 /**
  * Rebuild folder index for a single project.
@@ -1818,48 +1365,48 @@ async function enforceProjectPermissionsWithReset(
         folderCount: foldersToProcess.length
     });
 
-    for (const { templatePath, folder } of foldersToProcess) {
+    const totalFolders = foldersToProcess.length;
+    for (let fi = 0; fi < totalFolders; fi++) {
+        const { templatePath, folder } = foldersToProcess[fi];
+        let folderRemoved = 0;
+        let folderInherited = 0;
+        let folderErrors = 0;
+        let laDisabled = false;
+
         // 1a. Disable Limited Access (so inherited perms become removable)
         try {
             await setLimitedAccess(folder.drive_folder_id, false);
+            laDisabled = true;
             await sleep(RATE_LIMIT_DELAY);
         } catch (err: any) {
             // If it fails, it might already be disabled — continue
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_disable_info', 'info', {
-                message: err.message?.includes('verification FAILED') ? 'Already disabled' : err.message
-            });
+            laDisabled = err.message?.includes('verification FAILED');
         }
 
         // 1b. Remove ALL direct permissions
         try {
             const currentPerms = await listPermissions(folder.drive_folder_id);
-            const inheritedPerms: Array<{ email: string; role: string }> = [];
 
             for (const perm of currentPerms) {
                 if (!perm.emailAddress) continue;
-
-                // Skip protected principals
                 if (protectedPrincipals.some(p => p.toLowerCase() === perm.emailAddress?.toLowerCase())) continue;
 
-                // Collect inherited permissions (cannot be removed at folder level)
                 if (perm.inherited || perm.permissionDetails?.[0]?.inherited) {
-                    inheritedPerms.push({ email: perm.emailAddress, role: perm.role || 'unknown' });
+                    folderInherited++;
                     continue;
                 }
 
-                // Remove this direct permission
                 try {
                     await removePermission(folder.drive_folder_id, perm.id!);
+                    folderRemoved++;
                     removed++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'removed_permission', 'success', {
-                        email: perm.emailAddress,
-                        role: perm.role
-                    });
                     await sleep(RATE_LIMIT_DELAY);
                 } catch (err: any) {
                     if (err.message?.includes('not found')) {
+                        folderRemoved++;
                         removed++;
                     } else {
+                        folderErrors++;
                         errors++;
                         await writeJobLog(jobId, project.id, project.name, templatePath, 'remove_failed', 'error', {
                             email: perm.emailAddress,
@@ -1868,23 +1415,25 @@ async function enforceProjectPermissionsWithReset(
                     }
                 }
             }
-
-            if (inheritedPerms.length > 0) {
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'inherited_summary', 'info', {
-                    count: inheritedPerms.length,
-                    sample: inheritedPerms.slice(0, 3)
-                });
-            }
-
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_complete', 'success', {
-                message: `Reset complete`
-            });
         } catch (err: any) {
+            folderErrors++;
             errors++;
             await writeJobLog(jobId, project.id, project.name, templatePath, 'reset_phase_failed', 'error', {
                 error: err.message
             });
         }
+
+        // Batch summary log for this folder
+        await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_reset_summary', 'success', {
+            removed: folderRemoved,
+            inherited: folderInherited,
+            laDisabled,
+            errors: folderErrors
+        });
+
+        // Update progress: Pass 1 = 0-50%
+        const pass1Progress = Math.round(((fi + 1) / totalFolders) * 50);
+        await updateJobProgress(jobId, pass1Progress, 0, totalFolders * 2, JOB_STATUS.RUNNING);
     }
 
     await writeJobLog(jobId, project.id, project.name, null, 'pass1_complete', 'success', {
@@ -1901,7 +1450,12 @@ async function enforceProjectPermissionsWithReset(
         folderCount: foldersToProcess.length
     });
 
-    for (const { templatePath, expectedPerms, folder } of foldersToProcess) {
+    for (let fi = 0; fi < totalFolders; fi++) {
+        const { templatePath, expectedPerms, folder } = foldersToProcess[fi];
+        let folderAdded = 0;
+        let folderErrors = 0;
+        let laEnabled = false;
+
         // 2a. Add groups from template (with override handling)
         const overrideRemoveSet = new Set<string>();
         const overrideDowngradeMap = new Map<string, string>();
@@ -1920,30 +1474,21 @@ async function enforceProjectPermissionsWithReset(
         for (const group of groups) {
             if (!group.email) continue;
             const emailKey = group.email.toLowerCase();
-
-            // Skip removed principals
             if (overrideRemoveSet.has(emailKey)) continue;
 
-            // Apply downgrade override if present
             let role = group.role || 'reader';
             const downgradedRole = overrideDowngradeMap.get(emailKey);
-            if (downgradedRole) {
-                console.log(`[ENFORCE] Override downgrade: ${group.email} ${role} → ${downgradedRole}`);
-                role = downgradedRole;
-            }
+            if (downgradedRole) role = downgradedRole;
 
             try {
                 await addPermission(folder.drive_folder_id, 'group', role, group.email);
+                folderAdded++;
                 added++;
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'added_group', 'success', {
-                    email: group.email,
-                    role,
-                    overridden: !!downgradedRole
-                });
                 await sleep(RATE_LIMIT_DELAY);
             } catch (err: any) {
+                folderErrors++;
                 errors++;
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_group_failed', 'error', {
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_failed', 'error', {
                     email: group.email,
                     error: err.message
                 });
@@ -1959,23 +1504,17 @@ async function enforceProjectPermissionsWithReset(
 
             let role = user.role || 'reader';
             const downgradedRole = overrideDowngradeMap.get(emailKey);
-            if (downgradedRole) {
-                console.log(`[ENFORCE] Override downgrade: ${user.email} ${role} → ${downgradedRole}`);
-                role = downgradedRole;
-            }
+            if (downgradedRole) role = downgradedRole;
 
             try {
                 await addPermission(folder.drive_folder_id, 'user', role, user.email);
+                folderAdded++;
                 added++;
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'added_user', 'success', {
-                    email: user.email,
-                    role,
-                    overridden: !!downgradedRole
-                });
                 await sleep(RATE_LIMIT_DELAY);
             } catch (err: any) {
+                folderErrors++;
                 errors++;
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_user_failed', 'error', {
+                await writeJobLog(jobId, project.id, project.name, templatePath, 'add_failed', 'error', {
                     email: user.email,
                     error: err.message
                 });
@@ -1986,17 +1525,27 @@ async function enforceProjectPermissionsWithReset(
         if (expectedPerms.limitedAccess) {
             try {
                 await setLimitedAccess(folder.drive_folder_id, true);
-                await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_enabled', 'success', {
-                    enabled: true
-                });
+                laEnabled = true;
                 await sleep(RATE_LIMIT_DELAY);
             } catch (err: any) {
+                folderErrors++;
                 errors++;
                 await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_failed', 'error', {
                     error: err.message
                 });
             }
         }
+
+        // Batch summary log for this folder
+        await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_apply_summary', 'success', {
+            added: folderAdded,
+            laEnabled,
+            errors: folderErrors
+        });
+
+        // Update progress: Pass 2 = 50-100%
+        const pass2Progress = 50 + Math.round(((fi + 1) / totalFolders) * 50);
+        await updateJobProgress(jobId, pass2Progress, 0, totalFolders * 2, JOB_STATUS.RUNNING);
     }
 
     await writeJobLog(jobId, project.id, project.name, null, 'pass2_complete', 'success', {
