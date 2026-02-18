@@ -1463,7 +1463,22 @@ async function enforceProjectPermissionsWithReset(
             let folderErrors = 0;
             let laEnabled = false;
 
-            // 2a. Add groups from template (PARALLEL EXECUTION)
+            // 2c. Enable Limited Access (MOVED TO TOP)
+            // Must be done BEFORE adding permissions to ensure they are not affected by inheritance disablement
+            if (expectedPerms.limitedAccess) {
+                try {
+                    await setLimitedAccessFast(folder.drive_folder_id, true);
+                    laEnabled = true;
+                } catch (err: any) {
+                    folderErrors++;
+                    errors++;
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_failed', 'error', {
+                        error: err.message
+                    });
+                }
+            }
+
+            // 2a. Add groups from template (SEQUENTIAL EXECUTION to avoid concurrency issues on same file)
             const overrideRemoveSet = new Set<string>();
             const overrideDowngradeMap = new Map<string, string>();
             if (expectedPerms.overrides?.remove) {
@@ -1478,10 +1493,10 @@ async function enforceProjectPermissionsWithReset(
             }
 
             const groups = expectedPerms.groups || [];
-            const groupPromises = groups.map(async (group: any) => {
-                if (!group.email) return;
+            for (const group of groups) {
+                if (!group.email) continue;
                 const emailKey = group.email.toLowerCase();
-                if (overrideRemoveSet.has(emailKey)) return;
+                if (overrideRemoveSet.has(emailKey)) continue;
 
                 let role = group.role || 'reader';
                 const downgradedRole = overrideDowngradeMap.get(emailKey);
@@ -1499,15 +1514,14 @@ async function enforceProjectPermissionsWithReset(
                         error: err.message
                     });
                 }
-            });
-            await Promise.all(groupPromises);
+            }
 
-            // 2b. Add users from template (PARALLEL EXECUTION)
+            // 2b. Add users from template (SEQUENTIAL EXECUTION)
             const users = expectedPerms.users || [];
-            const userPromises = users.map(async (user: any) => {
-                if (!user.email) return;
+            for (const user of users) {
+                if (!user.email) continue;
                 const emailKey = user.email.toLowerCase();
-                if (overrideRemoveSet.has(emailKey)) return;
+                if (overrideRemoveSet.has(emailKey)) continue;
 
                 let role = user.role || 'reader';
                 const downgradedRole = overrideDowngradeMap.get(emailKey);
@@ -1525,22 +1539,9 @@ async function enforceProjectPermissionsWithReset(
                         error: err.message
                     });
                 }
-            });
-            await Promise.all(userPromises);
-
-            // 2c. Enable Limited Access if template requires it
-            if (expectedPerms.limitedAccess) {
-                try {
-                    await setLimitedAccessFast(folder.drive_folder_id, true);
-                    laEnabled = true;
-                } catch (err: any) {
-                    folderErrors++;
-                    errors++;
-                    await writeJobLog(jobId, project.id, project.name, templatePath, 'limited_access_failed', 'error', {
-                        error: err.message
-                    });
-                }
             }
+
+
 
             // Batch summary log for this folder
             await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_apply_summary', 'success', {
