@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { Client } from 'pg';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -8,43 +8,55 @@ export const fetchCache = 'force-no-store';
 
 /**
  * GET /api/dashboard/stats
- * Get dashboard statistics using Prisma (direct PostgreSQL, bypasses PostgREST)
- * Uses raw SQL for projects to access columns not in Prisma schema (phase, status)
+ * Uses pg client for rfp schema queries (bypasses PostgREST schema cache issues)
+ * Uses Supabase RPCs for user/group data (works via public schema)
  */
 export async function GET() {
-    try {
-        // ── Prisma queries (direct DB, no PostgREST) ──
+    const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 
-        // 1. Projects - use raw SQL to get phase column (not in Prisma schema)
-        const projects: any[] = await prisma.$queryRaw`
-            SELECT id, name, pr_number, status, phase, drive_folder_id, 
-                   last_synced_at, last_enforced_at, created_at
-            FROM rfp.projects
-        `;
+    if (!connectionString) {
+        return NextResponse.json({
+            success: false,
+            error: 'Missing database connection URL',
+            stats: fallbackStats(),
+            source: 'error-no-url',
+        }, { status: 500 });
+    }
+
+    const client = new Client({
+        connectionString,
+        ssl: { rejectUnauthorized: false }
+    });
+
+    try {
+        await client.connect();
+
+        // 1. Projects (with phase column)
+        const { rows: projects } = await client.query(
+            'SELECT id, name, pr_number, status, phase, drive_folder_id, last_synced_at, last_enforced_at, created_at FROM rfp.projects'
+        );
         const totalProjects = projects.length;
         const biddingProjects = projects.filter(p => p.phase?.toLowerCase() === 'bidding').length;
         const executionProjects = projects.filter(p => p.phase?.toLowerCase() === 'execution').length;
 
         // 2. Folder counts
-        const totalFolders = await prisma.folderIndex.count();
-        const compliantFolders = await prisma.folderIndex.count({
-            where: { is_compliant: true }
-        });
+        const { rows: [folderRow] } = await client.query('SELECT count(*) as total FROM rfp.folder_index');
+        const totalFolders = parseInt(folderRow?.total || '0', 10);
+
+        const { rows: [compliantRow] } = await client.query('SELECT count(*) as total FROM rfp.folder_index WHERE is_compliant = true');
+        const compliantFolders = parseInt(compliantRow?.total || '0', 10);
+
         const violations = totalFolders - compliantFolders;
 
         // 3. Active jobs
-        const activeJobs = await prisma.resetJob.count({
-            where: { status: { in: ['running', 'pending'] } }
-        });
+        const { rows: [jobRow] } = await client.query("SELECT count(*) as total FROM rfp.reset_jobs WHERE status IN ('running', 'pending')");
+        const activeJobs = parseInt(jobRow?.total || '0', 10);
 
-        // 4. Last scan (most recent folder update)
-        const lastFolder = await prisma.folderIndex.findFirst({
-            orderBy: { updated_at: 'desc' },
-            select: { updated_at: true }
-        });
-        const lastScan = lastFolder?.updated_at || null;
+        // 4. Last scan
+        const { rows: [lastRow] } = await client.query('SELECT updated_at FROM rfp.folder_index ORDER BY updated_at DESC LIMIT 1');
+        const lastScan = lastRow?.updated_at || null;
 
-        // ── Supabase RPCs (for users/groups from auth schema) ──
+        // ── Supabase RPCs (for users/groups from auth/public schema) ──
         const supabase = getSupabaseAdmin();
 
         const { data: users } = await supabase.rpc('get_users_with_groups');
@@ -69,12 +81,12 @@ export async function GET() {
             compliantFolders,
         };
 
-        console.log('Dashboard stats (Prisma):', stats);
+        console.log('Dashboard stats (pg+rpc):', stats);
 
         const response = NextResponse.json({
             success: true,
             stats,
-            source: 'prisma-direct',
+            source: 'pg-direct',
         });
         response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         return response;
@@ -86,20 +98,26 @@ export async function GET() {
             success: false,
             error: 'Failed to fetch dashboard stats',
             details: error.message,
-            stats: {
-                totalProjects: 0,
-                biddingProjects: 0,
-                executionProjects: 0,
-                pendingRequests: 0,
-                totalFolders: 0,
-                violations: 0,
-                activeJobs: 0,
-                lastSync: null,
-                compliantFolders: 0,
-            },
+            stats: fallbackStats(),
             source: 'error-fallback',
         }, { status: 500 });
         response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         return response;
+    } finally {
+        await client.end().catch(() => { });
     }
+}
+
+function fallbackStats() {
+    return {
+        totalProjects: 0,
+        biddingProjects: 0,
+        executionProjects: 0,
+        pendingRequests: 0,
+        totalFolders: 0,
+        violations: 0,
+        activeJobs: 0,
+        lastSync: null,
+        compliantFolders: 0,
+    };
 }
