@@ -1,23 +1,28 @@
 
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { Client } from 'pg';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-    console.log('API: Fixing schema permissions via raw SQL...');
+    console.log('API: Fixing schema permissions via raw SQL (pg driver)...');
 
     // Use DIRECT_URL to bypass potential transaction pooler issues for admin commands
-    const prisma = new PrismaClient({
-        datasources: {
-            db: {
-                url: process.env.DIRECT_URL || process.env.DATABASE_URL
-            }
-        }
-    } as any);
+    // Fallback to DATABASE_URL if DIRECT_URL is not set (will likely fail for ALTER ROLE if pooled)
+    const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+
+    if (!connectionString) {
+        return NextResponse.json({ success: false, error: 'Missing Database Connection URL' }, { status: 500 });
+    }
+
+    // Force non-SSL if strictly needed, or let pg handle it. Vercel/Supabase usually needs ssl: true or rejectUnauthorized: false
+    const client = new Client({
+        connectionString,
+        ssl: { rejectUnauthorized: false } // Required for Supabase/Vercel
+    });
 
     try {
-        await prisma.$connect();
+        await client.connect();
 
         const commands = [
             `ALTER ROLE authenticator RESET pgrst.db_schemas;`,
@@ -34,9 +39,10 @@ export async function GET() {
         const results = [];
         for (const cmd of commands) {
             try {
-                await prisma.$executeRawUnsafe(cmd);
+                await client.query(cmd);
                 results.push({ cmd, status: 'success' });
             } catch (e: any) {
+                console.error(`Error executing ${cmd}:`, e);
                 results.push({ cmd, status: 'error', error: e.message });
             }
         }
@@ -44,8 +50,9 @@ export async function GET() {
         return NextResponse.json({ success: true, results });
 
     } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        console.error('Database connection error:', error);
+        return NextResponse.json({ success: false, error: error.message, stack: error.stack }, { status: 500 });
     } finally {
-        await prisma.$disconnect();
+        await client.end().catch(() => { }); // Ensure disconnect
     }
 }
