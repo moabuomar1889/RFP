@@ -114,20 +114,29 @@ export async function GET() {
 
         console.log('Dashboard stats (from RPCs):', stats);
 
+        // Debug info to find out why data is 0
+        const debug = {
+            projectsError,
+            folderError,
+            // compliantError missing ref?
+        };
+
         const response = NextResponse.json({
             success: true,
             stats,
+            debug, // Exposed for debugging
             source: 'database-rpc',
         });
         response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         return response;
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error fetching dashboard stats:', error);
 
         const response = NextResponse.json({
             success: false,
             error: 'Failed to fetch dashboard stats',
+            details: error.message,
             stats: {
                 totalProjects: 0,
                 biddingCount: 0,
