@@ -6,7 +6,15 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
     console.log('API: Fixing schema permissions via raw SQL...');
-    const prisma = new PrismaClient(); // Instantiate here to ensure fresh connection in Vercel function
+
+    // Use DIRECT_URL to bypass potential transaction pooler issues for admin commands
+    const prisma = new PrismaClient({
+        datasources: {
+            db: {
+                url: process.env.DIRECT_URL || process.env.DATABASE_URL
+            }
+        }
+    } as any);
 
     try {
         await prisma.$connect();
