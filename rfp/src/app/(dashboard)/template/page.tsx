@@ -190,10 +190,13 @@ function EffectivePolicyTable({ node, state }: { node: FolderNode; state: Templa
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-2">
-                <Info className="h-4 w-4 text-blue-500" />
-                <h3 className="font-semibold text-sm">Effective Policy</h3>
-                <Badge variant="secondary" className="text-xs">Read-Only</Badge>
+            <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    <h3 className="font-semibold text-sm">Effective Policy</h3>
+                    <Badge variant="secondary" className="text-xs">Read-Only</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground ml-6">What&apos;s really happening on Drive</p>
             </div>
             <Table>
                 <TableHeader>
@@ -318,10 +321,13 @@ function ExplicitPolicyTable({
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-green-500" />
-                <h3 className="font-semibold text-sm">Explicit Policy</h3>
-                <Badge variant="outline" className="text-xs">Editable</Badge>
+            <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-green-500" />
+                    <h3 className="font-semibold text-sm">Explicit Policy</h3>
+                    <Badge variant="outline" className="text-xs">Editable</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground ml-6">What the template says should happen</p>
             </div>
             <Table>
                 <TableHeader>
@@ -541,17 +547,20 @@ function PrincipalsBreakdownTable({
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-purple-500" />
-                <h3 className="font-semibold text-sm">Principals Breakdown</h3>
-                <Badge variant="outline" className="text-xs">
-                    {activeCount} active
-                </Badge>
-                {removedCount > 0 && (
-                    <Badge variant="outline" className="text-xs text-red-500 border-red-500/30">
-                        {removedCount} removed
+            <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-purple-500" />
+                    <h3 className="font-semibold text-sm">Principals Breakdown</h3>
+                    <Badge variant="outline" className="text-xs">
+                        {activeCount} active
                     </Badge>
-                )}
+                    {removedCount > 0 && (
+                        <Badge variant="outline" className="text-xs text-red-500 border-red-500/30">
+                            {removedCount} removed
+                        </Badge>
+                    )}
+                </div>
+                <p className="text-xs text-muted-foreground ml-6">List of all people/groups with access</p>
             </div>
             <Table>
                 <TableHeader>
