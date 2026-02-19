@@ -1,3 +1,4 @@
+// Dashboard Stats API - Updated 2026-02-19
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { Client } from 'pg';
