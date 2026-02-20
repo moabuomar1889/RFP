@@ -31,7 +31,6 @@ interface Role {
 
 function getDriveRoleBadge(role: string) {
     const colors: Record<string, string> = {
-        organizer: "bg-red-500",
         fileOrganizer: "bg-orange-500",
         writer: "bg-blue-500",
         commenter: "bg-cyan-500",
@@ -168,11 +167,10 @@ export default function RolesPage() {
                                         value={newRole.driveRole}
                                         onChange={(e) => setNewRole({ ...newRole, driveRole: e.target.value })}
                                     >
-                                        <option value="writer">Writer (Edit)</option>
-                                        <option value="reader">Reader (View only)</option>
-                                        <option value="fileOrganizer">File Organizer</option>
+                                        <option value="writer">Contributor (Add, edit, share)</option>
+                                        <option value="reader">Viewer (View only)</option>
+                                        <option value="fileOrganizer">Content Manager (Add, edit, move, delete)</option>
                                         <option value="commenter">Commenter</option>
-                                        <option value="organizer">Organizer (Full)</option>
                                     </select>
                                 </div>
                             </div>

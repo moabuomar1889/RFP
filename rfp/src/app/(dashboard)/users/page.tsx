@@ -315,7 +315,6 @@ export default function UsersPage() {
         if (accessType === 'none') return 'bg-gray-100 text-gray-500';
         if (accessType === 'public') return 'bg-slate-100 text-slate-600';
         switch (role) {
-            case 'organizer':
             case 'fileOrganizer':
                 return 'bg-green-100 text-green-700';
             case 'writer':
@@ -332,11 +331,10 @@ export default function UsersPage() {
         if (accessType === 'none') return 'No Access';
         if (accessType === 'public') return 'Public';
         switch (role) {
-            case 'organizer': return 'Organizer';
-            case 'fileOrganizer': return 'File Organizer';
-            case 'writer': return 'Writer';
+            case 'fileOrganizer': return 'Content Manager';
+            case 'writer': return 'Contributor';
             case 'commenter': return 'Commenter';
-            case 'reader': return 'Reader';
+            case 'reader': return 'Viewer';
             default: return role || 'Unknown';
         }
     };

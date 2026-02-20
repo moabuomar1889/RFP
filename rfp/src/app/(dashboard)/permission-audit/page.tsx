@@ -115,15 +115,15 @@ interface Project {
 // ─── Helpers ────────────────────────────────────────────────
 const getRoleLabel = (role: string) => {
     const roleMap: Record<string, string> = {
-        // Canonical roles
+        // Canonical roles (matches Google Drive UI)
         viewer: "Viewer",
         commenter: "Commenter",
         contributor: "Contributor",
         contentManager: "Content Manager",
-        manager: "Manager",
+        manager: "Content Manager", // Legacy fallback
         // API-level roles (backward compat)
         owner: "Owner",
-        organizer: "Manager",
+        organizer: "Content Manager", // Legacy fallback
         fileOrganizer: "Content Manager",
         writer: "Contributor",
         reader: "Viewer",
@@ -138,7 +138,7 @@ const normalizeRole = (role: string) => {
         commenter: "commenter",
         writer: "contributor",
         fileOrganizer: "contentManager",
-        organizer: "manager",
+        organizer: "contentManager", // Legacy fallback
     };
     return map[role] || role;
 };
@@ -381,8 +381,8 @@ interface DiffRow {
 
 // Access-based role ranking for UI fallback comparison
 const CANONICAL_RANK_UI: Record<string, number> = {
-    viewer: 0, commenter: 1, contributor: 2, contentManager: 3, manager: 4,
-    reader: 0, writer: 2, fileOrganizer: 3, organizer: 4,
+    viewer: 0, commenter: 1, contributor: 2, contentManager: 3,
+    reader: 0, writer: 2, fileOrganizer: 3,
 };
 const canonicalRank = (role: string) => CANONICAL_RANK_UI[normalizeRole(role)] ?? 0;
 

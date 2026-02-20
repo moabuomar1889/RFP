@@ -74,13 +74,13 @@ export default function PermissionsGuidePage() {
                             {/* Row 4: Roles */}
                             <TableRow>
                                 <TableCell className="font-medium">4. تحويل الأدوار (Role Mapping)</TableCell>
-                                <TableCell>الدور في Template هو <code>Manager</code></TableCell>
+                                <TableCell>الدور في Template هو <code>Content Manager</code></TableCell>
                                 <TableCell>يتم تطبيقه كما هو (Trust Template)</TableCell>
                                 <TableCell><strong>نفس الدور (Same Role)</strong></TableCell>
                                 <TableCell>
-                                    سيتم تطبيق الدور كما هو في الـ Template تماماً.
+                                    الأدوار المتاحة للمجلدات داخل الـ Shared Drive هي:
                                     <br />
-                                    (مثال: <code>Manager</code> سيمنح صلاحية Manager فعلياً في Shared Drives).
+                                    <code>Viewer</code>, <code>Commenter</code>, <code>Contributor</code>, <code>Content Manager</code>
                                 </TableCell>
                             </TableRow>
 

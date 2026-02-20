@@ -32,7 +32,7 @@ export const APP_CONFIG = {
 
 // Shared Drive roles mapping
 export const DRIVE_ROLES = {
-    ORGANIZER: 'organizer',
+    // organizer role removed — only valid on Shared Drive root, not sub-folders
     FILE_ORGANIZER: 'fileOrganizer',
     WRITER: 'writer',
     COMMENTER: 'commenter',

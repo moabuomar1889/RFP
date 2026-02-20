@@ -19,24 +19,24 @@
  * Drive API roles (stored in template JSON and returned by Drive API).
  * These are the RAW API-level roles. Use toCanonicalRole() for comparison.
  */
-export type DriveRole = 'reader' | 'commenter' | 'writer' | 'fileOrganizer' | 'organizer';
+export type DriveRole = 'reader' | 'commenter' | 'writer' | 'fileOrganizer';
 
 /**
  * Canonical roles matching the Google Drive UI.
  * This is the SINGLE SOURCE OF TRUTH for role comparison, ranking, and display.
  */
-export type CanonicalRole = 'viewer' | 'commenter' | 'contributor' | 'contentManager' | 'manager';
+export type CanonicalRole = 'viewer' | 'commenter' | 'contributor' | 'contentManager';
 
 /**
  * Map Drive API role → Canonical role.
- *
+ * Matches Google Drive UI for Shared Drive sub-folders:
  *   reader         → viewer
  *   commenter      → commenter
  *   writer         → contributor
  *   fileOrganizer  → contentManager
- *   organizer      → manager
  *
- * IMPORTANT: organizer ≠ fileOrganizer. They are DIFFERENT in Google Drive UI.
+ * NOTE: 'organizer' is NOT valid on sub-folders.
+ * Legacy 'organizer' values are mapped to 'contentManager' for safety.
  */
 export function toCanonicalRole(apiRole: string): CanonicalRole {
     switch (apiRole) {
@@ -44,12 +44,12 @@ export function toCanonicalRole(apiRole: string): CanonicalRole {
         case 'commenter': return 'commenter';
         case 'writer': return 'contributor';
         case 'fileOrganizer': return 'contentManager';
-        case 'organizer': return 'manager';
+        case 'organizer': return 'contentManager'; // Legacy fallback
         // Canonical roles passed through unchanged
         case 'viewer': return 'viewer';
         case 'contributor': return 'contributor';
         case 'contentManager': return 'contentManager';
-        case 'manager': return 'manager';
+        case 'manager': return 'contentManager'; // Legacy fallback
         default: return 'viewer';
     }
 }
@@ -60,17 +60,16 @@ export const CANONICAL_RANK: Record<string, number> = {
     commenter: 1,
     contributor: 2,
     contentManager: 3,
-    manager: 4,
 };
 
-/** Map canonical role key → human-readable UI label. */
+/** Map canonical role key → human-readable UI label (matches Google Drive UI). */
 export function canonicalRoleLabel(role: string): string {
     switch (role) {
         case 'viewer': return 'Viewer';
         case 'commenter': return 'Commenter';
         case 'contributor': return 'Contributor';
         case 'contentManager': return 'Content Manager';
-        case 'manager': return 'Manager';
+        case 'manager': return 'Content Manager'; // Legacy fallback
         default: return role;
     }
 }
@@ -85,7 +84,6 @@ export const ROLE_RANK: Record<string, number> = {
     commenter: 1,
     writer: 2,
     fileOrganizer: 3,
-    organizer: 4,
 };
 
 /**
@@ -133,13 +131,13 @@ export function hasActiveOverrides(o?: Overrides): boolean {
 
 export interface ExplicitPrincipal {
     email: string;
-    role: 'reader' | 'commenter' | 'writer' | 'fileOrganizer' | 'organizer';
+    role: 'reader' | 'commenter' | 'writer' | 'fileOrganizer';
 }
 
 export interface EffectivePrincipal {
     type: 'user' | 'group';
     email: string;
-    role: 'reader' | 'commenter' | 'writer' | 'fileOrganizer' | 'organizer';
+    role: 'reader' | 'commenter' | 'writer' | 'fileOrganizer';
     scope: 'explicit' | 'inherited';
     /** ID of the node that defines this principal (null if explicit on current node) */
     sourceNodeId: string | null;

@@ -295,7 +295,6 @@ const ALL_ROLES: { value: DriveRole; label: string }[] = [
     { value: 'commenter', label: 'Commenter' },
     { value: 'writer', label: 'Contributor' },
     { value: 'fileOrganizer', label: 'Content Manager' },
-    { value: 'organizer', label: 'Manager' },
 ];
 
 // ─── Table B: Explicit Policy (Editable) ────────────────────

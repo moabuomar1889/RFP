@@ -72,7 +72,6 @@ export default function UserDetailPage() {
 
     function getRoleBadge(role: string) {
         const colors: Record<string, string> = {
-            organizer: "bg-red-500",
             fileOrganizer: "bg-orange-500",
             writer: "bg-blue-500",
             commenter: "bg-cyan-500",

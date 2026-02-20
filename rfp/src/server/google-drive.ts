@@ -381,11 +381,17 @@ export async function addPermission(
 ): Promise<drive_v3.Schema$Permission> {
     const drive = await getDriveClient();
 
+    // Safety: 'organizer' is only valid on Shared Drive roots, not sub-folders.
+    // Auto-downgrade to 'writer' (Contributor) to prevent Drive API errors.
+    let safeRole: string = role;
+    if ((role as string) === 'organizer') {
+        console.warn(`addPermission: Downgrading 'organizer' to 'writer' for folder ${folderId} (organizer only valid on Shared Drive root)`);
+        safeRole = 'writer';
+    }
+
     const permissionBody: drive_v3.Schema$Permission = {
         type,
-        // User request: Don't downgrade. Trust template.
-        // If it fails on My Drive, so be it (system is designed for Shared Drives).
-        role,
+        role: safeRole,
     };
 
     if (type === 'user' || type === 'group') {
