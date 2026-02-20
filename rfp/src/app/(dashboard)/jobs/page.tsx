@@ -40,6 +40,8 @@ import {
     Activity,
     Timer,
     Trash2,
+    Search,
+    Filter,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -263,6 +265,10 @@ function JobLogViewer({ jobId, isActive }: { jobId: string; isActive: boolean })
     const [loading, setLoading] = useState(true);
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    // Filter state
+    const [logStatusFilter, setLogStatusFilter] = useState<string>("all");
+    const [logSearch, setLogSearch] = useState("");
+
     const fetchLogs = useCallback(async () => {
         try {
             const res = await fetch(`/api/jobs/${jobId}/logs`);
@@ -291,6 +297,27 @@ function JobLogViewer({ jobId, isActive }: { jobId: string; isActive: boolean })
         }
     }, [logs, isActive]);
 
+    // Filtered logs
+    const filteredLogs = logs.filter((log) => {
+        if (logStatusFilter !== "all" && log.status !== logStatusFilter) return false;
+        if (logSearch) {
+            const q = logSearch.toLowerCase();
+            const msg = getLogMessage(log).toLowerCase();
+            const path = (log.folder_path || "").toLowerCase();
+            if (!msg.includes(q) && !path.includes(q) && !log.action.toLowerCase().includes(q)) return false;
+        }
+        return true;
+    });
+
+    // Count by status
+    const statusCounts = {
+        all: logs.length,
+        success: logs.filter(l => l.status === "success").length,
+        error: logs.filter(l => l.status === "error").length,
+        warning: logs.filter(l => l.status === "warning").length,
+        info: logs.filter(l => l.status === "info").length,
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center py-8">
@@ -308,38 +335,93 @@ function JobLogViewer({ jobId, isActive }: { jobId: string; isActive: boolean })
     }
 
     return (
-        <div
-            ref={scrollRef}
-            className="max-h-[calc(100vh-680px)] min-h-[200px] overflow-y-auto font-mono text-xs bg-muted/30 border rounded-lg p-2 space-y-0.5"
-        >
-            {logs.map((log) => (
-                <div
-                    key={log.id}
-                    className={`flex items-start gap-2 px-2 py-1 rounded ${log.status === "error"
-                        ? "bg-red-100/50 dark:bg-red-950/50 text-red-700 dark:text-red-300"
-                        : log.status === "warning"
-                            ? "bg-yellow-100/50 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-300"
-                            : log.status === "success"
-                                ? "bg-green-100/30 dark:bg-green-950/30 text-green-700 dark:text-green-300"
-                                : "text-foreground/80"
-                        }`}
-                >
-                    <div className="mt-0.5 flex-shrink-0">
-                        {getLogIcon(log.action, log.status)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <span className="truncate block">{getLogMessage(log)}</span>
-                        {log.folder_path && (
-                            <span className="text-[10px] text-gray-500 truncate block">
-                                📁 {log.folder_path}
-                            </span>
-                        )}
-                    </div>
-                    <span className="text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0">
-                        {new Date(log.created_at).toLocaleTimeString()}
-                    </span>
+        <div className="space-y-2">
+            {/* ─── Filter Bar ─── */}
+            <div className="flex flex-wrap items-center gap-2">
+                {/* Status filter pills */}
+                {(["all", "success", "error", "warning", "info"] as const).map((st) => {
+                    const count = statusCounts[st];
+                    const isActive = logStatusFilter === st;
+                    const colorMap: Record<string, string> = {
+                        all: isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80",
+                        success: isActive ? "bg-green-600 text-white" : "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-950/40 dark:text-green-300",
+                        error: isActive ? "bg-red-600 text-white" : "bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950/40 dark:text-red-300",
+                        warning: isActive ? "bg-yellow-600 text-white" : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200 dark:bg-yellow-950/40 dark:text-yellow-300",
+                        info: isActive ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-950/40 dark:text-blue-300",
+                    };
+                    return (
+                        <button
+                            key={st}
+                            onClick={() => setLogStatusFilter(st)}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${colorMap[st]}`}
+                        >
+                            {st === "all" ? "All" : st.charAt(0).toUpperCase() + st.slice(1)}
+                            <span className="opacity-70">({count})</span>
+                        </button>
+                    );
+                })}
+
+                {/* Search */}
+                <div className="relative flex-1 min-w-[120px] max-w-[200px] ml-auto">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                    <input
+                        type="text"
+                        placeholder="Search logs…"
+                        value={logSearch}
+                        onChange={(e) => setLogSearch(e.target.value)}
+                        className="w-full pl-6 pr-2 py-1 text-[11px] border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
                 </div>
-            ))}
+            </div>
+
+            {/* Showing count */}
+            {(logStatusFilter !== "all" || logSearch) && (
+                <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <Filter className="h-3 w-3" />
+                    Showing {filteredLogs.length} of {logs.length} logs
+                    {logSearch && <span>matching "{logSearch}"</span>}
+                </div>
+            )}
+
+            {/* ─── Log List ─── */}
+            <div
+                ref={scrollRef}
+                className="max-h-[calc(100vh-780px)] min-h-[200px] overflow-y-auto font-mono text-xs bg-muted/30 border rounded-lg p-2 space-y-0.5"
+            >
+                {filteredLogs.map((log) => (
+                    <div
+                        key={log.id}
+                        className={`flex items-start gap-2 px-2 py-1 rounded ${log.status === "error"
+                            ? "bg-red-100/50 dark:bg-red-950/50 text-red-700 dark:text-red-300"
+                            : log.status === "warning"
+                                ? "bg-yellow-100/50 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-300"
+                                : log.status === "success"
+                                    ? "bg-green-100/30 dark:bg-green-950/30 text-green-700 dark:text-green-300"
+                                    : "text-foreground/80"
+                            }`}
+                    >
+                        <div className="mt-0.5 flex-shrink-0">
+                            {getLogIcon(log.action, log.status)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <span className="truncate block">{getLogMessage(log)}</span>
+                            {log.folder_path && (
+                                <span className="text-[10px] text-gray-500 truncate block">
+                                    📁 {log.folder_path}
+                                </span>
+                            )}
+                        </div>
+                        <span className="text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0">
+                            {new Date(log.created_at).toLocaleTimeString()}
+                        </span>
+                    </div>
+                ))}
+                {filteredLogs.length === 0 && (
+                    <div className="py-6 text-center text-sm text-muted-foreground">
+                        No logs match the current filters.
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
