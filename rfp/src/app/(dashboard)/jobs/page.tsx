@@ -297,9 +297,20 @@ function JobLogViewer({ jobId, isActive }: { jobId: string; isActive: boolean })
         }
     }, [logs, isActive]);
 
+    // Normalize DB status values to display categories
+    // DB can return: completed, failed, pending, running, skipped, info, success, warning, error
+    const normalizeLogStatus = (s: string): string => {
+        switch (s) {
+            case "completed": case "success": return "success";
+            case "failed": case "error": return "error";
+            case "warning": case "skipped": return "warning";
+            default: return "info"; // pending, running, info, or anything else
+        }
+    };
+
     // Filtered logs
     const filteredLogs = logs.filter((log) => {
-        if (logStatusFilter !== "all" && log.status !== logStatusFilter) return false;
+        if (logStatusFilter !== "all" && normalizeLogStatus(log.status) !== logStatusFilter) return false;
         if (logSearch) {
             const q = logSearch.toLowerCase();
             const msg = getLogMessage(log).toLowerCase();
@@ -312,10 +323,10 @@ function JobLogViewer({ jobId, isActive }: { jobId: string; isActive: boolean })
     // Count by status
     const statusCounts = {
         all: logs.length,
-        success: logs.filter(l => l.status === "success").length,
-        error: logs.filter(l => l.status === "error").length,
-        warning: logs.filter(l => l.status === "warning").length,
-        info: logs.filter(l => l.status === "info").length,
+        success: logs.filter(l => normalizeLogStatus(l.status) === "success").length,
+        error: logs.filter(l => normalizeLogStatus(l.status) === "error").length,
+        warning: logs.filter(l => normalizeLogStatus(l.status) === "warning").length,
+        info: logs.filter(l => normalizeLogStatus(l.status) === "info").length,
     };
 
     if (loading) {
@@ -388,34 +399,37 @@ function JobLogViewer({ jobId, isActive }: { jobId: string; isActive: boolean })
                 ref={scrollRef}
                 className="max-h-[calc(100vh-780px)] min-h-[200px] overflow-y-auto font-mono text-xs bg-muted/30 border rounded-lg p-2 space-y-0.5"
             >
-                {filteredLogs.map((log) => (
-                    <div
-                        key={log.id}
-                        className={`flex items-start gap-2 px-2 py-1 rounded ${log.status === "error"
-                            ? "bg-red-100/50 dark:bg-red-950/50 text-red-700 dark:text-red-300"
-                            : log.status === "warning"
-                                ? "bg-yellow-100/50 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-300"
-                                : log.status === "success"
-                                    ? "bg-green-100/30 dark:bg-green-950/30 text-green-700 dark:text-green-300"
-                                    : "text-foreground/80"
-                            }`}
-                    >
-                        <div className="mt-0.5 flex-shrink-0">
-                            {getLogIcon(log.action, log.status)}
+                {filteredLogs.map((log) => {
+                    const ns = normalizeLogStatus(log.status);
+                    return (
+                        <div
+                            key={log.id}
+                            className={`flex items-start gap-2 px-2 py-1 rounded ${ns === "error"
+                                ? "bg-red-100/50 dark:bg-red-950/50 text-red-700 dark:text-red-300"
+                                : ns === "warning"
+                                    ? "bg-yellow-100/50 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-300"
+                                    : ns === "success"
+                                        ? "bg-green-100/30 dark:bg-green-950/30 text-green-700 dark:text-green-300"
+                                        : "text-foreground/80"
+                                }`}
+                        >
+                            <div className="mt-0.5 flex-shrink-0">
+                                {getLogIcon(log.action, log.status)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <span className="truncate block">{getLogMessage(log)}</span>
+                                {log.folder_path && (
+                                    <span className="text-[10px] text-gray-500 truncate block">
+                                        📁 {log.folder_path}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0">
+                                {new Date(log.created_at).toLocaleTimeString()}
+                            </span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <span className="truncate block">{getLogMessage(log)}</span>
-                            {log.folder_path && (
-                                <span className="text-[10px] text-gray-500 truncate block">
-                                    📁 {log.folder_path}
-                                </span>
-                            )}
-                        </div>
-                        <span className="text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0">
-                            {new Date(log.created_at).toLocaleTimeString()}
-                        </span>
-                    </div>
-                ))}
+                    );
+                })}
                 {filteredLogs.length === 0 && (
                     <div className="py-6 text-center text-sm text-muted-foreground">
                         No logs match the current filters.
