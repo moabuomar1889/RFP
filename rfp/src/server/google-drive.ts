@@ -388,6 +388,9 @@ export async function addPermission(
         console.warn(`addPermission: Downgrading 'organizer' to 'writer' for folder ${folderId} (organizer only valid on Shared Drive root)`);
         safeRole = 'writer';
     }
+    // Also try fileOrganizer first, but auto-retry with 'writer' if it fails
+    // (fileOrganizer is only valid on Shared Drives, not regular Drive folders)
+    const useFileOrganizer = (safeRole === 'fileOrganizer');
 
     const permissionBody: drive_v3.Schema$Permission = {
         type,
@@ -400,15 +403,31 @@ export async function addPermission(
         permissionBody.domain = emailOrDomain;
     }
 
-    const response = await drive.permissions.create({
-        fileId: folderId,
-        requestBody: permissionBody,
-        supportsAllDrives: true,
-        sendNotificationEmail: false,
-        fields: 'id, type, role, emailAddress, domain',
-    });
-
-    return response.data;
+    try {
+        const response = await drive.permissions.create({
+            fileId: folderId,
+            requestBody: permissionBody,
+            supportsAllDrives: true,
+            sendNotificationEmail: false,
+            fields: 'id, type, role, emailAddress, domain',
+        });
+        return response.data;
+    } catch (err: any) {
+        // Auto-retry: if fileOrganizer fails (not a Shared Drive), downgrade to writer
+        if (useFileOrganizer && err.message?.includes('FileOrganizer')) {
+            console.warn(`addPermission: fileOrganizer failed for ${folderId}, retrying with 'writer'`);
+            permissionBody.role = 'writer';
+            const retryResponse = await drive.permissions.create({
+                fileId: folderId,
+                requestBody: permissionBody,
+                supportsAllDrives: true,
+                sendNotificationEmail: false,
+                fields: 'id, type, role, emailAddress, domain',
+            });
+            return retryResponse.data;
+        }
+        throw err;
+    }
 }
 
 /**

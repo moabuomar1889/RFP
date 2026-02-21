@@ -1054,7 +1054,7 @@ async function createMissingFoldersFromTemplate(
                 const parentFolder = (existingFolders || []).find(
                     (f: any) => (f.normalized_template_path || f.template_path) === parentPath
                 );
-                parentId = parentFolder?.google_folder_id || parentId;
+                parentId = parentFolder?.drive_folder_id || parentFolder?.google_folder_id || parentId;
             }
 
             // Create folder in Google Drive with project-prefixed name
