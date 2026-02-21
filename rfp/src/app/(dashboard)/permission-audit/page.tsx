@@ -481,7 +481,69 @@ function buildDiffRows(comp: PermissionComparison): DiffRow[] {
     return rows;
 }
 
-function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
+// Available Drive roles for inline editing
+const AUDIT_EDIT_ROLES = [
+    { value: 'reader', label: 'Viewer' },
+    { value: 'commenter', label: 'Commenter' },
+    { value: 'writer', label: 'Contributor' },
+    { value: 'fileOrganizer', label: 'Content Manager' },
+];
+
+// Re-derive status & discrepancies for a single comparison after a role change
+function recomputeCompStatus(comp: PermissionComparison): PermissionComparison {
+    // Rebuild diff rows from the updated expected data
+    const rows = buildDiffRows(comp);
+    const missing = rows.filter(r => r.diffStatus === 'missing').length;
+    const extra = rows.filter(r => r.diffStatus === 'extra').length;
+    const mismatch = rows.filter(r => r.diffStatus === 'role_mismatch' || r.diffStatus === 'mismatch').length;
+    const match = rows.filter(r => r.diffStatus === 'match').length;
+
+    // Derive new discrepancies
+    const discrepancies: string[] = [];
+    for (const r of rows) {
+        if (r.diffStatus === 'missing') discrepancies.push(`Missing: ${r.email}`);
+        if (r.diffStatus === 'extra') discrepancies.push(`Extra: ${r.email}`);
+        if (r.diffStatus === 'role_mismatch' || r.diffStatus === 'mismatch') {
+            discrepancies.push(`Role mismatch: ${r.email} (expected ${getRoleLabel(r.expectedRole || '')}, actual ${getRoleLabel(r.actualRole || '')})`);
+        }
+    }
+
+    const hasIssues = missing > 0 || mismatch > 0;
+    const status: PermissionComparison['status'] =
+        hasIssues ? 'non_compliant' :
+            extra > 0 ? 'compliant' : 'exact_match';
+    const statusLabel = status === 'exact_match' ? 'Exact Match' : status === 'compliant' ? 'Compliant' : 'Non-Compliant';
+
+    // Update comparisonRows too if they exist
+    const comparisonRows = rows.map(r => ({
+        type: r.type,
+        identifier: r.email,
+        expectedRole: r.expectedRole,
+        expectedRoleRaw: r.expectedRole,
+        actualRole: r.actualRole,
+        actualRoleRaw: r.actualRole,
+        status: r.diffStatus === 'role_mismatch' ? 'mismatch' as const : r.diffStatus,
+        tags: r.tags || [],
+        inherited: r.inherited,
+    }));
+
+    return {
+        ...comp,
+        matchCount: match,
+        extraCount: extra,
+        missingCount: missing,
+        mismatchCount: mismatch,
+        status,
+        statusLabel,
+        discrepancies,
+        comparisonRows,
+    };
+}
+
+function AuditComparisonTable({ comp, onRoleChange }: {
+    comp: PermissionComparison;
+    onRoleChange?: (email: string, type: 'group' | 'user', newDriveRole: string) => void;
+}) {
     const rows = buildDiffRows(comp);
 
     const getRowTint = (status: string) => {
@@ -607,6 +669,17 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
         }
     };
 
+    // Resolve the current drive-role key for the dropdown value
+    const resolveDropdownValue = (role: string): string => {
+        const map: Record<string, string> = {
+            viewer: 'reader', commenter: 'commenter', contributor: 'writer',
+            contentManager: 'fileOrganizer', manager: 'fileOrganizer',
+            reader: 'reader', writer: 'writer', fileOrganizer: 'fileOrganizer',
+            organizer: 'fileOrganizer',
+        };
+        return map[role] || role;
+    };
+
     return (
         <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -621,7 +694,7 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
                     <TableRow>
                         <TableHead className="w-[60px]">Type</TableHead>
                         <TableHead>Identifier</TableHead>
-                        <TableHead className="w-[110px]">Expected</TableHead>
+                        <TableHead className="w-[140px]">Expected</TableHead>
                         <TableHead className="w-[110px]">Actual</TableHead>
                         <TableHead className="w-[120px]">Status</TableHead>
                     </TableRow>
@@ -647,7 +720,17 @@ function AuditComparisonTable({ comp }: { comp: PermissionComparison }) {
                                 )}
                             </TableCell>
                             <TableCell>
-                                {row.expectedRole ? (
+                                {row.expectedRole && onRoleChange ? (
+                                    <select
+                                        value={resolveDropdownValue(row.expectedRole)}
+                                        onChange={(e) => onRoleChange(row.email, row.type, e.target.value)}
+                                        className="text-xs bg-transparent border border-border rounded px-1.5 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary w-full"
+                                    >
+                                        {AUDIT_EDIT_ROLES.map(r => (
+                                            <option key={r.value} value={r.value}>{r.label}</option>
+                                        ))}
+                                    </select>
+                                ) : row.expectedRole ? (
                                     <Badge variant="outline" className="text-xs">
                                         {getRoleLabel(row.expectedRole)}
                                     </Badge>
@@ -862,11 +945,151 @@ export default function PermissionAuditPage() {
     const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [enforcing, setEnforcing] = useState(false);
+    const [savingRole, setSavingRole] = useState(false);
 
     // Tree state
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
     const [filter, setFilter] = useState<"all" | "issues">("all");
+
+    // ─── Inline Role Change Handler ─────────────────────────
+    const handleRoleChange = useCallback(async (
+        folderPath: string,
+        email: string,
+        type: 'group' | 'user',
+        newDriveRole: string  // reader, commenter, writer, fileOrganizer
+    ) => {
+        if (!auditResult || savingRole) return;
+
+        // 1. Optimistic local update: update the comparison in auditResult
+        const updatedComparisons = auditResult.comparisons.map(comp => {
+            if (comp.normalizedPath !== folderPath) return comp;
+
+            // Update expectedGroups or expectedUsers
+            const updatedComp = { ...comp };
+            if (type === 'group') {
+                updatedComp.expectedGroups = comp.expectedGroups.map(g =>
+                    g.email.toLowerCase() === email.toLowerCase()
+                        ? { ...g, role: newDriveRole }
+                        : g
+                );
+            } else {
+                updatedComp.expectedUsers = comp.expectedUsers.map(u =>
+                    u.email.toLowerCase() === email.toLowerCase()
+                        ? { ...u, role: newDriveRole }
+                        : u
+                );
+            }
+
+            // Also update comparisonRows if they exist
+            if (updatedComp.comparisonRows) {
+                updatedComp.comparisonRows = updatedComp.comparisonRows.map(r =>
+                    r.identifier.toLowerCase() === email.toLowerCase()
+                        ? { ...r, expectedRole: newDriveRole }
+                        : r
+                );
+            }
+
+            // Re-derive status, discrepancies from updated data
+            return recomputeCompStatus(updatedComp);
+        });
+
+        // Recompute top-level counts
+        const matchCount = updatedComparisons.reduce((s, c) => s + (c.matchCount ?? 0), 0);
+        const extraCount = updatedComparisons.reduce((s, c) => s + (c.extraCount ?? 0), 0);
+        const missingCount = updatedComparisons.reduce((s, c) => s + (c.missingCount ?? 0), 0);
+        const mismatchCount = updatedComparisons.reduce((s, c) => s + (c.mismatchCount ?? 0), 0);
+
+        const updatedResult = {
+            ...auditResult,
+            comparisons: updatedComparisons,
+            matchCount,
+            extraCount,
+            missingCount,
+            mismatchCount,
+        };
+
+        setAuditResult(updatedResult);
+        // Also update session cache
+        try {
+            sessionStorage.setItem('rfp_audit_cache', JSON.stringify({
+                projectId: selectedProjectId,
+                result: updatedResult
+            }));
+        } catch { /* ignore */ }
+
+        // 2. Save to template in the background
+        setSavingRole(true);
+        try {
+            // Fetch current template
+            const tplRes = await fetch('/api/template');
+            const tplData = await tplRes.json();
+            if (!tplData.success || !tplData.template) {
+                toast.error('Failed to load template');
+                return;
+            }
+
+            const templateJson = typeof tplData.template.template_json === 'string'
+                ? JSON.parse(tplData.template.template_json)
+                : tplData.template.template_json;
+
+            // Find and update the node in the template tree
+            let found = false;
+            function updateNode(node: Record<string, unknown>): boolean {
+                const nodePath = (node.path as string) || '';
+                // Match by normalized path
+                if (nodePath === folderPath || nodePath.replace(/^.*?\//, '') === folderPath) {
+                    const collection = type === 'group' ? 'groups' : 'users';
+                    const entries = (node[collection] as Array<{ email: string; role: string }>) || [];
+                    for (const entry of entries) {
+                        if (entry.email.toLowerCase() === email.toLowerCase()) {
+                            entry.role = newDriveRole;
+                            found = true;
+                            return true;
+                        }
+                    }
+                }
+                const children = (node.children as Array<Record<string, unknown>>) || [];
+                for (const child of children) {
+                    if (updateNode(child)) return true;
+                }
+                return false;
+            }
+
+            // Template can be array of phases or a single root
+            const phases = Array.isArray(templateJson) ? templateJson : (templateJson.phases || [templateJson]);
+            for (const phase of phases) {
+                const roots = phase.folders || phase.children || [phase];
+                for (const root of roots) {
+                    if (updateNode(root)) break;
+                }
+                if (found) break;
+            }
+
+            if (!found) {
+                toast.warning(`Could not find ${email} in template for path: ${folderPath}`);
+                return;
+            }
+
+            // Save updated template
+            const saveRes = await fetch('/api/template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ template_json: templateJson }),
+            });
+            const saveData = await saveRes.json();
+            if (saveData.success) {
+                toast.success(`Template updated: ${email} → ${getRoleLabel(newDriveRole)}`);
+            } else {
+                toast.error('Failed to save template: ' + (saveData.error || 'Unknown'));
+            }
+        } catch (error) {
+            console.error('Role change template save error:', error);
+            toast.error('Error saving role change to template');
+        } finally {
+            setSavingRole(false);
+        }
+    }, [auditResult, savingRole, selectedProjectId]);
 
     // Restore cached audit results on mount
     useEffect(() => {
@@ -1289,7 +1512,12 @@ export default function PermissionAuditPage() {
                                         <div className="space-y-6 pr-2">
                                             <AuditSummaryBar comp={selectedComp} />
                                             <div className="border-t" />
-                                            <AuditComparisonTable comp={selectedComp} />
+                                            <AuditComparisonTable
+                                                comp={selectedComp}
+                                                onRoleChange={(email, type, newRole) =>
+                                                    handleRoleChange(selectedComp.normalizedPath, email, type, newRole)
+                                                }
+                                            />
                                             <div className="border-t" />
                                             <AuditDiscrepancyList comp={selectedComp} />
                                         </div>
