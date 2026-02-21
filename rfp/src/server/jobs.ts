@@ -1205,14 +1205,28 @@ async function enforceProjectPermissionsWithReset(
         source: eventMetadata ? 'event_data' : 'default'
     });
 
-    // Step 3: Get folders to process using RPC (includes normalized_template_path)
+    // Step 2.5: Rebuild folder index from Drive (sync DB with reality)
+    // This deletes stale entries (e.g. folders deleted from Drive) and re-indexes only real folders.
+    // MUST happen before createMissingFoldersFromTemplate so the DB reflects actual Drive state.
+    console.log(`[ENFORCE] Rebuilding folder index from Drive...`);
+    await writeJobLog(jobId, project.id, project.name, null, 'rebuild_index_start', 'info', {
+        message: 'Rebuilding folder index from Drive before enforcement'
+    });
+    const rebuildResult = await rebuildFolderIndexForProject(project);
+    await writeJobLog(jobId, project.id, project.name, null, 'rebuild_index_complete', 'success', {
+        foldersFound: rebuildResult.foldersFound,
+        foldersUpserted: rebuildResult.foldersUpserted
+    });
+
+    // Step 3: Get folders to process using RPC (now reflects actual Drive state)
     let { data: rawFolders } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
+    if (!rawFolders) rawFolders = [];
 
     if (!rawFolders || rawFolders.length === 0) {
         await writeJobLog(jobId, project.id, project.name, null, 'warning', 'warning', {
-            message: 'No folders found in index'
+            message: 'No folders found in index (Drive may be empty)'
         });
-        return { removed: 0, added: 0, errors: 0 };
+        // Don't return — proceed to create missing folders from template
     }
 
     // Step 3.5: Auto-create missing folders from template
