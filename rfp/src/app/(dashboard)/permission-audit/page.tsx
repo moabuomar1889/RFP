@@ -43,6 +43,7 @@ import {
     Users,
     User,
     Info,
+    Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ContextMenu } from "@/components/ui/context-menu";
@@ -949,6 +950,8 @@ export default function PermissionAuditPage() {
     // Pending role changes (local-only edits that need saving on Enforce)
     // Key: "folderPath|email", Value: { folderPath, email, type, newDriveRole }
     const pendingRoleChanges = useRef<Map<string, { folderPath: string; email: string; type: 'group' | 'user'; newDriveRole: string }>>(new Map());
+    const originalAuditResult = useRef<AuditResult | null>(null);
+    const [hasPendingChanges, setHasPendingChanges] = useState(false);
 
     // Tree state
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -969,6 +972,7 @@ export default function PermissionAuditPage() {
         // Track this as a pending change to save on Enforce
         const key = `${folderPath}|${email.toLowerCase()}`;
         pendingRoleChanges.current.set(key, { folderPath, email, type, newDriveRole });
+        setHasPendingChanges(true);
 
         // Local-only update: update the comparison in auditResult
         const updatedComparisons = auditResult.comparisons.map(comp => {
@@ -990,10 +994,28 @@ export default function PermissionAuditPage() {
                 );
             }
 
-            // CRITICAL: Clear comparisonRows so recomputeCompStatus uses
-            // the fallback client-side derivation path, which correctly
-            // re-derives status from expectedGroups/expectedUsers vs actualPermissions
-            updatedComp.comparisonRows = [];
+            // Update the specific row in comparisonRows IN-PLACE with new role + re-derived status.
+            // We must NOT clear comparisonRows — they contain inherited/effective data from the API
+            // that the client-side fallback cannot reproduce.
+            if (updatedComp.comparisonRows && updatedComp.comparisonRows.length > 0) {
+                updatedComp.comparisonRows = updatedComp.comparisonRows.map(r => {
+                    if (r.identifier.toLowerCase() !== email.toLowerCase()) return r;
+                    // Re-derive status for this row based on new expected vs actual
+                    const updated = { ...r, expectedRole: newDriveRole, expectedRoleRaw: newDriveRole };
+                    if (updated.actualRole) {
+                        const expectedRank = canonicalRank(newDriveRole);
+                        const actualRank = canonicalRank(updated.actualRole);
+                        if (actualRank <= expectedRank) {
+                            updated.status = 'match';
+                        } else {
+                            updated.status = 'mismatch';
+                        }
+                    } else {
+                        updated.status = 'missing';
+                    }
+                    return updated;
+                });
+            }
 
             // Re-derive status, discrepancies from updated data
             return recomputeCompStatus(updatedComp);
@@ -1192,6 +1214,9 @@ export default function PermissionAuditPage() {
             const data = await res.json();
             if (data.success) {
                 setAuditResult(data.result);
+                originalAuditResult.current = data.result;
+                pendingRoleChanges.current.clear();
+                setHasPendingChanges(false);
                 // Cache results in sessionStorage for persistence across navigation
                 try {
                     sessionStorage.setItem('rfp_audit_cache', JSON.stringify({
@@ -1602,10 +1627,34 @@ export default function PermissionAuditPage() {
                 <Card>
                     <CardContent className="py-4">
                         <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">
-                                Enforce template permissions on Google Drive
-                            </p>
+                            <div className="flex items-center gap-3">
+                                <p className="text-sm text-muted-foreground">
+                                    Enforce template permissions on Google Drive
+                                </p>
+                                {hasPendingChanges && (
+                                    <Badge variant="outline" className="text-xs text-amber-500 border-amber-500">
+                                        {pendingRoleChanges.current.size} unsaved change{pendingRoleChanges.current.size > 1 ? 's' : ''}
+                                    </Badge>
+                                )}
+                            </div>
                             <div className="flex gap-2">
+                                {hasPendingChanges && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => {
+                                            if (originalAuditResult.current) {
+                                                setAuditResult(originalAuditResult.current);
+                                                pendingRoleChanges.current.clear();
+                                                setHasPendingChanges(false);
+                                                toast.info('Role changes reverted');
+                                            }
+                                        }}
+                                        disabled={enforcing}
+                                    >
+                                        <Undo2 className="h-4 w-4 mr-2" />
+                                        Undo Changes
+                                    </Button>
+                                )}
                                 <Button
                                     onClick={enforceProject}
                                     disabled={!selectedProjectId || enforcing}
