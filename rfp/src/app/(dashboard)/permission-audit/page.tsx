@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -945,23 +945,32 @@ export default function PermissionAuditPage() {
     const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [enforcing, setEnforcing] = useState(false);
-    const [savingRole, setSavingRole] = useState(false);
+
+    // Pending role changes (local-only edits that need saving on Enforce)
+    // Key: "folderPath|email", Value: { folderPath, email, type, newDriveRole }
+    const pendingRoleChanges = useRef<Map<string, { folderPath: string; email: string; type: 'group' | 'user'; newDriveRole: string }>>(new Map());
 
     // Tree state
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
     const [filter, setFilter] = useState<"all" | "issues">("all");
 
-    // ─── Inline Role Change Handler ─────────────────────────
-    const handleRoleChange = useCallback(async (
+    // ─── Inline Role Change Handler (LOCAL PREVIEW ONLY) ────
+    // Only updates local state for live preview.
+    // Template is saved later when user presses Enforce.
+    const handleRoleChange = useCallback((
         folderPath: string,
         email: string,
         type: 'group' | 'user',
         newDriveRole: string  // reader, commenter, writer, fileOrganizer
     ) => {
-        if (!auditResult || savingRole) return;
+        if (!auditResult) return;
 
-        // 1. Optimistic local update: update the comparison in auditResult
+        // Track this as a pending change to save on Enforce
+        const key = `${folderPath}|${email.toLowerCase()}`;
+        pendingRoleChanges.current.set(key, { folderPath, email, type, newDriveRole });
+
+        // Local-only update: update the comparison in auditResult
         const updatedComparisons = auditResult.comparisons.map(comp => {
             if (comp.normalizedPath !== folderPath) return comp;
 
@@ -981,14 +990,10 @@ export default function PermissionAuditPage() {
                 );
             }
 
-            // Also update comparisonRows if they exist
-            if (updatedComp.comparisonRows) {
-                updatedComp.comparisonRows = updatedComp.comparisonRows.map(r =>
-                    r.identifier.toLowerCase() === email.toLowerCase()
-                        ? { ...r, expectedRole: newDriveRole }
-                        : r
-                );
-            }
+            // CRITICAL: Clear comparisonRows so recomputeCompStatus uses
+            // the fallback client-side derivation path, which correctly
+            // re-derives status from expectedGroups/expectedUsers vs actualPermissions
+            updatedComp.comparisonRows = [];
 
             // Re-derive status, discrepancies from updated data
             return recomputeCompStatus(updatedComp);
@@ -1017,58 +1022,87 @@ export default function PermissionAuditPage() {
                 result: updatedResult
             }));
         } catch { /* ignore */ }
+    }, [auditResult, selectedProjectId]);
 
-        // 2. Save to template in the background
-        setSavingRole(true);
+    // ─── Save pending role changes to template ──────────────
+    // Called before enforcement to persist all local edits to DB.
+    const savePendingRoleChanges = useCallback(async (): Promise<boolean> => {
+        if (pendingRoleChanges.current.size === 0) return true;
+
         try {
             // Fetch current template
             const tplRes = await fetch('/api/template');
             const tplData = await tplRes.json();
             if (!tplData.success || !tplData.template) {
-                toast.error('Failed to load template');
-                return;
+                toast.error('Failed to load template for saving role changes');
+                return false;
             }
 
             const templateJson = typeof tplData.template.template_json === 'string'
                 ? JSON.parse(tplData.template.template_json)
                 : tplData.template.template_json;
 
-            // Find and update the node in the template tree
-            let found = false;
-            function updateNode(node: Record<string, unknown>): boolean {
-                const nodePath = (node.path as string) || '';
-                // Match by normalized path
-                if (nodePath === folderPath || nodePath.replace(/^.*?\//, '') === folderPath) {
-                    const collection = type === 'group' ? 'groups' : 'users';
-                    const entries = (node[collection] as Array<{ email: string; role: string }>) || [];
-                    for (const entry of entries) {
-                        if (entry.email.toLowerCase() === email.toLowerCase()) {
-                            entry.role = newDriveRole;
-                            found = true;
-                            return true;
-                        }
+            // Template is an array of phase nodes: [{name:"Bidding", children:[...]}, {name:"Project Delivery", children:[...]}]
+            const phases = Array.isArray(templateJson) ? templateJson : (templateJson.phases || [templateJson]);
+
+            // Walk template tree building paths from name segments to match normalizedPath
+            function findNodeByPath(
+                node: Record<string, unknown>,
+                currentPath: string,
+                targetPath: string
+            ): Record<string, unknown> | null {
+                const nodeName = (node.name as string) || (node.text as string) || '';
+                const fullPath = currentPath ? `${currentPath}/${nodeName}` : nodeName;
+
+                if (fullPath === targetPath) return node;
+
+                const children = (node.children as Array<Record<string, unknown>>) || (node.nodes as Array<Record<string, unknown>>) || [];
+                for (const child of children) {
+                    const found = findNodeByPath(child, fullPath, targetPath);
+                    if (found) return found;
+                }
+                return null;
+            }
+
+            let anyFailed = false;
+            for (const [, change] of pendingRoleChanges.current) {
+                // normalizedPath = "Phase/Folder" e.g. "Project Delivery/Project Control"
+                let targetNode: Record<string, unknown> | null = null;
+
+                for (const phase of phases) {
+                    targetNode = findNodeByPath(phase, '', change.folderPath);
+                    if (targetNode) break;
+                }
+
+                if (!targetNode) {
+                    // The normalizedPath includes the phase prefix.
+                    // The phase root node IS also a node with name.
+                    // So "Project Delivery/Project Control" means:
+                    //   phase.name = "Project Delivery", child.name = "Project Control"
+                    // findNodeByPath starting from phase with empty currentPath builds:
+                    //   "Project Delivery" then "Project Delivery/Project Control"
+                    // This should match. If it doesn't, log warning.
+                    toast.warning(`Could not find template node for path: ${change.folderPath}`);
+                    anyFailed = true;
+                    continue;
+                }
+
+                // Find and update the principal in the node
+                const collection = change.type === 'group' ? 'groups' : 'users';
+                const entries = (targetNode[collection] as Array<{ email: string; role: string }>) || [];
+                let principalFound = false;
+                for (const entry of entries) {
+                    if (entry.email.toLowerCase() === change.email.toLowerCase()) {
+                        entry.role = change.newDriveRole;
+                        principalFound = true;
+                        break;
                     }
                 }
-                const children = (node.children as Array<Record<string, unknown>>) || [];
-                for (const child of children) {
-                    if (updateNode(child)) return true;
-                }
-                return false;
-            }
 
-            // Template can be array of phases or a single root
-            const phases = Array.isArray(templateJson) ? templateJson : (templateJson.phases || [templateJson]);
-            for (const phase of phases) {
-                const roots = phase.folders || phase.children || [phase];
-                for (const root of roots) {
-                    if (updateNode(root)) break;
+                if (!principalFound) {
+                    toast.warning(`Could not find ${change.email} in template node: ${change.folderPath}`);
+                    anyFailed = true;
                 }
-                if (found) break;
-            }
-
-            if (!found) {
-                toast.warning(`Could not find ${email} in template for path: ${folderPath}`);
-                return;
             }
 
             // Save updated template
@@ -1079,17 +1113,20 @@ export default function PermissionAuditPage() {
             });
             const saveData = await saveRes.json();
             if (saveData.success) {
-                toast.success(`Template updated: ${email} → ${getRoleLabel(newDriveRole)}`);
+                const count = pendingRoleChanges.current.size;
+                pendingRoleChanges.current.clear();
+                toast.success(`Template saved (${count} role change${count > 1 ? 's' : ''})`);
+                return !anyFailed;
             } else {
                 toast.error('Failed to save template: ' + (saveData.error || 'Unknown'));
+                return false;
             }
         } catch (error) {
-            console.error('Role change template save error:', error);
-            toast.error('Error saving role change to template');
-        } finally {
-            setSavingRole(false);
+            console.error('Error saving pending role changes:', error);
+            toast.error('Error saving role changes to template');
+            return false;
         }
-    }, [auditResult, savingRole, selectedProjectId]);
+    }, []);
 
     // Restore cached audit results on mount
     useEffect(() => {
@@ -1190,11 +1227,25 @@ export default function PermissionAuditPage() {
         }
     }, [selectedProjectId]);
 
-    // Enforce THIS project only (FIX: was sending {all: true })
+    // Enforce THIS project only
+    // Saves pending role changes to template first, then triggers enforcement
     const enforceProject = useCallback(async () => {
         if (!selectedProjectId) return;
         setEnforcing(true);
         try {
+            // Save pending role changes to template first
+            if (pendingRoleChanges.current.size > 0) {
+                toast.info('Saving template changes before enforcement...');
+                const saved = await savePendingRoleChanges();
+                if (!saved) {
+                    const proceed = confirm('Some template changes could not be saved. Continue with enforcement anyway?');
+                    if (!proceed) {
+                        setEnforcing(false);
+                        return;
+                    }
+                }
+            }
+
             const res = await fetch("/api/jobs/enforce-permissions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1213,9 +1264,10 @@ export default function PermissionAuditPage() {
         } finally {
             setEnforcing(false);
         }
-    }, [selectedProjectId]);
+    }, [selectedProjectId, savePendingRoleChanges]);
 
     // Enforce ALL projects
+    // Saves pending role changes to template first, then triggers enforcement
     const enforceAllProjects = useCallback(async () => {
         const confirmed = confirm(
             "Enforce permissions for ALL projects? This will create a job for each project."
@@ -1223,6 +1275,12 @@ export default function PermissionAuditPage() {
         if (!confirmed) return;
         setEnforcing(true);
         try {
+            // Save pending role changes to template first
+            if (pendingRoleChanges.current.size > 0) {
+                toast.info('Saving template changes before enforcement...');
+                await savePendingRoleChanges();
+            }
+
             const res = await fetch("/api/jobs/enforce-permissions", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1241,7 +1299,7 @@ export default function PermissionAuditPage() {
         } finally {
             setEnforcing(false);
         }
-    }, []);
+    }, [savePendingRoleChanges]);
 
     // Enforce single folder
     const enforceSingleFolder = useCallback(async (folderPath: string) => {
