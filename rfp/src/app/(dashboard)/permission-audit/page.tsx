@@ -671,12 +671,19 @@ function AuditComparisonTable({ comp, onRoleChange }: {
     };
 
     // Resolve the current drive-role key for the dropdown value
+    // Handles BOTH canonical keys (viewer, contributor) AND
+    // capitalized labels from API comparisonRows (Viewer, Contributor, Content Manager)
     const resolveDropdownValue = (role: string): string => {
         const map: Record<string, string> = {
+            // Canonical keys (lowercase)
             viewer: 'reader', commenter: 'commenter', contributor: 'writer',
             contentManager: 'fileOrganizer', manager: 'fileOrganizer',
+            // Drive API roles
             reader: 'reader', writer: 'writer', fileOrganizer: 'fileOrganizer',
             organizer: 'fileOrganizer',
+            // Capitalized labels from API comparisonRows.expectedRole
+            Viewer: 'reader', Commenter: 'commenter', Contributor: 'writer',
+            'Content Manager': 'fileOrganizer',
         };
         return map[role] || role;
     };

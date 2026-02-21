@@ -1375,7 +1375,7 @@ async function enforceProjectPermissionsWithReset(
 
     for (let i = 0; i < totalFolders; i += BATCH_SIZE) {
         const batch = foldersToProcess.slice(i, i + BATCH_SIZE);
-        await Promise.all(batch.map(async ({ templatePath, folder }, batchIdx) => {
+        await Promise.all(batch.map(async ({ templatePath, expectedPerms, folder }, batchIdx) => {
             const fi = i + batchIdx;
             let folderRemoved = 0;
             let folderInherited = 0;
@@ -1400,21 +1400,26 @@ async function enforceProjectPermissionsWithReset(
                     if (protectedPrincipals.some(p => p.toLowerCase() === perm.emailAddress?.toLowerCase())) continue;
 
                     if (perm.inherited || perm.permissionDetails?.[0]?.inherited) {
-                        folderInherited++;
-                        // Capture inherited role for ceiling check match against canonical rank
-                        // We use the highest inherited role if multiple exist (unlikely but safe)
-                        if (perm.emailAddress && perm.role) {
-                            const folderIdKey = folder.drive_folder_id;
-                            if (!inheritedRolesByFolder.has(folderIdKey)) {
-                                inheritedRolesByFolder.set(folderIdKey, new Map());
+                        if (!expectedPerms.limitedAccess) {
+                            // Non-LA folder: inherited perms come from parent, can't remove here
+                            folderInherited++;
+                            // Capture inherited role for ceiling check in Pass 2
+                            if (perm.emailAddress && perm.role) {
+                                const folderIdKey = folder.drive_folder_id;
+                                if (!inheritedRolesByFolder.has(folderIdKey)) {
+                                    inheritedRolesByFolder.set(folderIdKey, new Map());
+                                }
+                                const rank = CANONICAL_RANK[normalizeRole(perm.role)] || 0;
+                                const currentMax = inheritedRolesByFolder.get(folderIdKey)!.get(perm.emailAddress.toLowerCase()) || 0;
+                                if (rank > currentMax) {
+                                    inheritedRolesByFolder.get(folderIdKey)!.set(perm.emailAddress.toLowerCase(), rank);
+                                }
                             }
-                            const rank = CANONICAL_RANK[normalizeRole(perm.role)] || 0;
-                            const currentMax = inheritedRolesByFolder.get(folderIdKey)!.get(perm.emailAddress.toLowerCase()) || 0;
-                            if (rank > currentMax) {
-                                inheritedRolesByFolder.get(folderIdKey)!.set(perm.emailAddress.toLowerCase(), rank);
-                            }
+                            continue;
                         }
-                        continue;
+                        // LA folder: attempt to remove inherited perms too
+                        // (the whole point of LA is to control exactly who has access)
+                        // If removal fails (e.g. Drive membership), it's caught by try/catch below
                     }
 
                     try {
