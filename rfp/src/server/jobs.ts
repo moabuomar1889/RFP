@@ -912,41 +912,18 @@ async function rebuildFolderIndexForProject(
         return cleaned.filter(s => s).join('/');
     }
 
-    // E: Fuzzy matching (Levenshtein)
-    function editDistance(a: string, b: string): number {
-        const la = a.length, lb = b.length;
-        if (la === 0) return lb;
-        if (lb === 0) return la;
-        const dp: number[][] = Array.from({ length: la + 1 }, () => Array(lb + 1).fill(0));
-        for (let i = 0; i <= la; i++) dp[i][0] = i;
-        for (let j = 0; j <= lb; j++) dp[0][j] = j;
-        for (let i = 1; i <= la; i++) {
-            for (let j = 1; j <= lb; j++) {
-                dp[i][j] = Math.min(
-                    dp[i - 1][j] + 1,
-                    dp[i][j - 1] + 1,
-                    dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
-                );
-            }
-        }
-        return dp[la][lb];
-    }
-
+    // E: STRICT exact match only — no fuzzy matching
+    // Only index folders whose normalized name exactly matches a template path.
+    // This prevents manually-created folders (MOM, HSE, etc.) from being
+    // incorrectly indexed as template folders.
     function findClosestTemplatePath(normalized: string): string | null {
+        // Exact match
         if (templatePaths.has(normalized)) return normalized;
+        // Case-insensitive exact match
         for (const tp of templatePaths) {
             if (tp.toLowerCase() === normalized.toLowerCase()) return tp;
         }
-        let bestMatch: string | null = null;
-        let bestDist = Infinity;
-        for (const tp of templatePaths) {
-            const dist = editDistance(normalized.toLowerCase(), tp.toLowerCase());
-            if (dist < bestDist && dist <= 2) {
-                bestDist = dist;
-                bestMatch = tp;
-            }
-        }
-        return bestMatch;
+        return null; // No match — folder is NOT a template folder
     }
 
     // F: Upsert matched folders
@@ -1057,12 +1034,18 @@ async function createMissingFoldersFromTemplate(
         return depthA - depthB;
     });
 
-    // Create each missing folder
+    // Create each missing folder with project naming convention
+    // e.g. "PRJ-017-PD-Construction" not bare "Construction"
+    const prCode = project.prNumber || project.pr_number || project.project_code || '';
+    const phaseSuffix = projectPhase === 'bidding' ? 'RFP' : 'PD';
+
     for (const { path, node } of missingFolders) {
         try {
             // Find parent folder ID
             const pathParts = path.split('/');
-            const folderName = pathParts[pathParts.length - 1];
+            const templateName = pathParts[pathParts.length - 1];
+            // Apply project naming convention: PRJ-017-PD-{TemplateName}
+            const folderName = prCode ? `${prCode}-${phaseSuffix}-${templateName}` : templateName;
             let parentId = project.google_folder_id; // Default to project root
 
             if (pathParts.length > 1) {
@@ -1074,7 +1057,7 @@ async function createMissingFoldersFromTemplate(
                 parentId = parentFolder?.google_folder_id || parentId;
             }
 
-            // Create folder in Google Drive
+            // Create folder in Google Drive with project-prefixed name
             const newFolder = await createFolder(folderName, parentId);
             await sleep(RATE_LIMIT_DELAY);
 
