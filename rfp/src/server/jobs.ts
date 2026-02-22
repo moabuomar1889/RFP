@@ -896,6 +896,7 @@ async function rebuildFolderIndexForProject(
 
     // D: Path normalization
     const projectCode = prNumber || '';
+    console.log(`[rebuildFolderIndex] projectCode for normalization: '${projectCode}', templatePaths: [${[...templatePaths].slice(0, 10).join(', ')}...]`);
     function normalizeDrivePath(drivePath: string): string {
         const segments = drivePath.split('/');
         const remaining = segments.slice(1);
@@ -935,7 +936,13 @@ async function rebuildFolderIndexForProject(
         if (!normalized) continue;
 
         const matchedPath = templatePaths.size > 0 ? findClosestTemplatePath(normalized) : normalized;
-        if (!matchedPath) continue;
+        if (!matchedPath) {
+            // Log first 5 unmatched for debugging
+            if (upsertedCount + seenNormalized.size < 5) {
+                console.log(`[rebuildFolderIndex] NO MATCH: raw='${folder.path}' → normalized='${normalized}'`);
+            }
+            continue;
+        }
 
         if (seenNormalized.has(matchedPath)) continue;
         seenNormalized.add(matchedPath);
@@ -1014,6 +1021,7 @@ async function createMissingFoldersFromTemplate(
     const existingPaths = new Set(
         (existingFolders || []).map((f: any) => f.normalized_template_path || f.template_path)
     );
+    console.log(`[createMissing] existingPaths (${existingPaths.size}): [${[...existingPaths].slice(0, 15).join(', ')}...]`);
 
     // Find missing folders
     const missingFolders: Array<{ path: string; node: any }> = [];
