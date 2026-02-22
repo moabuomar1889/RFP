@@ -4,6 +4,20 @@ import { GOOGLE_CONFIG, APP_CONFIG, DriveRole, PermissionType } from '@/lib/conf
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { decrypt, encrypt } from '@/lib/crypto';
 
+// ─── Timeout utility ─────────────────────────────────────────────────
+// Google Drive API can hang indefinitely when rate-limited.
+// This wraps any promise with a hard timeout to prevent enforcement from freezing.
+const API_TIMEOUT_MS = 30_000; // 30 seconds per API call
+
+function withTimeout<T>(promise: Promise<T>, ms = API_TIMEOUT_MS, label = 'API call'): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(`TIMEOUT: ${label} did not respond within ${ms}ms`)), ms)
+        )
+    ]);
+}
+
 // Enhanced permission interfaces for reset-based enforcement
 export interface PermissionDetails {
     id: string;
@@ -296,30 +310,26 @@ export async function setLimitedAccessFast(
 ): Promise<void> {
     const drive = await getDriveClient();
 
-    // Enforce a 10-second timeout to avoid hanging on non-Shared Drive folders
-    const timeoutMs = 10000;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
     try {
-        await drive.files.update({
-            fileId: folderId,
-            requestBody: {
-                inheritedPermissionsDisabled: enabled
-            } as any,
-            supportsAllDrives: true,
-            fields: 'id'
-        });
+        await withTimeout(
+            drive.files.update({
+                fileId: folderId,
+                requestBody: {
+                    inheritedPermissionsDisabled: enabled
+                } as any,
+                supportsAllDrives: true,
+                fields: 'id'
+            }),
+            API_TIMEOUT_MS,
+            `setLimitedAccess(${folderId}, ${enabled})`
+        );
     } catch (err: any) {
-        // "not supported" or "invalid" means this is a regular Drive folder, not Shared Drive
-        // AbortError means timeout — also likely a non-Shared Drive issue
-        if (err.name === 'AbortError' || err.message?.includes('not supported') || err.message?.includes('invalid')) {
-            console.warn(`setLimitedAccessFast: Limited Access not supported on folder ${folderId} (likely not a Shared Drive). Skipping.`);
+        // Timeout, "not supported", or "invalid" → skip gracefully
+        if (err.message?.includes('TIMEOUT') || err.message?.includes('not supported') || err.message?.includes('invalid')) {
+            console.warn(`setLimitedAccessFast: ${err.message}. Skipping.`);
             return;
         }
         throw err;
-    } finally {
-        clearTimeout(timer);
     }
 }
 
@@ -332,11 +342,15 @@ export async function listPermissions(
 ): Promise<PermissionDetails[]> {
     const drive = await getDriveClient();
 
-    const response = await drive.permissions.list({
-        fileId: folderId,
-        supportsAllDrives: true,
-        fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,view,permissionDetails)',
-    });
+    const response = await withTimeout(
+        drive.permissions.list({
+            fileId: folderId,
+            supportsAllDrives: true,
+            fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,view,permissionDetails)',
+        }),
+        API_TIMEOUT_MS,
+        `listPermissions(${folderId})`
+    );
 
     const permissions = response.data.permissions || [];
 
@@ -424,26 +438,34 @@ export async function addPermission(
     }
 
     try {
-        const response = await drive.permissions.create({
-            fileId: folderId,
-            requestBody: permissionBody,
-            supportsAllDrives: true,
-            sendNotificationEmail: false,
-            fields: 'id, type, role, emailAddress, domain',
-        });
+        const response = await withTimeout(
+            drive.permissions.create({
+                fileId: folderId,
+                requestBody: permissionBody,
+                supportsAllDrives: true,
+                sendNotificationEmail: false,
+                fields: 'id, type, role, emailAddress, domain',
+            }),
+            API_TIMEOUT_MS,
+            `addPermission(${folderId}, ${emailOrDomain})`
+        );
         return response.data;
     } catch (err: any) {
         // Auto-retry: if fileOrganizer fails (not a Shared Drive), downgrade to writer
         if (useFileOrganizer && err.message?.includes('FileOrganizer')) {
             console.warn(`addPermission: fileOrganizer failed for ${folderId}, retrying with 'writer'`);
             permissionBody.role = 'writer';
-            const retryResponse = await drive.permissions.create({
-                fileId: folderId,
-                requestBody: permissionBody,
-                supportsAllDrives: true,
-                sendNotificationEmail: false,
-                fields: 'id, type, role, emailAddress, domain',
-            });
+            const retryResponse = await withTimeout(
+                drive.permissions.create({
+                    fileId: folderId,
+                    requestBody: permissionBody,
+                    supportsAllDrives: true,
+                    sendNotificationEmail: false,
+                    fields: 'id, type, role, emailAddress, domain',
+                }),
+                API_TIMEOUT_MS,
+                `addPermission-retry(${folderId}, ${emailOrDomain})`
+            );
             return retryResponse.data;
         }
         throw err;
@@ -467,12 +489,16 @@ export async function removePermission(
     // Check if permission is inherited before attempting delete
     if (options.skipInherited) {
         try {
-            const perm = await drive.permissions.get({
-                fileId: folderId,
-                permissionId,
-                fields: 'permissionDetails',
-                supportsAllDrives: true
-            });
+            const perm = await withTimeout(
+                drive.permissions.get({
+                    fileId: folderId,
+                    permissionId,
+                    fields: 'permissionDetails',
+                    supportsAllDrives: true
+                }),
+                API_TIMEOUT_MS,
+                `getPermission(${folderId}, ${permissionId})`
+            );
 
             const isInherited = perm.data.permissionDetails?.some(d => d.inherited) ?? false;
             const inheritedFrom = perm.data.permissionDetails?.find(d => d.inherited)?.inheritedFrom;
@@ -494,11 +520,15 @@ export async function removePermission(
 
     // Delete permission
     try {
-        await drive.permissions.delete({
-            fileId: folderId,
-            permissionId,
-            supportsAllDrives: true,
-        });
+        await withTimeout(
+            drive.permissions.delete({
+                fileId: folderId,
+                permissionId,
+                supportsAllDrives: true,
+            }),
+            API_TIMEOUT_MS,
+            `deletePermission(${folderId}, ${permissionId})`
+        );
         console.log(`✓ Removed permission ${permissionId}`);
         return true;
     } catch (error: any) {
