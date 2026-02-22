@@ -287,20 +287,40 @@ export async function setLimitedAccess(
  * Fast version of setLimitedAccess — skips verification.
  * Used during bulk enforce where verification is wasteful.
  * Returns void instead of verified boolean.
+ * Note: inheritedPermissionsDisabled only works on Shared Drives.
+ * On regular Drive folders, this is a no-op with a warning.
  */
 export async function setLimitedAccessFast(
     folderId: string,
     enabled: boolean
 ): Promise<void> {
     const drive = await getDriveClient();
-    await drive.files.update({
-        fileId: folderId,
-        requestBody: {
-            inheritedPermissionsDisabled: enabled
-        } as any,
-        supportsAllDrives: true,
-        fields: 'id'
-    });
+
+    // Enforce a 10-second timeout to avoid hanging on non-Shared Drive folders
+    const timeoutMs = 10000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        await drive.files.update({
+            fileId: folderId,
+            requestBody: {
+                inheritedPermissionsDisabled: enabled
+            } as any,
+            supportsAllDrives: true,
+            fields: 'id'
+        });
+    } catch (err: any) {
+        // "not supported" or "invalid" means this is a regular Drive folder, not Shared Drive
+        // AbortError means timeout — also likely a non-Shared Drive issue
+        if (err.name === 'AbortError' || err.message?.includes('not supported') || err.message?.includes('invalid')) {
+            console.warn(`setLimitedAccessFast: Limited Access not supported on folder ${folderId} (likely not a Shared Drive). Skipping.`);
+            return;
+        }
+        throw err;
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 /**
