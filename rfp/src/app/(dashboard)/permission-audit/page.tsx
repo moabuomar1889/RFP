@@ -1387,30 +1387,169 @@ export default function PermissionAuditPage() {
         }
     }, [selectedProjectId]);
 
-    // Export
-    const exportAudit = async (format: "csv" | "json") => {
-        if (!selectedProjectId) return;
+    // Export — uses the already-loaded auditResult state (no extra API call)
+    const exportAudit = (format: "csv" | "json") => {
+        if (!auditResult) return;
         try {
-            const res = await fetch(
-                `/api/audit/export?projectId=${selectedProjectId}&format=${format}`
-            );
             if (format === "json") {
-                const data = await res.json();
-                const blob = new Blob([JSON.stringify(data, null, 2)], {
+                // Build rich per-folder detail from in-memory state
+                const foldersDetail = auditResult.comparisons.map((comp) => {
+                    const diffRows = buildDiffRows(comp);
+                    return {
+                        folder_path: comp.folderPath,
+                        normalized_path: comp.normalizedPath,
+                        drive_folder_id: comp.driveFolderId,
+                        drive_url: `https://drive.google.com/drive/folders/${comp.driveFolderId}`,
+                        status: comp.status,
+                        status_label: comp.statusLabel,
+                        limited_access_expected: comp.limitedAccessExpected,
+                        counts: {
+                            expected: comp.expectedCount,
+                            direct: comp.directActualCount,
+                            inherited: comp.inheritedActualCount,
+                            total: comp.totalActualCount,
+                            missing: comp.missingCount ?? 0,
+                            extra: comp.extraCount ?? 0,
+                            mismatch: comp.mismatchCount ?? 0,
+                            match: comp.matchCount ?? 0,
+                        },
+                        discrepancies: comp.discrepancies,
+                        // Full per-principal diff
+                        permissions: diffRows.map((row) => ({
+                            type: row.type,
+                            identifier: row.email,
+                            expected_role: row.expectedRole ?? null,
+                            actual_role: row.actualRole ?? null,
+                            diff_status: row.diffStatus,
+                            inherited: row.inherited,
+                            tags: row.tags ?? [],
+                        })),
+                    };
+                });
+
+                const jsonExport = {
+                    export_version: "v3-client",
+                    exported_at: new Date().toISOString(),
+                    project: {
+                        id: auditResult.projectId,
+                        name: auditResult.projectName,
+                        code: auditResult.projectCode,
+                        phase: auditResult.phase,
+                    },
+                    summary: {
+                        total_folders: auditResult.totalFolders,
+                        match: auditResult.matchCount,
+                        extra: auditResult.extraCount,
+                        missing: auditResult.missingCount,
+                        mismatch: auditResult.mismatchCount,
+                        exact_match_folders: auditResult.comparisons.filter(
+                            (c) => c.status === "exact_match"
+                        ).length,
+                        compliant_folders: auditResult.comparisons.filter(
+                            (c) => c.status === "compliant"
+                        ).length,
+                        non_compliant_folders: auditResult.comparisons.filter(
+                            (c) => c.status === "non_compliant"
+                        ).length,
+                    },
+                    folders: foldersDetail,
+                };
+
+                const blob = new Blob([JSON.stringify(jsonExport, null, 2)], {
                     type: "application/json",
                 });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `audit_${auditResult?.projectCode}_${new Date().toISOString().split("T")[0]}.json`;
+                a.download = `audit_${auditResult.projectCode}_${new Date().toISOString().split("T")[0]}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
             } else {
-                const blob = await res.blob();
+                // CSV — one row per permission entry
+                const headers = [
+                    "project_code",
+                    "project_name",
+                    "folder_path",
+                    "normalized_path",
+                    "drive_folder_id",
+                    "drive_url",
+                    "folder_status",
+                    "status_label",
+                    "limited_access_expected",
+                    "expected_count",
+                    "direct_count",
+                    "inherited_count",
+                    "total_count",
+                    "missing_count",
+                    "extra_count",
+                    "mismatch_count",
+                    "match_count",
+                    "permission_type",
+                    "identifier",
+                    "expected_role",
+                    "actual_role",
+                    "diff_status",
+                    "inherited",
+                    "tags",
+                    "discrepancies",
+                ];
+
+                const rows: string[][] = [];
+                for (const comp of auditResult.comparisons) {
+                    const diffRows = buildDiffRows(comp);
+                    const baseFields = [
+                        auditResult.projectCode,
+                        auditResult.projectName,
+                        comp.folderPath,
+                        comp.normalizedPath,
+                        comp.driveFolderId,
+                        `https://drive.google.com/drive/folders/${comp.driveFolderId}`,
+                        comp.status,
+                        comp.statusLabel,
+                        String(comp.limitedAccessExpected),
+                        String(comp.expectedCount),
+                        String(comp.directActualCount),
+                        String(comp.inheritedActualCount),
+                        String(comp.totalActualCount),
+                        String(comp.missingCount ?? 0),
+                        String(comp.extraCount ?? 0),
+                        String(comp.mismatchCount ?? 0),
+                        String(comp.matchCount ?? 0),
+                    ];
+                    if (diffRows.length === 0) {
+                        rows.push([
+                            ...baseFields,
+                            "", "", "", "", "", "", "",
+                            comp.discrepancies.join(" | "),
+                        ]);
+                    } else {
+                        for (const row of diffRows) {
+                            rows.push([
+                                ...baseFields,
+                                row.type,
+                                row.email,
+                                row.expectedRole ?? "",
+                                row.actualRole ?? "",
+                                row.diffStatus,
+                                String(row.inherited),
+                                (row.tags ?? []).join(", "),
+                                comp.discrepancies.join(" | "),
+                            ]);
+                        }
+                    }
+                }
+
+                const csv = [headers, ...rows]
+                    .map((r) =>
+                        r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+                    )
+                    .join("\n");
+
+                const blob = new Blob([csv], { type: "text/csv" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `audit_${auditResult?.projectCode}_${new Date().toISOString().split("T")[0]}.csv`;
+                a.download = `audit_${auditResult.projectCode}_${new Date().toISOString().split("T")[0]}.csv`;
                 a.click();
                 URL.revokeObjectURL(url);
             }
