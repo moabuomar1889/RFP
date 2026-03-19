@@ -17,6 +17,7 @@ import {
     normalizeSegment,
     normalizeDrivePath,
     matchesProjectPattern,
+    filterActiveMisplacedCandidates,
     identifyTreeRoots,
     scoreTreeRoot,
     type TaggedFolder,
@@ -93,6 +94,49 @@ describe('matchesProjectPattern', () => {
 
     it('does not match partial project code (PRJ-0210 ≠ PRJ-021)', () => {
         expect(matchesProjectPattern('PRJ-0210-PD-SOW', 'PRJ-021')).toBe(false);
+    });
+});
+
+// ─── filterActiveMisplacedCandidates ──────────────────────────────────────────
+describe('filterActiveMisplacedCandidates', () => {
+    const prCode = 'PRJ-021';
+    
+    it('keeps valid out-of-root misplaced candidates', () => {
+        const allTagged: TaggedFolder[] = [
+            { id: 'bad-1', name: 'PRJ-021-RFP-Commercial Proposal', parents: ['ext-1'] }
+        ];
+        const result = filterActiveMisplacedCandidates(allTagged, prCode, new Set(), new Set());
+        expect(result).toHaveLength(1);
+    });
+
+    it('excludes folders that are already inside the project root', () => {
+        const allTagged: TaggedFolder[] = [
+            { id: 'good-1', name: 'PRJ-021-RFP-SOW', parents: ['ext-1'] }
+        ];
+        const inRootIds = new Set(['good-1']);
+        const result = filterActiveMisplacedCandidates(allTagged, prCode, inRootIds, new Set());
+        expect(result).toHaveLength(0);
+    });
+
+    it('excludes folders that are already inside _REPAIR_QUARANTINE', () => {
+        const allTagged: TaggedFolder[] = [
+            { id: 'q-root-1', name: 'PRJ-021-RFP-Technical', parents: ['quarantine-parent'] }
+        ];
+        // The quarantine log check returned 'q-root-1' as a quarantined subtree ID
+        const quarantinedIds = new Set(['q-root-1']);
+        const result = filterActiveMisplacedCandidates(allTagged, prCode, new Set(), quarantinedIds);
+        expect(result).toHaveLength(0);
+    });
+
+    it('excludes descendants of quarantined folders', () => {
+        const allTagged: TaggedFolder[] = [
+            { id: 'q-root-1', name: 'PRJ-021-RFP-Technical', parents: ['quarantine-parent'] },
+            { id: 'q-child-1', name: 'PRJ-021-RFP-Deep-File', parents: ['q-root-1'] }
+        ];
+        // The DB fetch for descendants returned both the root and child IDs
+        const quarantinedIds = new Set(['q-root-1', 'q-child-1']);
+        const result = filterActiveMisplacedCandidates(allTagged, prCode, new Set(), quarantinedIds);
+        expect(result).toHaveLength(0);
     });
 });
 

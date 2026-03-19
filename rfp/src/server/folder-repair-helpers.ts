@@ -131,6 +131,24 @@ export function matchesProjectPattern(name: string, prCode: string): boolean {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Filter the raw Drive search results to only actively misplaced candidates.
+ * Excludes:
+ * - folders that don't match the strict project naming pattern
+ * - folders that are correctly located inside the project root
+ * - folders that are already inside the _REPAIR_QUARANTINE subtree
+ */
+export function filterActiveMisplacedCandidates(
+    allTagged: TaggedFolder[],
+    prCode: string,
+    inRootIds: Set<string>,
+    quarantinedIds: Set<string>
+): TaggedFolder[] {
+    return allTagged.filter(
+        f => matchesProjectPattern(f.name, prCode) && !inRootIds.has(f.id) && !quarantinedIds.has(f.id)
+    );
+}
+
+/**
  * From a list of out-of-root tagged folders, identify the TREE ROOTS.
  *
  * A folder is a tree root when none of its parents is also in the tagged set.
@@ -321,9 +339,36 @@ export async function detectMisplacedFolders(
         return { ...empty, scanDurationMs: Date.now() - t0 };
     }
 
-    // Filter to only correctly-patterned names and exclude in-root folders
-    const taggedOutOfRoot = allTagged.filter(
-        f => matchesProjectPattern(f.name, prCode) && !inRootById.has(f.id)
+    // ── NEW Step 2.5: Build exclusion list of previously quarantined subtrees ──
+    const quarantinedSubtreeIds = new Set<string>();
+    try {
+        const { data: qLogs } = await getRawSupabaseAdmin()
+            .schema('rfp')
+            .from('repair_quarantine_log')
+            .select('folder_id')
+            .eq('project_id', project.id);
+
+        const quarantinedRoots = qLogs?.map(r => r.folder_id) || [];
+        for (const qId of quarantinedRoots) {
+            quarantinedSubtreeIds.add(qId);
+            try {
+                // Fetch descendants so the entire quarantined subtree is ignored
+                const descendants = await getAllFoldersRecursive(qId);
+                for (const d of descendants) quarantinedSubtreeIds.add(d.id);
+            } catch {
+                // Ignore errors if a quarantined folder was manually deleted later
+            }
+        }
+    } catch (err) {
+        console.warn(`[REPAIR] Failed to fetch quarantine logs for ${prCode}`, err);
+    }
+
+    // Filter to only correctly-patterned names AND exclude in-root folders AND exclude quarantined trees
+    const taggedOutOfRoot = filterActiveMisplacedCandidates(
+        allTagged,
+        prCode,
+        new Set(inRootById.keys()),
+        quarantinedSubtreeIds
     );
 
     if (taggedOutOfRoot.length === 0) {
