@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface MisplacedEntry {
     folderId: string;
@@ -158,7 +158,6 @@ function ProjectRow({
 }
 
 export default function FolderRepairPage() {
-    const { toast } = useToast();
     const [projectFilter, setProjectFilter] = useState('');
     const [scanning, setScanning] = useState(false);
     const [results, setResults] = useState<ProjectResult[]>([]);
@@ -197,13 +196,9 @@ export default function FolderRepairPage() {
             );
             setSelectedProjects(autoSelected);
 
-            toast({ title: `Scan complete - ${data.results.length} projects scanned` });
+            toast.success(`Scan complete - ${data.results.length} projects scanned`);
         } catch (error: any) {
-            toast({
-                title: 'Scan failed',
-                description: error.message,
-                variant: 'destructive',
-            });
+            toast.error(error.message || 'Scan failed');
         } finally {
             setScanning(false);
         }
@@ -228,13 +223,9 @@ export default function FolderRepairPage() {
             if (!data.success) throw new Error(data.error);
 
             setActionResults(data.results);
-            toast({ title: 'Quarantine complete - review the results below' });
+            toast.success('Quarantine complete - review the results below');
         } catch (error: any) {
-            toast({
-                title: 'Quarantine failed',
-                description: error.message,
-                variant: 'destructive',
-            });
+            toast.error(error.message || 'Quarantine failed');
         } finally {
             setQuarantining(false);
         }
@@ -257,13 +248,9 @@ export default function FolderRepairPage() {
             if (!data.success) throw new Error(data.error);
 
             setActionResults(data.results);
-            toast({ title: 'Recovery jobs queued - monitor progress in Jobs page' });
+            toast.success('Recovery jobs queued - monitor progress in Jobs page');
         } catch (error: any) {
-            toast({
-                title: 'Recovery failed',
-                description: error.message,
-                variant: 'destructive',
-            });
+            toast.error(error.message || 'Recovery failed');
         } finally {
             setRecovering(false);
         }
