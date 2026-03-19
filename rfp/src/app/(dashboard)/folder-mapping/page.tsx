@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getSupabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,19 +69,9 @@ export default function FolderMappingPage() {
         setLoading(true);
         setError(null);
         try {
-            // Get the current session token so admin routes accept the request
-            const { data: { session } } = await getSupabase().auth.getSession();
-            const token = session?.access_token;
-            if (!token) {
-                setError('Not authenticated. Please sign in.');
-                setLoading(false);
-                return;
-            }
-            const authHeader = { 'Authorization': `Bearer ${token}` };
-
             const [unmappedRes, nodesRes] = await Promise.all([
-                fetch('/api/admin/unmapped-folders', { headers: authHeader }),
-                fetch('/api/admin/template-nodes', { headers: authHeader }),
+                fetch('/api/admin/unmapped-folders'),
+                fetch('/api/admin/template-nodes'),
             ]);
 
             if (!unmappedRes.ok) throw new Error(`Failed to load unmapped folders: ${unmappedRes.statusText}`);
@@ -114,14 +103,9 @@ export default function FolderMappingPage() {
         setResults(r => ({ ...r, [folderId]: { folderId, status: "loading" } }));
 
         try {
-            const { data: { session } } = await getSupabase().auth.getSession();
-            const token = session?.access_token;
             const res = await fetch("/api/admin/map-folder", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ drive_folder_id: folderId, template_node_id: nodeId }),
             });
             const data = await res.json();
@@ -141,14 +125,9 @@ export default function FolderMappingPage() {
     const handleUnmap = async (folderId: string) => {
         setResults(r => ({ ...r, [folderId]: { folderId, status: "loading" } }));
         try {
-            const { data: { session } } = await getSupabase().auth.getSession();
-            const token = session?.access_token;
             const res = await fetch("/api/admin/map-folder", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ drive_folder_id: folderId, template_node_id: null }),
             });
             const data = await res.json();
