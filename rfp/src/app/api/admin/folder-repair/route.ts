@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { v4 as uuidv4 } from 'uuid';
+import { inngest } from '@/lib/inngest';
+import { getRawSupabaseAdmin } from '@/lib/supabase';
 import { requireAdminAuth } from '@/server/admin-auth';
-import { supabaseAdmin, getRawSupabaseAdmin } from '@/lib/supabase';
 import {
     batchScanProjects,
-    quarantineMisplacedFolders,
     getOrCreateQuarantineFolder,
+    quarantineMisplacedFolders,
 } from '@/server/folder-repair-helpers';
+import { getFolder } from '@/server/google-drive';
 
-// Helper — load projects by optional filter
-async function loadProjects(projectIds?: string[]) {
+async function loadProjects(projectCodes?: string[]) {
     const client = getRawSupabaseAdmin();
     let query = client
         .schema('rfp')
@@ -16,74 +18,85 @@ async function loadProjects(projectIds?: string[]) {
         .select('id, pr_number, name, drive_folder_id, phase')
         .order('pr_number');
 
-    if (projectIds && projectIds.length > 0) {
-        query = query.in('pr_number', projectIds);
+    if (projectCodes && projectCodes.length > 0) {
+        query = query.in('pr_number', projectCodes);
     }
+
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return data || [];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/admin/folder-repair?mode=scan&projects=PRJ-021,PRJ-022
-// Dry-run scan: classify all folders, return structured report. No changes.
-// ─────────────────────────────────────────────────────────────────────────────
+async function resolveQuarantineParentId(project: { drive_folder_id: string | null; pr_number: string }) {
+    if (!project.drive_folder_id) {
+        throw new Error(`Project ${project.pr_number} has no drive folder root`);
+    }
+
+    const rootFolder = await getFolder(project.drive_folder_id);
+    const parentId = rootFolder?.parents?.[0];
+
+    if (!parentId) {
+        throw new Error(`Could not resolve a quarantine parent for ${project.pr_number}`);
+    }
+
+    return parentId;
+}
+
 export async function GET(request: NextRequest) {
     const auth = await requireAdminAuth(request);
     if (!auth.authorized) return auth.response!;
 
     const { searchParams } = new URL(request.url);
     const projectFilter = searchParams.get('projects');
-    const projectIds = projectFilter ? projectFilter.split(',').map(s => s.trim()) : undefined;
+    const projectCodes = projectFilter
+        ? projectFilter.split(',').map(segment => segment.trim()).filter(Boolean)
+        : undefined;
 
     try {
-        const projects = await loadProjects(projectIds);
+        const projects = await loadProjects(projectCodes);
 
         if (projects.length === 0) {
-            return NextResponse.json({ success: true, results: [], message: 'No projects matched the filter.' });
+            return NextResponse.json({
+                success: true,
+                results: [],
+                message: 'No projects matched the filter.',
+            });
         }
 
         const results = await batchScanProjects(projects);
 
-        const summary = results.map(r => ({
-            projectId: r.projectId,
-            projectCode: r.projectCode,
-            projectRootId: r.projectRootId,
-            correctCount: r.correct.length,
-            misplacedCount: r.misplaced.length,
-            ambiguousCount: r.ambiguous.length,
-            scanDurationMs: r.scanDurationMs,
-            misplaced: r.misplaced.map(m => ({
-                folderId: m.folder.id,
-                folderName: m.folder.name,
-                normalizedPath: m.folder.normalizedPath,
-                reason: m.reason,
-                confidence: m.confidence,
-                matchedCorrectFolderId: m.matchedCorrectFolderId,
-                matchedCorrectPath: m.matchedCorrectPath,
+        return NextResponse.json({
+            success: true,
+            results: results.map(result => ({
+                projectId: result.projectId,
+                projectCode: result.projectCode,
+                projectRootId: result.projectRootId,
+                correctCount: result.correct.length,
+                misplacedCount: result.misplaced.length,
+                ambiguousCount: result.ambiguous.length,
+                scanDurationMs: result.scanDurationMs,
+                misplaced: result.misplaced.map(item => ({
+                    folderId: item.folder.id,
+                    folderName: item.folder.name,
+                    normalizedPath: item.folder.normalizedPath,
+                    reason: item.reason,
+                    confidence: item.confidence,
+                    matchedCorrectFolderId: item.matchedCorrectFolderId,
+                    matchedCorrectPath: item.matchedCorrectPath,
+                })),
+                ambiguous: result.ambiguous.map(item => ({
+                    folderId: item.folder.id,
+                    folderName: item.folder.name,
+                    normalizedPath: item.folder.normalizedPath,
+                    reason: item.reason,
+                })),
             })),
-            ambiguous: r.ambiguous.map(a => ({
-                folderId: a.folder.id,
-                folderName: a.folder.name,
-                normalizedPath: a.folder.normalizedPath,
-                reason: a.reason,
-            })),
-        }));
-
-        return NextResponse.json({ success: true, results: summary });
-
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/admin/folder-repair
-// Body: { action: 'quarantine' | 'recover', projectIds: string[] }
-//
-// quarantine: move HIGH-confidence misplaced folders → _REPAIR_QUARANTINE
-// recover:    rebuild index + trigger enforce for each project
-// ─────────────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
     const auth = await requireAdminAuth(request);
     if (!auth.authorized) return auth.response!;
@@ -94,6 +107,7 @@ export async function POST(request: NextRequest) {
     if (!action || !['quarantine', 'recover'].includes(action)) {
         return NextResponse.json({ error: 'action must be quarantine or recover' }, { status: 400 });
     }
+
     if (!projectIds || projectIds.length === 0) {
         return NextResponse.json({ error: 'projectIds is required' }, { status: 400 });
     }
@@ -101,28 +115,26 @@ export async function POST(request: NextRequest) {
     try {
         const projects = await loadProjects(projectIds);
 
-        // ── QUARANTINE ──────────────────────────────────────────────────────
         if (action === 'quarantine') {
-            // Get or create the quarantine folder once
-            const quarantineFolderId = await getOrCreateQuarantineFolder();
-
-            // Scan to get current misplaced list
             const scanResults = await batchScanProjects(projects);
             const quarantineResults = [];
 
             for (const scan of scanResults) {
+                const project = projects.find(item => item.id === scan.projectId)!;
+
                 if (scan.misplaced.length === 0) {
                     quarantineResults.push({
                         projectCode: scan.projectCode,
                         moved: 0,
                         skipped: 0,
                         errors: [],
-                        message: 'No misplaced folders found',
+                        message: 'No high-confidence misplaced roots found',
                     });
                     continue;
                 }
 
-                const project = projects.find(p => p.id === scan.projectId)!;
+                const quarantineParentId = await resolveQuarantineParentId(project);
+                const quarantineFolderId = await getOrCreateQuarantineFolder(quarantineParentId);
                 const result = await quarantineMisplacedFolders(
                     project,
                     scan.misplaced,
@@ -132,6 +144,7 @@ export async function POST(request: NextRequest) {
 
                 quarantineResults.push({
                     projectCode: scan.projectCode,
+                    quarantineFolderId,
                     moved: result.moved,
                     skipped: result.skipped,
                     errors: result.errors,
@@ -142,54 +155,63 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({
                 success: true,
                 action: 'quarantine',
-                quarantineFolderId,
                 results: quarantineResults,
             });
         }
 
-        // ── RECOVER ─────────────────────────────────────────────────────────
-        if (action === 'recover') {
-            const client = getRawSupabaseAdmin();
-            const recoveryResults = [];
+        const client = getRawSupabaseAdmin();
+        const recoveryResults = [];
 
-            for (const project of projects) {
-                try {
-                    // Trigger an Enforce job for this project — reuses the existing job system
-                    const { data: jobData, error: jobErr } = await supabaseAdmin.rpc('create_job', {
-                        p_type: 'enforce_permissions',
-                        p_metadata: JSON.stringify({
-                            projectIds: [project.id],
-                            scope: 'full',
-                            triggeredBy: 'folder-repair-recovery',
-                        }),
-                    });
+        for (const project of projects) {
+            const jobId = uuidv4();
+            const { error: jobError } = await client.rpc('create_sync_job', {
+                p_id: jobId,
+                p_job_type: 'enforce_permissions',
+                p_status: 'pending',
+                p_triggered_by: auth.user?.email || 'admin',
+                p_job_details: {
+                    action: 'folder_repair_recovery',
+                    projectId: project.id,
+                    initiatedFrom: 'folder-repair',
+                },
+            });
 
-                    recoveryResults.push({
-                        projectCode: project.pr_number,
-                        status: jobErr ? 'error' : 'job_queued',
-                        jobId: jobData ?? null,
-                        error: jobErr?.message ?? null,
-                    });
-                } catch (err: any) {
-                    recoveryResults.push({
-                        projectCode: project.pr_number,
-                        status: 'error',
-                        error: err.message,
-                    });
-                }
+            if (jobError) {
+                recoveryResults.push({
+                    projectCode: project.pr_number,
+                    status: 'error',
+                    error: jobError.message,
+                });
+                continue;
             }
 
-            return NextResponse.json({
-                success: true,
-                action: 'recover',
-                results: recoveryResults,
-                note: 'Enforce jobs queued. Monitor progress via Jobs page.',
+            await inngest.send({
+                name: 'permissions/enforce',
+                data: {
+                    jobId,
+                    projectId: project.id,
+                    metadata: {
+                        scope: 'full',
+                        initiatedFrom: 'folder-repair',
+                    },
+                    triggeredBy: auth.user?.email || 'admin',
+                },
+            });
+
+            recoveryResults.push({
+                projectCode: project.pr_number,
+                status: 'job_queued',
+                jobId,
             });
         }
 
-        return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
-
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({
+            success: true,
+            action: 'recover',
+            results: recoveryResults,
+            note: 'Enforce jobs queued. The current enforce flow performs its own index rebuild before applying permissions.',
+        });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

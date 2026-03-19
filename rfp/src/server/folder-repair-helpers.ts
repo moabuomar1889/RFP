@@ -1,20 +1,6 @@
-/**
- * folder-repair-helpers.ts
- *
- * Server-side logic for the batch folder-repair workflow.
- * Detects misplaced folders (created outside the real project root) and
- * safely moves them to a quarantine location instead of deleting them.
- *
- * Three phases:
- *   Phase 1 — Detection:  classify each suspicious folder
- *   Phase 2 — Quarantine: move HIGH-confidence misplaced → quarantine folder
- *   Phase 3 — Recovery:   rebuild index + enforce handled by existing job system
- */
-
-import { getDriveClient } from '@/server/google-drive';
-import { getAllFoldersRecursive, moveFolder } from '@/server/google-drive';
 import { APP_CONFIG } from '@/lib/config';
 import { getRawSupabaseAdmin } from '@/lib/supabase';
+import { getAllFoldersRecursive, getDriveClient, moveFolder } from '@/server/google-drive';
 
 export type FolderConfidence = 'HIGH' | 'AMBIGUOUS' | 'CORRECT';
 
@@ -22,15 +8,15 @@ export interface ScannedFolder {
     id: string;
     name: string;
     parentId: string;
-    path: string;                     // path relative to where it was found
-    normalizedPath: string;           // template-style path (prefix stripped)
+    path: string;
+    normalizedPath: string;
 }
 
 export interface FolderClassification {
     folder: ScannedFolder;
     confidence: FolderConfidence;
     reason: string;
-    matchedCorrectFolderId?: string;  // the in-root equivalent, if any
+    matchedCorrectFolderId?: string;
     matchedCorrectPath?: string;
 }
 
@@ -39,8 +25,8 @@ export interface ProjectScanResult {
     projectCode: string;
     projectRootId: string;
     correct: FolderClassification[];
-    misplaced: FolderClassification[];   // HIGH confidence — has in-root equivalent
-    ambiguous: FolderClassification[];   // no clear equivalent or multiple matches
+    misplaced: FolderClassification[];
+    ambiguous: FolderClassification[];
     scanDurationMs: number;
 }
 
@@ -60,115 +46,106 @@ export interface QuarantineResult {
     }>;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Normalization
-// ─────────────────────────────────────────────────────────────────────────────
+type InRootFolder = { id: string; name: string; path: string; parentId: string };
+type TaggedDriveFolder = { id: string; name: string; parents: string[] };
 
-/**
- * Strip project-code prefixes from a Drive folder name segment.
- * Handles:
- *   PRJ-021-PD-Document Control    → Document Control
- *   PRJ-021-RFP-SOW                → SOW
- *   1-PRJ-021-PD-Document Control  → Document Control
- *   Document Control               → Document Control  (no-op)
- */
 export function normalizeSegment(segment: string, prCode: string): string {
     const escaped = prCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    // Pattern: optional leading N-, then PRJ-XXX-(RFP|PD)-
     const full = new RegExp(`^(?:\\d+-)?${escaped}-(RFP|PD)-`, 'i');
     const stripped = segment.replace(full, '');
     return stripped !== segment ? stripped : segment;
 }
 
-/**
- * Build a normalized template-style path from a Drive path string.
- * Each segment has its project prefix stripped.
- */
 export function normalizeDrivePath(drivePath: string, prCode: string): string {
     return drivePath
         .split('/')
-        .map(seg => normalizeSegment(seg, prCode))
+        .map(segment => normalizeSegment(segment, prCode))
         .filter(Boolean)
         .join('/');
 }
 
-/**
- * Return true if the folder name matches the project naming convention.
- * Used to filter out random unrelated folders in the Shared Drive.
- */
 export function matchesProjectPattern(name: string, prCode: string): boolean {
     const escaped = prCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp(`^(?:\\d+-)?${escaped}-(RFP|PD)-`, 'i').test(name);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Drive helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Search the Shared Drive for any folder whose name contains the project code.
- * This finds ALL project-named folders regardless of where they live.
- * Returns raw Drive file objects.
- */
 export async function searchProjectFoldersByPattern(
     prCode: string,
     driveId: string = APP_CONFIG.sharedDriveId
-): Promise<Array<{ id: string; name: string; parents: string[] }>> {
+): Promise<TaggedDriveFolder[]> {
     const drive = await getDriveClient();
-    const results: Array<{ id: string; name: string; parents: string[] }> = [];
+    const results: TaggedDriveFolder[] = [];
     let pageToken: string | undefined;
 
-    do {
-        const resp = await drive.files.list({
-            q: `name contains '${prCode}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-            supportsAllDrives: true,
-            includeItemsFromAllDrives: true,
-            driveId,
-            corpora: 'drive',
-            fields: 'nextPageToken, files(id, name, parents)',
-            pageToken,
-        });
-        for (const f of resp.data.files || []) {
-            if (f.id && f.name) {
-                results.push({ id: f.id, name: f.name, parents: f.parents || [] });
+    const collectPages = async (mode: 'drive' | 'allDrives') => {
+        pageToken = undefined;
+
+        do {
+            const response = await drive.files.list({
+                q: `name contains '${prCode}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+                supportsAllDrives: true,
+                includeItemsFromAllDrives: true,
+                ...(mode === 'drive' && driveId
+                    ? { driveId, corpora: 'drive' as const }
+                    : { corpora: 'allDrives' as const }),
+                fields: 'nextPageToken, files(id, name, parents)',
+                pageToken,
+            });
+
+            for (const folder of response.data.files || []) {
+                if (folder.id && folder.name) {
+                    results.push({
+                        id: folder.id,
+                        name: folder.name,
+                        parents: folder.parents || [],
+                    });
+                }
             }
+
+            pageToken = response.data.nextPageToken ?? undefined;
+        } while (pageToken);
+    };
+
+    try {
+        await collectPages('drive');
+    } catch (error: any) {
+        const message = error?.message || '';
+        const shouldFallback =
+            !driveId ||
+            message.includes('Shared drive not found') ||
+            message.includes('driveId parameter must be specified') ||
+            message.includes('teamDriveIdRequiresTeamDriveCorpora');
+
+        if (!shouldFallback) {
+            throw error;
         }
-        pageToken = resp.data.nextPageToken ?? undefined;
-    } while (pageToken);
+
+        await collectPages('allDrives');
+    }
 
     return results;
 }
 
-/**
- * Get or create a quarantine folder at the Shared Drive root level.
- * Name: _REPAIR_QUARANTINE
- * Returns the folder ID.
- */
-export async function getOrCreateQuarantineFolder(
-    driveId: string = APP_CONFIG.sharedDriveId
-): Promise<string> {
+export async function getOrCreateQuarantineFolder(parentFolderId: string): Promise<string> {
     const drive = await getDriveClient();
 
-    // Search for existing quarantine folder
-    const resp = await drive.files.list({
-        q: `name = '_REPAIR_QUARANTINE' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    const existing = await drive.files.list({
+        q: `'${parentFolderId}' in parents and name = '_REPAIR_QUARANTINE' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
-        driveId,
-        corpora: 'drive',
+        corpora: 'allDrives',
         fields: 'files(id, name)',
     });
 
-    if (resp.data.files && resp.data.files.length > 0) {
-        return resp.data.files[0].id!;
+    if (existing.data.files && existing.data.files.length > 0) {
+        return existing.data.files[0].id!;
     }
 
-    // Create it at drive root
     const created = await drive.files.create({
         requestBody: {
             name: '_REPAIR_QUARANTINE',
             mimeType: 'application/vnd.google-apps.folder',
-            parents: [driveId],
+            parents: [parentFolderId],
         },
         supportsAllDrives: true,
         fields: 'id, name',
@@ -177,87 +154,55 @@ export async function getOrCreateQuarantineFolder(
     return created.data.id!;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Detection — Phase 1
-// ─────────────────────────────────────────────────────────────────────────────
+function buildTopLevelCorrectMap(inRootFolders: InRootFolder[], prCode: string): Map<string, InRootFolder[]> {
+    const map = new Map<string, InRootFolder[]>();
 
-/**
- * Main detection function.
- *
- * For a single project:
- * 1. Get all folders recursively inside the real project root
- * 2. Search Drive-wide for folders matching the project naming pattern
- * 3. Anything NOT inside the root but matching the pattern = suspect
- * 4. Classify suspects as HIGH (in-root equivalent exists) or AMBIGUOUS
- *
- * Returns a ProjectScanResult for use in dry-run or execute mode.
- */
-export async function detectMisplacedFolders(
+    for (const folder of inRootFolders) {
+        if (folder.path.includes('/')) continue;
+
+        const normalized = normalizeDrivePath(folder.path, prCode).toLowerCase();
+        const existing = map.get(normalized) || [];
+        existing.push(folder);
+        map.set(normalized, existing);
+    }
+
+    return map;
+}
+
+export function classifyRepairCandidates(
     project: {
         id: string;
         pr_number: string;
         name: string;
         drive_folder_id: string | null;
     },
-    dryRun = true
-): Promise<ProjectScanResult> {
-    const t0 = Date.now();
+    inRootFolders: InRootFolder[],
+    allProjectFolders: TaggedDriveFolder[]
+): Omit<ProjectScanResult, 'scanDurationMs'> {
     const prCode = project.pr_number;
-    const rootId = project.drive_folder_id;
+    const rootId = project.drive_folder_id || '';
 
-    const empty: ProjectScanResult = {
-        projectId: project.id,
-        projectCode: prCode,
-        projectRootId: rootId || '',
-        correct: [],
-        misplaced: [],
-        ambiguous: [],
-        scanDurationMs: 0,
-    };
+    const inRootById = new Map(inRootFolders.map(folder => [folder.id, folder]));
+    const topLevelCorrectByName = buildTopLevelCorrectMap(inRootFolders, prCode);
+    const taggedFolders = allProjectFolders.filter(folder => matchesProjectPattern(folder.name, prCode));
+    const outsideTaggedIds = new Set(
+        taggedFolders
+            .filter(folder => !inRootById.has(folder.id))
+            .map(folder => folder.id)
+    );
 
-    if (!rootId) {
-        return { ...empty, ambiguous: [/* surfaced separately by caller */], scanDurationMs: Date.now() - t0 };
-    }
-
-    // Step 1: collect all folders inside the root
-    const inRootRaw = await getAllFoldersRecursive(rootId);
-    const inRootById = new Map(inRootRaw.map(f => [f.id, f]));
-
-    // Build normalized-path → in-root folder map (for matching suspects)
-    const inRootByNormPath = new Map<string, typeof inRootRaw[0]>();
-    for (const f of inRootRaw) {
-        const norm = normalizeDrivePath(f.path, prCode);
-        if (norm) inRootByNormPath.set(norm.toLowerCase(), f);
-    }
-
-    // Step 2: Drive-wide search for project-named folders
-    let allProjectFolders: Array<{ id: string; name: string; parents: string[] }>;
-    try {
-        allProjectFolders = await searchProjectFoldersByPattern(prCode);
-    } catch (err: any) {
-        // Search quota or permission issue — return safe empty result
-        return { ...empty, ambiguous: [], scanDurationMs: Date.now() - t0 };
-    }
-
-    // Step 3: Classify
     const correct: FolderClassification[] = [];
     const misplaced: FolderClassification[] = [];
     const ambiguous: FolderClassification[] = [];
 
-    for (const f of allProjectFolders) {
-        if (!matchesProjectPattern(f.name, prCode)) continue; // skip unrelated matches
-
-        const normalizedName = normalizeSegment(f.name, prCode);
-        const normPath = normalizedName; // for top-level folders, path = name
-
-        if (inRootById.has(f.id)) {
-            // It IS inside the root → correct
-            const inRoot = inRootById.get(f.id)!;
+    for (const folder of taggedFolders) {
+        if (inRootById.has(folder.id)) {
+            const inRoot = inRootById.get(folder.id)!;
             correct.push({
                 folder: {
-                    id: f.id,
-                    name: f.name,
-                    parentId: f.parents[0] || '',
+                    id: folder.id,
+                    name: folder.name,
+                    parentId: folder.parents[0] || '',
                     path: inRoot.path,
                     normalizedPath: normalizeDrivePath(inRoot.path, prCode),
                 },
@@ -267,35 +212,44 @@ export async function detectMisplacedFolders(
             continue;
         }
 
-        // Not inside root — suspect
-        // Look for in-root equivalent by normalized name
-        const matchedInRoot = inRootByNormPath.get(normPath.toLowerCase());
-
         const scanned: ScannedFolder = {
-            id: f.id,
-            name: f.name,
-            parentId: f.parents[0] || '',
-            path: f.name,
-            normalizedPath: normPath,
+            id: folder.id,
+            name: folder.name,
+            parentId: folder.parents[0] || '',
+            path: folder.name,
+            normalizedPath: normalizeSegment(folder.name, prCode),
         };
 
-        if (matchedInRoot) {
-            // HIGH confidence — misplaced duplicate
-            misplaced.push({
-                folder: scanned,
-                confidence: 'HIGH',
-                reason: `Outside project root — in-root equivalent found at '${normalizeDrivePath(matchedInRoot.path, prCode)}'`,
-                matchedCorrectFolderId: matchedInRoot.id,
-                matchedCorrectPath: normalizeDrivePath(matchedInRoot.path, prCode),
-            });
-        } else {
-            // Ambiguous — outside root, no in-root equivalent
+        const parentId = folder.parents[0] || '';
+        if (parentId && outsideTaggedIds.has(parentId)) {
             ambiguous.push({
                 folder: scanned,
                 confidence: 'AMBIGUOUS',
-                reason: 'Outside project root — no in-root equivalent found to confirm it is a duplicate',
+                reason: 'Nested under another out-of-root project-tagged folder; only top-level suspect roots are auto-quarantined',
             });
+            continue;
         }
+
+        const candidates = topLevelCorrectByName.get(scanned.normalizedPath.toLowerCase()) || [];
+        if (candidates.length === 1) {
+            const matched = candidates[0];
+            misplaced.push({
+                folder: scanned,
+                confidence: 'HIGH',
+                reason: `Outside project root - top-level in-root equivalent found at '${normalizeDrivePath(matched.path, prCode)}'`,
+                matchedCorrectFolderId: matched.id,
+                matchedCorrectPath: normalizeDrivePath(matched.path, prCode),
+            });
+            continue;
+        }
+
+        ambiguous.push({
+            folder: scanned,
+            confidence: 'AMBIGUOUS',
+            reason: candidates.length > 1
+                ? 'Outside project root - multiple in-root equivalents found, so the folder will not be auto-moved'
+                : 'Outside project root - no top-level in-root equivalent found to confirm a safe quarantine target',
+        });
     }
 
     return {
@@ -305,19 +259,58 @@ export async function detectMisplacedFolders(
         correct,
         misplaced,
         ambiguous,
-        scanDurationMs: Date.now() - t0,
     };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Quarantine — Phase 2
-// ─────────────────────────────────────────────────────────────────────────────
+export async function detectMisplacedFolders(
+    project: {
+        id: string;
+        pr_number: string;
+        name: string;
+        drive_folder_id: string | null;
+    },
+    _dryRun = true
+): Promise<ProjectScanResult> {
+    const startedAt = Date.now();
+    const rootId = project.drive_folder_id;
 
-/**
- * Move all HIGH-confidence misplaced folders to the quarantine folder.
- * Logs every action to rfp.repair_quarantine_log.
- * AMBIGUOUS folders are never touched.
- */
+    const empty: ProjectScanResult = {
+        projectId: project.id,
+        projectCode: project.pr_number,
+        projectRootId: rootId || '',
+        correct: [],
+        misplaced: [],
+        ambiguous: [],
+        scanDurationMs: 0,
+    };
+
+    if (!rootId) {
+        return {
+            ...empty,
+            scanDurationMs: Date.now() - startedAt,
+        };
+    }
+
+    const inRootFolders = await getAllFoldersRecursive(rootId);
+
+    let allProjectFolders: TaggedDriveFolder[];
+    try {
+        allProjectFolders = await searchProjectFoldersByPattern(project.pr_number);
+    } catch (error) {
+        return {
+            ...empty,
+            scanDurationMs: Date.now() - startedAt,
+        };
+    }
+
+    const classified = classifyRepairCandidates(project, inRootFolders, allProjectFolders);
+
+    return {
+        ...classified,
+        scanDurationMs: Date.now() - startedAt,
+    };
+}
+
 export async function quarantineMisplacedFolders(
     project: { id: string; pr_number: string },
     misplacedFolders: FolderClassification[],
@@ -342,11 +335,8 @@ export async function quarantineMisplacedFolders(
 
         try {
             const oldParentId = item.folder.parentId;
-
-            // Move the folder in Google Drive
             await moveFolder(item.folder.id, quarantineFolderId);
 
-            // Log to DB
             await client.schema('rfp').from('repair_quarantine_log').insert({
                 project_id: project.id,
                 project_code: project.pr_number,
@@ -370,9 +360,8 @@ export async function quarantineMisplacedFolders(
                 confidence: 'HIGH',
             });
             result.moved++;
-
-        } catch (err: any) {
-            result.errors.push(`${item.folder.name} (${item.folder.id}): ${err.message}`);
+        } catch (error: any) {
+            result.errors.push(`${item.folder.name} (${item.folder.id}): ${error.message}`);
             result.skipped++;
         }
     }
@@ -380,16 +369,14 @@ export async function quarantineMisplacedFolders(
     return result;
 }
 
-/**
- * Batch scan multiple projects — returns all results.
- */
 export async function batchScanProjects(
     projects: Array<{ id: string; pr_number: string; name: string; drive_folder_id: string | null }>
 ): Promise<ProjectScanResult[]> {
     const results: ProjectScanResult[] = [];
+
     for (const project of projects) {
-        const r = await detectMisplacedFolders(project);
-        results.push(r);
+        results.push(await detectMisplacedFolders(project));
     }
+
     return results;
 }
