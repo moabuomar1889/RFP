@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdminAuth } from '@/server/admin-auth';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,21 +9,25 @@ const supabaseAdmin = createClient(
 
 /**
  * POST /api/admin/map-folder
- * Body: { folder_index_id: string, template_node_id: string }
+ * ADMIN ONLY — requires valid admin Bearer token.
  *
- * Manually binds a Drive folder (by folder_index.id) to a template node (by node_id).
- * The binding is stable: subsequent re-index runs will NOT overwrite it.
+ * Body: { drive_folder_id: string, template_node_id: string | null }
  *
- * Also supports clearing a mapping:
- * Body: { folder_index_id: string, template_node_id: null }
+ * Manually binds a Drive folder to a template node using stable UUIDs.
+ * The binding survives re-index runs (COALESCE logic in upsert_folder_index).
+ *
+ * Set template_node_id to null to remove a binding (unmap).
  */
 export async function POST(request: NextRequest) {
+    const auth = await requireAdminAuth(request);
+    if (!auth.authorized) return auth.response!;
+
     try {
         const body = await request.json();
-        const { folder_index_id, template_node_id } = body;
+        const { drive_folder_id, template_node_id } = body;
 
-        if (!folder_index_id) {
-            return NextResponse.json({ error: 'folder_index_id is required' }, { status: 400 });
+        if (!drive_folder_id) {
+            return NextResponse.json({ error: 'drive_folder_id is required' }, { status: 400 });
         }
 
         // If setting a node_id, validate it exists in the active template
@@ -55,14 +60,17 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Update the binding
+        // Update by drive_folder_id — may affect multiple rows if same folder appears in multiple projects
+        // (normally shouldn't, but safe to update all matching rows)
         const { data, error } = await supabaseAdmin
             .schema('rfp')
             .from('folder_index')
-            .update({ template_node_id: template_node_id ?? null, updated_at: new Date().toISOString() })
-            .eq('id', folder_index_id)
-            .select('id, drive_folder_id, template_path, template_node_id')
-            .single();
+            .update({
+                template_node_id: template_node_id ?? null,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('drive_folder_id', drive_folder_id)
+            .select('id, drive_folder_id, template_path, template_node_id, project_id');
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
@@ -70,8 +78,9 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            folder: data,
+            updated: data,
             action: template_node_id ? 'mapped' : 'unmapped',
+            performed_by: auth.user?.email,
         });
 
     } catch (err: any) {

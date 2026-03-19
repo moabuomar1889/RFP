@@ -86,6 +86,11 @@ model FolderIndex {
   project_id              String              @db.Uuid
   drive_folder_id         String              @unique
   template_path           String
+  normalized_template_path String?
+  // Identity binding — stable UUID linking this Drive folder to its template node
+  // NULL means unmapped (user-created folder or not yet stamped)
+  // UNIQUE per project enforced at DB level: UNIQUE(project_id, template_node_id)
+  template_node_id        String?
   // Expected state (from template - source of truth)
   expected_limited_access Boolean             @default(false)
   expected_groups         Json                @default("[]")
@@ -103,6 +108,8 @@ model FolderIndex {
 
   @@index([project_id])
   @@index([template_path])
+  @@index([normalized_template_path])
+  @@index([template_node_id])
   @@index([is_compliant])
   @@index([last_verified_at])
   @@map("folder_index")

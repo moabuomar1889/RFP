@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { buildEffectivePermissionsMap } from '@/server/audit-helpers';
+import { requireAdminAuth } from '@/server/admin-auth';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,12 +9,16 @@ const supabaseAdmin = createClient(
 
 /**
  * GET /api/admin/unmapped-folders?projectId=...
+ * ADMIN ONLY — requires valid admin Bearer token.
  *
  * Returns folder_index entries where template_node_id IS NULL
  * (folders that are indexed but not bound to a template node).
  * Used by the /folder-mapping UI for Option B manual mapping.
  */
 export async function GET(request: NextRequest) {
+    const auth = await requireAdminAuth(request);
+    if (!auth.authorized) return auth.response!;
+
     try {
         const { searchParams } = new URL(request.url);
         const projectId = searchParams.get('projectId');

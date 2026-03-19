@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdminAuth } from '@/server/admin-auth';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +15,8 @@ const supabaseAdmin = createClient(
  * when manually mapping an unmapped Drive folder.
  */
 export async function GET(request: NextRequest) {
+    const auth = await requireAdminAuth(request);
+    if (!auth.authorized) return auth.response!;
     try {
         const { data: templateData, error: templateErr } = await supabaseAdmin.rpc('get_active_template');
         if (templateErr || !templateData) {
