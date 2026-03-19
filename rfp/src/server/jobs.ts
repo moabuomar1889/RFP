@@ -1442,17 +1442,20 @@ async function enforceProjectPermissionsWithReset(
             await addPermission(folderId, type as any, role as any, email);
         },
 
-        removePermission: (folderId, permId) => removePermission(folderId, permId),
+        removePermission: async (folderId, permId) => {
+            await removePermission(folderId, permId);
+        },
+
         setLimitedAccess: async (folderId, enabled) => {
             await setLimitedAccessFast(folderId, enabled);
         },
         getLimitedAccessState: async (folderId) => {
-            // Re-list permissions to check copyRequiresWriterPermission state
-            // setLimitedAccessFast already verifies internally; here we do a fresh check
-            const { getFolder } = await import('@/server/google-drive');
+            // Verify Limited Access state via the correct Drive field: inheritedPermissionsDisabled
+            // (getFolder now includes this field in its fields query)
             const file = await getFolder(folderId);
-            return file?.copyRequiresWriterPermission === true;
+            return (file as any)?.inheritedPermissionsDisabled === true;
         },
+
         isProtectedPrincipal: (email) =>
             protectedPrincipals.some(p => p.toLowerCase() === email.toLowerCase()),
     };

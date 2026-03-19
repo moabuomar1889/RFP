@@ -168,7 +168,9 @@ export async function getFolder(folderId: string): Promise<drive_v3.Schema$File 
         const response = await drive.files.get({
             fileId: folderId,
             supportsAllDrives: true,
-            fields: 'id, name, parents, mimeType, createdTime, modifiedTime',
+            // inheritedPermissionsDisabled is needed by enforce-engine for LA verification
+            // driveId is needed for NON_REMOVABLE_DRIVE_MEMBERSHIP classification
+            fields: 'id, name, parents, mimeType, createdTime, modifiedTime, driveId, inheritedPermissionsDisabled',
         });
         return response.data;
     } catch (error) {
@@ -405,7 +407,12 @@ export async function createShortcut(
 }
 
 /**
- * Add a permission to a folder
+ * Add a permission to a folder.
+ *
+ * STRICT MODE: this function does NOT silently downgrade roles.
+ * If a role is invalid for the target folder (e.g. 'organizer' on a sub-folder),
+ * the Drive API will reject it and the error will surface to the caller.
+ * The caller (enforce-engine.ts) will log this as a persistent enforcement failure.
  */
 export async function addPermission(
     folderId: string,
@@ -415,20 +422,14 @@ export async function addPermission(
 ): Promise<drive_v3.Schema$Permission> {
     const drive = await getDriveClient();
 
-    // Safety: 'organizer' is only valid on Shared Drive roots, not sub-folders.
-    // Auto-downgrade to 'writer' (Contributor) to prevent Drive API errors.
-    let safeRole: string = role;
-    if ((role as string) === 'organizer') {
-        console.warn(`addPermission: Downgrading 'organizer' to 'writer' for folder ${folderId} (organizer only valid on Shared Drive root)`);
-        safeRole = 'writer';
-    }
-    // Also try fileOrganizer first, but auto-retry with 'writer' if it fails
-    // (fileOrganizer is only valid on Shared Drives, not regular Drive folders)
-    const useFileOrganizer = (safeRole === 'fileOrganizer');
+    // STRICT: No silent downgrades. Callers must pass valid Drive roles.
+    // Valid roles for Shared Drive sub-folders: reader, writer, fileOrganizer
+    // Valid for drive root only: organizer
+    // If Drive rejects the role, the error propagates — caller classifies it.
 
     const permissionBody: drive_v3.Schema$Permission = {
         type,
-        role: safeRole,
+        role: role as string,
     };
 
     if (type === 'user' || type === 'group') {
@@ -451,26 +452,11 @@ export async function addPermission(
         );
         return response.data;
     } catch (err: any) {
-        // Auto-retry: if fileOrganizer fails (not a Shared Drive), downgrade to writer
-        if (useFileOrganizer && err.message?.includes('FileOrganizer')) {
-            console.warn(`addPermission: fileOrganizer failed for ${folderId}, retrying with 'writer'`);
-            permissionBody.role = 'writer';
-            const retryResponse = await withTimeout(
-                drive.permissions.create({
-                    fileId: folderId,
-                    requestBody: permissionBody,
-                    supportsAllDrives: true,
-                    sendNotificationEmail: false,
-                    fields: 'id, type, role, emailAddress, domain',
-                }),
-                API_TIMEOUT_MS,
-                `addPermission-retry(${folderId}, ${emailOrDomain})`
-            );
-            return retryResponse.data;
-        }
+        // Propagate the original error — no silent fallbacks.
         throw err;
     }
 }
+
 
 /**
  * Remove a permission from a folder (AC-4: skips inherited)

@@ -6,6 +6,10 @@ import {
     classifyInheritedPermission,
     buildEffectivePermissionsMap,
     buildNodeMap,
+    comparePermissions as sharedComparePermissions,
+    computeDesiredEffectivePolicy,
+    isFullyCompliant,
+    type PermComparison,
 } from '@/server/audit-helpers';
 import { CANONICAL_RANK, canonicalRoleLabel } from '@/lib/template-engine/types';
 
@@ -72,10 +76,15 @@ interface AuditResult {
 
 // ─── Compare Permissions ────────────────────────────────────
 
+// ─── Compare Permissions (strict — wraps shared audit-helpers model) ────────
+// Maps PermComparison[] → ComparisonRow[] for audit UI.
+// Strict classification: STRONGER and WEAKER are mismatches, not matches.
+
 function comparePermissions(
     expected: { groups: any[]; users: any[]; limitedAccess: boolean; overrides?: any },
     actual: any[],
-    driveId?: string
+    driveId?: string,
+    actualLimitedAccess?: boolean | null,
 ): {
     comparisonRows: ComparisonRow[];
     matchCount: number;
@@ -94,208 +103,154 @@ function comparePermissions(
     const discrepancies: string[] = [];
     const rows: ComparisonRow[] = [];
     let matchCount = 0, extraCount = 0, missingCount = 0, mismatchCount = 0;
-
-    // Build expected set with canonical roles
-    const expectedEmails = new Set<string>();
-    const expectedRoleMap = new Map<string, string>(); // email → canonical role
-    const expectedTypeMap = new Map<string, 'group' | 'user'>();
-
-    for (const g of expected.groups || []) {
-        if (g?.email) {
-            const key = g.email.toLowerCase();
-            expectedEmails.add(key);
-            expectedRoleMap.set(key, normalizeRole(g.role || 'reader'));
-            expectedTypeMap.set(key, 'group');
-        }
-    }
-    for (const u of expected.users || []) {
-        if (u?.email) {
-            const key = u.email.toLowerCase();
-            expectedEmails.add(key);
-            expectedRoleMap.set(key, normalizeRole(u.role || 'reader'));
-            expectedTypeMap.set(key, 'user');
-        }
-    }
-
-    // Extract override-removed set for drive membership tracking
-    const overrideRemovedSet = new Set<string>();
-    if (expected.overrides?.remove) {
-        for (const r of expected.overrides.remove) {
-            if (r.identifier) overrideRemovedSet.add(r.identifier.toLowerCase());
-        }
-    }
-
-    // Protected principals to exclude from extra/mismatch counting
-    const protectedEmails = ['mo.abuomar@dtgsa.com'];
-
-    // Categorize actual permissions
-    const directActual: any[] = [];
-    const inheritedActual: any[] = [];
-    const driveMembers: any[] = [];
     let inheritedNonRemovableCount = 0;
 
-    for (const p of actual) {
-        // Skip "Access removed" permissions (view=metadata) — these are phantom permissions
-        // on limited-access folders that can only see folder name, NOT contents. Never count them.
-        if (p.view === 'metadata') continue;
+    // Build expected principals with overrides applied (via shared helper)
+    const desiredPrincipals = computeDesiredEffectivePolicy(expected);
 
-        const cls = classifyInheritedPermission(p, driveId);
-        if (cls === 'NOT_INHERITED') {
-            directActual.push(p);
-        } else if (cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') {
-            inheritedNonRemovableCount++;
-            driveMembers.push(p);
-            // Flag override-removed principals persisting as drive membership
-            const email = p.emailAddress?.toLowerCase();
-            if (email && overrideRemovedSet.has(email)) {
-                discrepancies.push(`Requires Drive membership change: ${email}`);
-            }
-        } else {
-            inheritedActual.push(p);
-        }
+    // Run shared strict comparison
+    const comparisons = sharedComparePermissions(
+        desiredPrincipals,
+        actual,
+        expected.limitedAccess,
+        actualLimitedAccess ?? null,
+        driveId,
+    );
+
+    // Count classification breakdown for legacy counters
+    let directActualCount = 0;
+    let inheritedActualCount = 0;
+    for (const perm of actual) {
+        if (!perm.emailAddress) continue;
+        const cls = classifyInheritedPermission(perm, driveId);
+        if (cls === 'NOT_INHERITED') directActualCount++;
+        else if (cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') inheritedNonRemovableCount++;
+        else inheritedActualCount++;
     }
 
-    // Legacy counters
-    const expectedCount = expectedEmails.size;
-    const directActualCount = directActual.filter(p => {
-        const e = p.emailAddress?.toLowerCase();
-        return e && !protectedEmails.includes(e);
-    }).length;
-    const inheritedActualCount = inheritedActual.filter(p => {
-        const e = p.emailAddress?.toLowerCase();
-        return e && !protectedEmails.includes(e);
-    }).length;
-    const totalActualCount = directActualCount + inheritedActualCount;
+    const protectedEmails = ['mo.abuomar@dtgsa.com'];
 
-    // Build lookup of actual emails → permission data
-    // On Limited Access folders: inherited permissions have NO effective access ("Access Removed")
-    // They must be excluded from compliance comparison entirely.
-    const actualEmailsProcessed = new Set<string>();
+    // Map shared PermComparison → ComparisonRow
+    for (const c of comparisons) {
+        // Skip the LA mismatch row — it's surfaced via limitedAccessExpected/Actual fields
+        if (c.status === 'LIMITED_ACCESS_MISMATCH') {
+            discrepancies.push(`Limited Access mismatch: expected=${c.expectedRole}, actual=${c.actualRole}`);
+            continue;
+        }
 
-    // Include ALL actual permissions — filtering happens inside the loop
-    const allActual = [...directActual, ...inheritedActual, ...driveMembers];
+        if (!c.principal || c.principal === '__limited_access__') continue;
+        if (protectedEmails.includes(c.principal)) continue;
 
-    for (const p of allActual) {
-        const email = p.emailAddress?.toLowerCase();
-        if (!email) continue;
-        if (actualEmailsProcessed.has(email)) continue;
-        actualEmailsProcessed.add(email);
+        const expectedRoleLabel = c.expectedRole ? canonicalRoleLabel(c.expectedRole) : null;
+        const actualRoleLabel = c.actualRole ? canonicalRoleLabel(c.actualRole) : null;
+        const principalType: 'group' | 'user' = (c.principalType === 'group' ? 'group' : 'user');
 
-        const isInherited = (p.inherited === true) || (p.permissionDetails?.[0]?.inherited ?? false);
-
-        const actualCanonical = normalizeRole(p.role);
-        const actualRank = CANONICAL_RANK[actualCanonical] ?? 0;
-
-        if (expectedEmails.has(email)) {
-            // Expected and present — check role
-            const expectedCanonical = expectedRoleMap.get(email)!;
-            const expectedRank = CANONICAL_RANK[expectedCanonical] ?? 0;
-            const tags: string[] = [];
-
-            if (actualRank > expectedRank) {
-                // Higher privilege than expected — still COMPLIANT (authorized principal)
-                // They can do everything the expected role can do, plus more
-                tags.push('Higher Privilege');
+        switch (c.status) {
+            case 'EXACT_MATCH':
                 matchCount++;
                 rows.push({
-                    type: expectedTypeMap.get(email) || (p.type === 'group' ? 'group' : 'user'),
-                    identifier: email,
-                    expectedRole: canonicalRoleLabel(expectedCanonical),
-                    expectedRoleRaw: expectedCanonical,
-                    actualRole: canonicalRoleLabel(actualCanonical),
-                    actualRoleRaw: actualCanonical,
+                    type: principalType,
+                    identifier: c.principal,
+                    expectedRole: expectedRoleLabel,
+                    expectedRoleRaw: c.expectedRole ?? null,
+                    actualRole: actualRoleLabel,
+                    actualRoleRaw: c.actualRole ?? null,
                     status: 'match',
-                    tags,
-                    inherited: isInherited,
+                    tags: [],
+                    inherited: false,
                 });
-            } else {
-                // actualRank <= expectedRank — MATCH (compliant)
-                if (actualRank < expectedRank) {
-                    tags.push('More restrictive');
-                }
-                matchCount++;
+                break;
+
+            case 'STRONGER_THAN_TEMPLATE':
+                // STRICT: stronger-than-template is a mismatch, not a match.
+                // The folder has more access than the template allows.
+                mismatchCount++;
+                discrepancies.push(`Stronger than template: ${c.principal} (actual=${c.actualRole}, expected=${c.expectedRole})`);
                 rows.push({
-                    type: expectedTypeMap.get(email) || (p.type === 'group' ? 'group' : 'user'),
-                    identifier: email,
-                    expectedRole: canonicalRoleLabel(expectedCanonical),
-                    expectedRoleRaw: expectedCanonical,
-                    actualRole: canonicalRoleLabel(actualCanonical),
-                    actualRoleRaw: actualCanonical,
-                    status: 'match',
-                    tags,
-                    inherited: isInherited,
+                    type: principalType,
+                    identifier: c.principal,
+                    expectedRole: expectedRoleLabel,
+                    expectedRoleRaw: c.expectedRole ?? null,
+                    actualRole: actualRoleLabel,
+                    actualRoleRaw: c.actualRole ?? null,
+                    status: 'mismatch',
+                    tags: ['Stronger Than Template'],
+                    inherited: false,
                 });
-            }
-            expectedEmails.delete(email); // Mark as processed
-        } else {
-            // Not expected — is it extra?
-            if (driveMembers.includes(p)) continue; // Drive membership is not an extra violation
-            if (protectedEmails.includes(email)) continue;
+                break;
 
-            // Domain/anyone on non-limited folders: skip
-            if (!expected.limitedAccess && (p.type === 'domain' || p.type === 'anyone')) continue;
+            case 'WEAKER_THAN_TEMPLATE':
+                // STRICT: weaker-than-template is a mismatch — policy is being under-applied.
+                mismatchCount++;
+                discrepancies.push(`Weaker than template: ${c.principal} (actual=${c.actualRole}, expected=${c.expectedRole})`);
+                rows.push({
+                    type: principalType,
+                    identifier: c.principal,
+                    expectedRole: expectedRoleLabel,
+                    expectedRoleRaw: c.expectedRole ?? null,
+                    actualRole: actualRoleLabel,
+                    actualRoleRaw: c.actualRole ?? null,
+                    status: 'mismatch',
+                    tags: ['Weaker Than Template'],
+                    inherited: false,
+                });
+                break;
 
-            // Inherited from parent folder on non-limited folder: NOT a violation
-            if (!expected.limitedAccess && isInherited) continue;
+            case 'MISSING':
+                missingCount++;
+                discrepancies.push(`Missing: ${c.principal}`);
+                rows.push({
+                    type: principalType,
+                    identifier: c.principal,
+                    expectedRole: expectedRoleLabel,
+                    expectedRoleRaw: c.expectedRole ?? null,
+                    actualRole: null,
+                    actualRoleRaw: null,
+                    status: 'missing',
+                    tags: [],
+                    inherited: false,
+                });
+                break;
 
-            // Extra permission
-            extraCount++;
-            discrepancies.push(`Extra: ${email}`);
-            rows.push({
-                type: p.type === 'group' ? 'group' : 'user',
-                identifier: email,
-                expectedRole: null,
-                expectedRoleRaw: null,
-                actualRole: canonicalRoleLabel(actualCanonical),
-                actualRoleRaw: actualCanonical,
-                status: 'extra',
-                tags: isInherited ? ['Inherited'] : [],
-                inherited: isInherited,
-            });
+            case 'EXTRA':
+                extraCount++;
+                discrepancies.push(`Extra: ${c.principal}`);
+                rows.push({
+                    type: principalType,
+                    identifier: c.principal,
+                    expectedRole: null,
+                    expectedRoleRaw: null,
+                    actualRole: actualRoleLabel,
+                    actualRoleRaw: c.actualRole ?? null,
+                    status: 'extra',
+                    tags: [],
+                    inherited: false,
+                });
+                break;
+
+            case 'NON_REMOVABLE_MEMBERSHIP':
+                inheritedNonRemovableCount++;
+                rows.push({
+                    type: principalType,
+                    identifier: c.principal,
+                    expectedRole: c.expectedRole ? canonicalRoleLabel(c.expectedRole) : null,
+                    expectedRoleRaw: c.expectedRole ?? null,
+                    actualRole: actualRoleLabel,
+                    actualRoleRaw: c.actualRole ?? null,
+                    status: 'drive_member',
+                    tags: ['Drive Member', ...(c.reason ? [c.reason] : [])],
+                    inherited: true,
+                });
+                break;
         }
-    }
-
-    // Remaining expected = MISSING
-    for (const email of expectedEmails) {
-        missingCount++;
-        discrepancies.push(`Missing: ${email}`);
-        rows.push({
-            type: expectedTypeMap.get(email) || 'user',
-            identifier: email,
-            expectedRole: canonicalRoleLabel(expectedRoleMap.get(email)!),
-            expectedRoleRaw: expectedRoleMap.get(email)!,
-            actualRole: null,
-            actualRoleRaw: null,
-            status: 'missing',
-            tags: [],
-            inherited: false,
-        });
-    }
-
-    // Drive members — always add as neutral rows (never counted as extra/mismatch)
-    for (const p of driveMembers) {
-        const email = p.emailAddress?.toLowerCase();
-        if (!email) continue;
-        if (protectedEmails.includes(email)) continue;
-        const actualCanonical = normalizeRole(p.role);
-        rows.push({
-            type: p.type === 'group' ? 'group' : 'user',
-            identifier: email,
-            expectedRole: null,
-            expectedRoleRaw: null,
-            actualRole: canonicalRoleLabel(actualCanonical),
-            actualRoleRaw: actualCanonical,
-            status: 'drive_member',
-            tags: ['Drive Member'],
-            inherited: true,
-        });
     }
 
     // Sort: issues first, drive_member at bottom
     const order: Record<string, number> = { missing: 0, mismatch: 1, extra: 2, match: 3, no_effective_access: 4, drive_member: 5 };
     rows.sort((a, b) => (order[a.status] ?? 6) - (order[b.status] ?? 6));
 
-    // Determine folder status (excluding drive members)
+    const totalActualCount = directActualCount + inheritedActualCount;
+
     let status: 'exact_match' | 'compliant' | 'non_compliant';
     let statusLabel: string;
 
@@ -317,7 +272,7 @@ function comparePermissions(
         missingCount,
         mismatchCount,
         discrepancies,
-        expectedCount,
+        expectedCount: desiredPrincipals.filter(p => p.overrideAction !== 'removed').length,
         directActualCount,
         inheritedActualCount,
         inheritedNonRemovableCount,
@@ -560,8 +515,9 @@ export async function GET(request: NextRequest) {
                 continue;
             }
 
-            // Compare permissions
-            const comparison = comparePermissions(expectedPerms, actualPerms, driveId);
+            // Compare permissions (strict shared model — STRONGER/WEAKER are mismatches)
+            const comparison = comparePermissions(expectedPerms, actualPerms, driveId, actualLimitedAccess);
+
 
             // Accumulate per-principal counters
             totalMatch += comparison.matchCount;
