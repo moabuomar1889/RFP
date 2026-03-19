@@ -10,6 +10,7 @@
 
 import { toCanonicalRole, CANONICAL_RANK } from '@/lib/template-engine/types';
 
+
 // ─── Canonical Principal Model ──────────────────────────────────────────────
 export interface CanonicalPrincipal {
     type: 'group' | 'user';
@@ -272,8 +273,8 @@ export function buildEffectivePermissionsMap(
             for (const u of effectiveUsers) {
                 const d = downgradeMap.get(u.email.toLowerCase()) as any;
                 if (d) {
-                    const currentRank = ROLE_RANK[normalizeRole(u.role || 'reader')] ?? 0;
-                    const targetRank = ROLE_RANK[normalizeRole(d.role)] ?? 0;
+                    const currentRank = CANONICAL_RANK[normalizeRole(u.role || 'reader')] ?? 0;
+                    const targetRank = CANONICAL_RANK[normalizeRole(d.role)] ?? 0;
                     if (targetRank < currentRank) {
                         u.role = d.role;
                         u.effectiveSource = 'override';
@@ -309,6 +310,132 @@ export function buildEffectivePermissionsMap(
     }
 
     return map;
+}
+
+// ─── Node ID Map (Primary Identity Resolver) ────────────────────────────────
+
+/**
+ * Build a Map<node_id, FolderPermissions> from template nodes.
+ *
+ * This is the NEW primary lookup mechanism. Unlike buildEffectivePermissionsMap
+ * (which keys by path text), this keys by the stable node_id UUID, making it
+ * immune to renames, typos, and path normalization drift.
+ *
+ * Each FolderPermissions entry contains EFFECTIVE (inherited) permissions,
+ * identical to what buildEffectivePermissionsMap computes.
+ *
+ * @param nodes    - Array of raw template nodes (top-level of a phase)
+ * @param parentGroups  - Inherited groups from parent (for recursion)
+ * @param parentUsers   - Inherited users from parent (for recursion)
+ * @param parentLimitedAccess - limitedAccess from parent (for recursion)
+ * @returns Map<node_id, FolderPermissions>
+ */
+export function buildNodeMap(
+    nodes: any[],
+    parentGroups: any[] = [],
+    parentUsers: any[] = [],
+    parentLimitedAccess: boolean = false,
+): Map<string, FolderPermissions> {
+    const nodeMap = new Map<string, FolderPermissions>();
+
+    for (const node of nodes) {
+        const nodeName = node.text || node.name;
+        if (!nodeName) continue;
+
+        const nodeId: string | undefined = node.node_id;
+
+        // Merge: node-explicit principals layer over inherited from parent
+        const nodeGroups: any[] = node.groups || [];
+        const nodeUsers: any[] = node.users || [];
+
+        const mergedGroupMap = new Map<string, any>();
+        for (const g of parentGroups) {
+            if (g?.email) mergedGroupMap.set(g.email.toLowerCase(), { ...g, effectiveSource: g.effectiveSource || 'inherited' });
+        }
+        for (const g of nodeGroups) {
+            if (g?.email) mergedGroupMap.set(g.email.toLowerCase(), { ...g, effectiveSource: 'explicit' });
+        }
+
+        const mergedUserMap = new Map<string, any>();
+        for (const u of parentUsers) {
+            if (u?.email) mergedUserMap.set(u.email.toLowerCase(), { ...u, effectiveSource: u.effectiveSource || 'inherited' });
+        }
+        for (const u of nodeUsers) {
+            if (u?.email) mergedUserMap.set(u.email.toLowerCase(), { ...u, effectiveSource: 'explicit' });
+        }
+
+        let effectiveGroups = Array.from(mergedGroupMap.values());
+        let effectiveUsers = Array.from(mergedUserMap.values());
+
+        // Apply subtractive overrides
+        const overrides = node.overrides;
+        if (overrides) {
+            const removeSet = new Set(
+                (overrides.remove ?? []).map((r: any) => (r.identifier || '').toLowerCase())
+            );
+            const downgradeMap = new Map(
+                (overrides.downgrade ?? []).map((d: any) => [(d.identifier || '').toLowerCase(), d])
+            );
+
+            effectiveGroups = effectiveGroups.filter(g => !removeSet.has(g.email.toLowerCase()));
+            effectiveUsers = effectiveUsers.filter(u => !removeSet.has(u.email.toLowerCase()));
+
+            for (const g of effectiveGroups) {
+                const d = downgradeMap.get(g.email.toLowerCase()) as any;
+                if (d) {
+                    const currentRank = CANONICAL_RANK[normalizeRole(g.role || 'reader')] ?? 0;
+                    const targetRank = CANONICAL_RANK[normalizeRole(d.role)] ?? 0;
+                    if (targetRank < currentRank) {
+                        g.role = d.role;
+                        g.effectiveSource = 'override';
+                    }
+                }
+            }
+            for (const u of effectiveUsers) {
+                const d = downgradeMap.get(u.email.toLowerCase()) as any;
+                if (d) {
+                    const currentRank = CANONICAL_RANK[normalizeRole(u.role || 'reader')] ?? 0;
+                    const targetRank = CANONICAL_RANK[normalizeRole(d.role)] ?? 0;
+                    if (targetRank < currentRank) {
+                        u.role = d.role;
+                        u.effectiveSource = 'override';
+                    }
+                }
+            }
+        }
+
+        const effectiveLimitedAccess = node.limitedAccess === true ? true
+            : node.limitedAccess === false ? false
+            : parentLimitedAccess;
+
+        const perms: FolderPermissions = {
+            groups: effectiveGroups,
+            users: effectiveUsers,
+            limitedAccess: effectiveLimitedAccess,
+            overrides: node.overrides,
+        };
+
+        // Index by node_id (stable UUID) — primary identity key
+        if (nodeId) {
+            nodeMap.set(nodeId, perms);
+        }
+
+        // Recurse into children
+        const children = node.nodes || node.children || [];
+        if (children.length > 0) {
+            const childMap = buildNodeMap(
+                children,
+                effectiveGroups,
+                effectiveUsers,
+                effectiveLimitedAccess,
+            );
+            for (const [id, p] of childMap) {
+                nodeMap.set(id, p);
+            }
+        }
+    }
+
+    return nodeMap;
 }
 
 // ─── Effective Policy Resolver (for Enforcement/Audit) ──────────────────────

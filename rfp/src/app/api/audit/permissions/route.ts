@@ -5,6 +5,7 @@ import {
     normalizeRole,
     classifyInheritedPermission,
     buildEffectivePermissionsMap,
+    buildNodeMap,
 } from '@/server/audit-helpers';
 import { CANONICAL_RANK, canonicalRoleLabel } from '@/lib/template-engine/types';
 
@@ -362,7 +363,9 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'No active template found' }, { status: 404 });
         }
 
-        // Build effective permissions map from template
+        // Build effective permissions map from template — DUAL STRATEGY:
+        // PRIMARY:  nodeMap keyed by stable node_id UUID → immune to renames
+        // FALLBACK: permissionsMap keyed by phase/path → for folders not yet stamped
         const templateNodes = Array.isArray(template.template_json)
             ? template.template_json
             : template.template_json.template || [];
@@ -375,8 +378,9 @@ export async function GET(request: NextRequest) {
             ? ['Bidding']
             : ['Bidding', 'Project Delivery'];
 
-        // Build permissionsMap with phase-prefixed keys
-        // e.g. "Bidding/SOW", "Project Delivery/Document Control"
+        // Build nodeMap by node_id (primary — stable across renames)
+        const nodeMap = new Map<string, any>();
+        // Build permissionsMap by phase/path (fallback — for unmapped folders)
         const permissionsMap: Record<string, any> = {};
         const templateFolderCounts: { phase: string; count: number }[] = [];
         for (const phaseNodeName of phasesToAudit) {
@@ -386,8 +390,13 @@ export async function GET(request: NextRequest) {
             });
 
             if (phaseNode?.children) {
+                // node_id map (primary)
+                const phaseNodeMap = buildNodeMap(phaseNode.children);
+                for (const [nid, perms] of phaseNodeMap) {
+                    nodeMap.set(nid, perms);
+                }
+                // path map (fallback)
                 const phaseMap = buildEffectivePermissionsMap(phaseNode.children);
-                // count = children + 1 for the phase root folder itself
                 templateFolderCounts.push({ phase: phaseNodeName, count: Object.keys(phaseMap).length + 1 });
                 for (const [path, perms] of Object.entries(phaseMap)) {
                     permissionsMap[`${phaseNodeName}/${path}`] = perms;
@@ -397,6 +406,7 @@ export async function GET(request: NextRequest) {
                 templateFolderCounts.push({ phase: phaseNodeName, count: 0 });
             }
         }
+        console.log(`[AUDIT] nodeMap size: ${nodeMap.size}, permissionsMap size: ${Object.keys(permissionsMap).length}`);
 
         // Get indexed folders for this project
         const { data: rawFolders } = await supabaseAdmin.rpc('list_project_folders', {
@@ -480,33 +490,49 @@ export async function GET(request: NextRequest) {
             let templatePath = folder.normalized_template_path || folder.template_path;
             const folderPhase = detectFolderPhase(folder.template_path || '');
 
-            // Strip phase prefix if present
+            // ─── PRIMARY LOOKUP: template_node_id → nodeMap ───
+            // This is stable across renames and typos.
+            let expectedPerms = folder.template_node_id
+                ? nodeMap.get(folder.template_node_id)
+                : null;
+
             let pathWithoutPhase = templatePath.replace(/^(Bidding|Project Delivery)\//, '');
 
-            // Build phase-prefixed key for permissionsMap lookup
-            const prefixedPath = `${folderPhase}/${pathWithoutPhase}`;
-            let expectedPerms = permissionsMap[prefixedPath];
-
-            // If no match, try normalizing as a Drive-style path
+            // ─── FALLBACK LOOKUP: path-based ─────────────────
+            // Used when template_node_id is null (not yet stamped or manually mapped)
             if (!expectedPerms) {
-                const normalizedPath = normalizeDrivePathToTemplate(templatePath);
-                if (normalizedPath) {
-                    const altPrefixed = `${folderPhase}/${normalizedPath}`;
-                    expectedPerms = permissionsMap[altPrefixed];
-                    if (expectedPerms) {
-                        pathWithoutPhase = normalizedPath;
+                const prefixedPath = `${folderPhase}/${pathWithoutPhase}`;
+                expectedPerms = permissionsMap[prefixedPath];
+
+                // If no match, try normalizing as a Drive-style path
+                if (!expectedPerms) {
+                    const normalizedPath = normalizeDrivePathToTemplate(templatePath);
+                    if (normalizedPath) {
+                        const altPrefixed = `${folderPhase}/${normalizedPath}`;
+                        expectedPerms = permissionsMap[altPrefixed];
+                        if (expectedPerms) {
+                            pathWithoutPhase = normalizedPath;
+                        }
                     }
+                }
+
+                if (expectedPerms) {
+                    console.log(`[AUDIT] Path fallback used for: '${templatePath}' (template_node_id=${folder.template_node_id ?? 'null'})`);
                 }
             }
 
             console.log('[AUDIT DEBUG]', {
                 templatePath,
                 folderPhase,
-                prefixedPath,
+                template_node_id: folder.template_node_id ?? null,
+                resolvedVia: folder.template_node_id && nodeMap.has(folder.template_node_id) ? 'node_id' : 'path',
                 hasMatch: !!expectedPerms,
             });
 
-            if (!expectedPerms) continue;
+            if (!expectedPerms) {
+                console.warn(`[AUDIT] UNMAPPED: '${templatePath}' — no node_id match and no path match. Use /folder-mapping to bind it.`);
+                continue;
+            }
 
             // Get actual Limited Access status + driveId from Drive
             let actualLimitedAccess: boolean | null = null;

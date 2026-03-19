@@ -184,7 +184,8 @@ export interface UiLockState {
 // ─── Folder Node ────────────────────────────────────────────
 
 export interface FolderNode {
-    id: string;
+    id: string;          // runtime ID (ephemeral, for state management)
+    node_id: string;     // STABLE UUID persisted in template JSON — source of truth for binding
     name: string;
     parentId: string | null;
     childrenIds: string[];
@@ -207,6 +208,7 @@ export interface TemplateTreeState {
 // ─── Serialization (Backend Format) ─────────────────────────
 
 export interface RawTemplateNode {
+    node_id?: string;    // Stable UUID — persisted in template JSON. Generated on first serialize.
     name: string;
     limitedAccess?: boolean;
     groups?: ExplicitPrincipal[];

@@ -10,6 +10,7 @@ import {
     type FolderPermissions,
     buildPermissionsMap,
     buildEffectivePermissionsMap,
+    buildNodeMap,
     normalizeRole,
 } from '@/server/audit-helpers';
 import { CANONICAL_RANK } from '@/lib/template-engine/types';
@@ -838,10 +839,17 @@ async function applyChangeToProject(project: any, change: any): Promise<void> {
 /**
  * Rebuild folder index for a single project.
  * Extracted as a reusable helper so both buildFolderIndex and enforce can use it.
+ *
+ * KEY BEHAVIOUR (node_id identity system):
+ * - Before deleting stale entries, snapshot existing drive_folder_id → template_node_id bindings.
+ * - After re-indexing from Drive, restore the binding for any already-known drive_folder_id.
+ * - On FIRST index (no prior binding): attempt path match → store template_node_id.
+ * - Folders with no path match → upserted with template_node_id = NULL (surfaced as unmapped).
+ * - The upsert_folder_index RPC uses COALESCE so existing bindings are NEVER overwritten.
  */
 async function rebuildFolderIndexForProject(
     project: any
-): Promise<{ foldersFound: number; foldersUpserted: number }> {
+): Promise<{ foldersFound: number; foldersUpserted: number; unmappedCount: number }> {
     const client = getRawSupabaseAdmin();
     const prNumber = project.prNumber || project.pr_number;
     const driveFolderId = project.driveFolderId || project.drive_folder_id;
@@ -849,16 +857,35 @@ async function rebuildFolderIndexForProject(
     const projectId = project.id;
 
     if (!driveFolderId) {
-        return { foldersFound: 0, foldersUpserted: 0 };
+        return { foldersFound: 0, foldersUpserted: 0, unmappedCount: 0 };
     }
 
-    // A: Delete stale entries
+    // ── Step A: Snapshot existing template_node_id bindings ──
+    // Save drive_folder_id → template_node_id for all currently indexed folders
+    // BEFORE we delete them. This preserves bindings set manually (Option B) or
+    // from a previous run, even after re-index.
+    const { data: existingRows } = await client
+        .schema('rfp')
+        .from('folder_index')
+        .select('drive_folder_id, template_node_id')
+        .eq('project_id', projectId);
+
+    const existingNodeIdMap = new Map<string, string | null>(); // drive_folder_id → template_node_id
+    for (const row of (existingRows || [])) {
+        if (row.template_node_id) {
+            existingNodeIdMap.set(row.drive_folder_id, row.template_node_id);
+        }
+    }
+    console.log(`[rebuildFolderIndex] Preserved ${existingNodeIdMap.size} existing template_node_id bindings for ${prNumber}`);
+
+    // ── Step B: Delete stale entries ──
     await client.rpc('delete_project_folder_index', { p_project_id: projectId });
 
-    // B: Load template and build phase-filtered paths
+    // ── Step C: Load template — build path→node_id map for initial binding ──
     const { data: templateData } = await client.rpc('get_active_template');
     const template = Array.isArray(templateData) ? templateData[0] : templateData;
     const templatePaths = new Set<string>();
+    const pathToNodeId = new Map<string, string>(); // normalized_path → node_id
 
     if (template?.template_json) {
         const templateNodes = Array.isArray(template.template_json)
@@ -869,12 +896,17 @@ async function rebuildFolderIndexForProject(
             ? ['Bidding']
             : ['Bidding', 'Project Delivery'];
 
-        function collectPaths(node: any, parentPath = '') {
+        function collectPathsAndIds(node: any, parentPath = '') {
             const name = node.name || node.text || '';
             const current = parentPath ? `${parentPath}/${name}` : name;
-            if (name) templatePaths.add(current);
+            if (name) {
+                templatePaths.add(current);
+                if (node.node_id) {
+                    pathToNodeId.set(current, node.node_id);
+                }
+            }
             const children = node.children || node.nodes || [];
-            for (const child of children) collectPaths(child, current);
+            for (const child of children) collectPathsAndIds(child, current);
         }
 
         for (const phaseNodeName of phasesToIndex) {
@@ -884,23 +916,22 @@ async function rebuildFolderIndexForProject(
             });
 
             if (phaseNode?.children) {
-                for (const child of phaseNode.children) collectPaths(child, '');
+                for (const child of phaseNode.children) collectPathsAndIds(child, '');
             } else {
                 console.warn(`[rebuildFolderIndex] Phase '${phaseNodeName}' not found for ${prNumber}`);
             }
         }
     }
+    console.log(`[rebuildFolderIndex] Template has ${templatePaths.size} paths, ${pathToNodeId.size} with node_ids for ${prNumber}`);
 
-    // C: Get all folders from Drive
+    // ── Step D: Get all folders from Drive ──
     const folders = await getAllFoldersRecursive(driveFolderId);
 
-    // D: Path normalization
+    // ── Step E: Path normalization ──
     const projectCode = prNumber || '';
-    console.log(`[rebuildFolderIndex] projectCode for normalization: '${projectCode}', templatePaths: [${[...templatePaths].slice(0, 10).join(', ')}...]`);
     function normalizeDrivePath(drivePath: string): string {
         const segments = drivePath.split('/');
-        const remaining = segments.slice(1);
-        const cleaned = remaining.map(seg => {
+        const cleaned = segments.map(seg => {
             const escaped = projectCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const prefixPattern = new RegExp(`^\\d+-${escaped}-(RFP|PD)-`, 'i');
             let c = seg.replace(prefixPattern, '');
@@ -913,52 +944,66 @@ async function rebuildFolderIndexForProject(
         return cleaned.filter(s => s).join('/');
     }
 
-    // E: STRICT exact match only — no fuzzy matching
-    // Only index folders whose normalized name exactly matches a template path.
-    // This prevents manually-created folders (MOM, HSE, etc.) from being
-    // incorrectly indexed as template folders.
-    function findClosestTemplatePath(normalized: string): string | null {
-        // Exact match
-        if (templatePaths.has(normalized)) return normalized;
-        // Case-insensitive exact match
-        for (const tp of templatePaths) {
-            if (tp.toLowerCase() === normalized.toLowerCase()) return tp;
+    // ── Step F: Exact path match (no fuzzy) ──
+    function findTemplateMatch(normalized: string): { path: string; nodeId: string | null } | null {
+        if (templatePaths.has(normalized)) {
+            return { path: normalized, nodeId: pathToNodeId.get(normalized) ?? null };
         }
-        return null; // No match — folder is NOT a template folder
+        for (const tp of templatePaths) {
+            if (tp.toLowerCase() === normalized.toLowerCase()) {
+                return { path: tp, nodeId: pathToNodeId.get(tp) ?? null };
+            }
+        }
+        return null; // No match — folder is NOT a template folder (user-created or unmapped)
     }
 
-    // F: Upsert matched folders
+    // ── Step G: Upsert matched folders ──
     let upsertedCount = 0;
+    let unmappedCount = 0;
     const seenNormalized = new Set<string>();
 
     for (const folder of folders) {
         const normalized = normalizeDrivePath(folder.path);
         if (!normalized) continue;
 
-        const matchedPath = templatePaths.size > 0 ? findClosestTemplatePath(normalized) : normalized;
-        if (!matchedPath) {
-            // Log first 5 unmatched for debugging
-            if (upsertedCount + seenNormalized.size < 5) {
-                console.log(`[rebuildFolderIndex] NO MATCH: raw='${folder.path}' → normalized='${normalized}'`);
-            }
+        const match = templatePaths.size > 0 ? findTemplateMatch(normalized) : null;
+
+        if (!match) {
+            // User-created folder or not a template folder — skip silently
+            console.log(`[rebuildFolderIndex] UNMATCHED (user folder?): '${folder.path}' → '${normalized}'`);
             continue;
         }
 
-        if (seenNormalized.has(matchedPath)) continue;
-        seenNormalized.add(matchedPath);
+        if (seenNormalized.has(match.path)) continue;
+        seenNormalized.add(match.path);
+
+        // Determine template_node_id:
+        // 1. Use previously saved binding (Option B manual mapping or prior run)
+        // 2. Fall back to path-derived node_id (first-time index)
+        // 3. NULL if path match found but template has no node_id (not yet stamped)
+        const resolvedNodeId =
+            existingNodeIdMap.get(folder.id) ?? // Preserved from before delete
+            match.nodeId ??                       // Derived from path→node_id map
+            null;
+
+        if (!resolvedNodeId) {
+            unmappedCount++;
+            console.log(`[rebuildFolderIndex] NEEDS MAPPING: '${match.path}' — run stamp-node-ids or use /folder-mapping`);
+        }
 
         const { error } = await client.rpc('upsert_folder_index', {
             p_project_id: projectId,
             p_template_path: folder.path,
             p_drive_folder_id: folder.id,
-            p_normalized_template_path: matchedPath,
+            p_normalized_template_path: match.path,
+            p_template_node_id: resolvedNodeId,
         });
 
         if (!error) upsertedCount++;
     }
 
-    console.log(`[rebuildFolderIndex] ${prNumber}: indexed ${upsertedCount}/${folders.length} folders`);
-    return { foldersFound: folders.length, foldersUpserted: upsertedCount };
+    console.log(`[rebuildFolderIndex] ${prNumber}: indexed ${upsertedCount}/${folders.length} folders, ${unmappedCount} unmapped`);
+    return { foldersFound: folders.length, foldersUpserted: upsertedCount, unmappedCount };
 }
 
 /**
@@ -1154,56 +1199,64 @@ async function enforceProjectPermissionsWithReset(
         return { removed: 0, added: 0, errors: 1 };
     }
 
-    // Parse template
+    // Parse template into nodes array
     const templateNodes = Array.isArray(template.template_json)
         ? template.template_json
         : template.template_json.template || [];
 
-    // Phase-filtered template map: match folders for the project's active phases
-    // Bidding projects → Bidding only
-    // Execution/PD projects → BOTH Bidding and Project Delivery
+     // Phase-filtered permissions by node_id (PRIMARY) and by path (FALLBACK)
+    // Bidding projects → Bidding only; Execution/PD → BOTH
     const projectPhase = project.phase || 'bidding';
     const phaseNamesToProcess = projectPhase === 'bidding'
         ? ['Bidding']
         : ['Bidding', 'Project Delivery'];
 
-    // Build effective permissions map using shared helper (inherits groups + limitedAccess from parents)
-    const effectivePermissionsMap: Record<string, any> = {};
+    // ── Build nodeMap (PRIMARY — keyed by stable node_id UUID) ──
+    // This is immune to renames, typos, and path normalization drift.
+    const nodeMap = new Map<string, any>();
     let phasesFound = 0;
     for (const phaseNodeName of phaseNamesToProcess) {
         const phaseNode = templateNodes.find((n: any) => {
             const nodeName = (n.name || n.text || '').trim();
             return nodeName === phaseNodeName;
         });
-
         if (phaseNode?.children) {
-            const phasePerms = buildEffectivePermissionsMap(phaseNode.children);
-            Object.assign(effectivePermissionsMap, phasePerms);
+            const phaseNodeMap = buildNodeMap(phaseNode.children);
+            for (const [nid, perms] of phaseNodeMap) {
+                nodeMap.set(nid, perms);
+            }
             phasesFound++;
-            console.log(`[ENFORCE] Template phase '${phaseNodeName}': ${phaseNode.children.length} root folders`);
+            console.log(`[ENFORCE] nodeMap phase '${phaseNodeName}': ${phaseNode.children.length} root folders`);
         } else {
             console.warn(`[ENFORCE] Template phase '${phaseNodeName}' not found`);
         }
     }
-
+    // Fallback: if no phase nodes found, collect from all top-level nodes
     if (phasesFound === 0) {
         console.warn(`[ENFORCE] No phase nodes found, using all template nodes`);
         for (const topNode of templateNodes) {
-            const children = topNode.children || topNode.nodes || [];
-            const fallbackPerms = buildEffectivePermissionsMap(children);
-            Object.assign(effectivePermissionsMap, fallbackPerms);
+            const fallbackMap = buildNodeMap(topNode.children || topNode.nodes || []);
+            for (const [nid, perms] of fallbackMap) {
+                nodeMap.set(nid, perms);
+            }
         }
     }
 
-    // Build a templateMap for path lookup (needed for driveFolderMap matching)
-    const templateMap = new Map<string, any>();
-    for (const [path, perms] of Object.entries(effectivePermissionsMap)) {
-        templateMap.set(path, perms);
+    // ── Build effectivePermissionsMap (FALLBACK — keyed by path for unmapped rows) ──
+    const effectivePermissionsMap: Record<string, any> = {};
+    for (const phaseNodeName of phaseNamesToProcess) {
+        const phaseNode = templateNodes.find((n: any) =>
+            (n.name || n.text || '').trim() === phaseNodeName
+        );
+        if (phaseNode?.children) {
+            const phasePerms = buildEffectivePermissionsMap(phaseNode.children);
+            Object.assign(effectivePermissionsMap, phasePerms);
+        }
     }
 
-    console.log(`[ENFORCE] Template map built: ${templateMap.size} folders from ${phaseNamesToProcess.join(' + ')}`);
+    console.log(`[ENFORCE] nodeMap: ${nodeMap.size} nodes. Path fallback map: ${Object.keys(effectivePermissionsMap).length} paths`);
 
-    // Step 2: Get scope from event metadata directly (no DB query needed)
+    // Step 2: Get scope from event metadata directly
     const scope = eventMetadata?.scope || 'full';
     const targetPath = eventMetadata?.targetPath;
 
@@ -1214,8 +1267,6 @@ async function enforceProjectPermissionsWithReset(
     });
 
     // Step 2.5: Rebuild folder index from Drive (sync DB with reality)
-    // This deletes stale entries (e.g. folders deleted from Drive) and re-indexes only real folders.
-    // MUST happen before createMissingFoldersFromTemplate so the DB reflects actual Drive state.
     console.log(`[ENFORCE] Rebuilding folder index from Drive...`);
     await writeJobLog(jobId, project.id, project.name, null, 'rebuild_index_start', 'info', {
         message: 'Rebuilding folder index from Drive before enforcement'
@@ -1223,142 +1274,146 @@ async function enforceProjectPermissionsWithReset(
     const rebuildResult = await rebuildFolderIndexForProject(project);
     await writeJobLog(jobId, project.id, project.name, null, 'rebuild_index_complete', 'success', {
         foldersFound: rebuildResult.foldersFound,
-        foldersUpserted: rebuildResult.foldersUpserted
+        foldersUpserted: rebuildResult.foldersUpserted,
+        unmappedCount: rebuildResult.unmappedCount,
     });
 
-    // Step 3: Get folders to process using RPC (now reflects actual Drive state)
+    // Step 3: Get folders from DB index
     let { data: rawFolders } = await supabaseAdmin.rpc('list_project_folders', { p_project_id: project.id });
     if (!rawFolders) rawFolders = [];
 
-    if (!rawFolders || rawFolders.length === 0) {
+    if (rawFolders.length === 0) {
         await writeJobLog(jobId, project.id, project.name, null, 'warning', 'warning', {
             message: 'No folders found in index (Drive may be empty)'
         });
-        // Don't return — proceed to create missing folders from template
     }
 
     // Step 3.5: Auto-create missing folders from template
     console.log(`[ENFORCE] Checking for missing folders from template...`);
     const { created, errors: createErrors } = await createMissingFoldersFromTemplate(
-        project,
-        template.template_json,
-        projectPhase,
-        jobId
+        project, template.template_json, projectPhase, jobId
     );
 
     if (created > 0) {
         await writeJobLog(jobId, project.id, project.name, null, 'folders_created', 'success', {
-            count: created,
-            phase: projectPhase
+            count: created, phase: projectPhase
         });
-
-        // Re-fetch folders (new ones were indexed during creation, no need for full rebuild)
-        console.log(`[ENFORCE] Re-fetching folder list after creating ${created} folders...`);
         const { data: updatedFolders } = await supabaseAdmin.rpc('list_project_folders', {
             p_project_id: project.id
         });
         rawFolders = updatedFolders || rawFolders;
     }
 
-    if (createErrors > 0) {
-        errors += createErrors;
-    }
+    if (createErrors > 0) errors += createErrors;
 
-    // Apply scope filtering using normalized_template_path
-    let folders = rawFolders;
-    if (scope === 'single' && targetPath) {
-        folders = rawFolders.filter((f: any) => {
-            const path = f.normalized_template_path || f.template_path;
-            return path === targetPath;
-        });
-    } else if (scope === 'branch' && targetPath) {
-        folders = rawFolders.filter((f: any) => {
-            const path = f.normalized_template_path || f.template_path;
-            return path === targetPath || path.startsWith(`${targetPath}/`);
-        });
-    }
-
-    await writeJobLog(jobId, project.id, project.name, null, 'scope_info', 'info', {
-        scope,
-        targetPath,
-        totalFoldersInDrive: rawFolders.length,
-        templateFoldersToProcess: templateMap.size
-    });
-
-    // Helper: Normalize a Drive folder path to a template-matching path
-    // Drive paths: "PRJ-017-RFP/3-PRJ-017-RFP-Vendors Quotations/3-PRJ-017-RFP-E&I"
-    // Template paths: "Vendors Quotations/E&I"
-    // Strip: project root prefix, number prefix, and project code prefix from each segment
-    const projectCode = project.prNumber || project.pr_number || '';
-    function normalizeDrivePathToTemplate(drivePath: string): string {
-        const segments = drivePath.split('/');
-
-        // First segment is typically the project root (e.g., "PRJ-017-RFP" or "PRJ-017-PD")
-        // Skip it and process remaining segments
-        const remaining = segments.slice(1);
-
-        const cleaned = remaining.map(seg => {
-            // Strip patterns like "3-PRJ-017-RFP-" or "1-PRJ-017-PD-" from start
-            // Pattern: {number}-{project_code}-{suffix}-{template_name}
-            const prefixPattern = new RegExp(`^\\d+-${projectCode.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}-(RFP|PD)-`, 'i');
-            let cleaned = seg.replace(prefixPattern, '');
-
-            // Also try without the number prefix: "{project_code}-RFP-{name}"
-            if (cleaned === seg) {
-                const altPattern = new RegExp(`^${projectCode.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}-(RFP|PD)-`, 'i');
-                cleaned = seg.replace(altPattern, '');
-            }
-
-            return cleaned;
-        });
-
-        return cleaned.filter(s => s).join('/');
-    }
-
-    // Create a map of normalized paths to Drive folders for quick lookup
-    const driveFolderMap = new Map<string, any>();
+    // ── Build index lookup maps ──
+    // Primary: template_node_id → folder_index row
+    // Fallback: normalized_path → folder_index row
+    const nodeIdToFolder = new Map<string, any>();
+    const pathToFolder = new Map<string, any>();
     for (const folder of rawFolders) {
-        const normalizedPath = folder.normalized_template_path || normalizeDrivePathToTemplate(folder.template_path);
-        if (normalizedPath) {
-            driveFolderMap.set(normalizedPath, folder);
+        if (folder.template_node_id) {
+            nodeIdToFolder.set(folder.template_node_id, folder);
+        }
+        const normPath = folder.normalized_template_path || folder.template_path;
+        if (normPath) pathToFolder.set(normPath, folder);
+    }
+
+    // ── Scope resolution by node identity ──
+    // If UI sent a targetPath, resolve it to a template_node_id for scope filtering.
+    let targetNodeId: string | null = null;
+    if ((scope === 'single' || scope === 'branch') && targetPath) {
+        const scopeSeed = rawFolders.find((f: any) =>
+            f.normalized_template_path === targetPath || f.template_path === targetPath
+        );
+        targetNodeId = scopeSeed?.template_node_id ?? null;
+        if (!targetNodeId) {
+            console.warn(`[ENFORCE] Scope target '${targetPath}' has no template_node_id — scope filtering will be imprecise`);
         }
     }
 
-    // Debug: Log template map keys and drive folder map keys for comparison
-    const templateKeys = Array.from(templateMap.keys()).slice(0, 5);
-    const driveKeys = Array.from(driveFolderMap.keys()).slice(0, 5);
-    await writeJobLog(jobId, project.id, project.name, null, 'debug_paths', 'info', {
-        templateKeys,
-        driveKeys,
-        projectCode
+    await writeJobLog(jobId, project.id, project.name, null, 'scope_info', 'info', {
+        scope, targetPath, targetNodeId,
+        totalFoldersInDrive: rawFolders.length,
+        nodeMapSize: nodeMap.size,
+        mappedIndexedFolders: nodeIdToFolder.size,
+        unmappedIndexedFolders: rawFolders.length - nodeIdToFolder.size,
     });
 
+    // ── Surface unmapped indexed folders ──
+    const unmappedFolders = rawFolders.filter((f: any) => !f.template_node_id);
+    if (unmappedFolders.length > 0) {
+        await writeJobLog(jobId, project.id, project.name, null, 'unmapped_folders', 'warning', {
+            message: `${unmappedFolders.length} indexed folders have no template_node_id binding (unmanaged)`,
+            folders: unmappedFolders.map((f: any) => ({
+                drive_folder_id: f.drive_folder_id,
+                path: f.normalized_template_path || f.template_path,
+            })),
+            hint: 'Use /folder-mapping UI or run POST /api/admin/stamp-node-ids + rebuild index',
+        });
+    }
+
     // ╔══════════════════════════════════════════════════════════════════╗
-    // ║  Build list of folder entries to process (template → Drive)    ║
+    // ║  Build list of folder entries to process (nodeMap → Drive)    ║
     // ╚══════════════════════════════════════════════════════════════════╝
     const foldersToProcess: Array<{ templatePath: string; expectedPerms: any; folder: any }> = [];
 
-    for (const [templatePath, expectedPerms] of templateMap.entries()) {
-        // Apply scope filtering
-        if (scope === 'single' && targetPath && templatePath !== targetPath) continue;
-        if (scope === 'branch' && targetPath && templatePath !== targetPath && !templatePath.startsWith(`${targetPath}/`)) continue;
+    for (const [nodeId, expectedPerms] of nodeMap.entries()) {
+        // ── Scope filtering by node identity ──
+        if (scope === 'single' && targetNodeId && nodeId !== targetNodeId) continue;
+        if (scope === 'branch' && targetNodeId) {
+            const folder = nodeIdToFolder.get(nodeId);
+            if (!folder) continue;
+            const normPath = folder.normalized_template_path || '';
+            const targetFolder = nodeIdToFolder.get(targetNodeId);
+            const targetNorm = targetFolder?.normalized_template_path || targetPath || '';
+            if (normPath !== targetNorm && !normPath.startsWith(`${targetNorm}/`)) continue;
+        }
 
-        const folder = driveFolderMap.get(templatePath);
+        // ── Primary lookup: by node_id ──
+        let folder = nodeIdToFolder.get(nodeId);
+
+        // ── Fallback: by path for rows not yet stamped ──
         if (!folder) {
-            await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_missing_in_drive', 'warning', {
-                message: 'Template folder not found in Drive (should have been created)',
-                templatePath
+            // Find the path entry corresponding to this node via effectivePermissionsMap
+            // The path was computed from the same phaseNode children so it should align
+            const matchingPath = Object.keys(effectivePermissionsMap).find(
+                p => effectivePermissionsMap[p] === expectedPerms
+            );
+            if (matchingPath) {
+                folder = pathToFolder.get(matchingPath);
+                if (folder) {
+                    console.log(`[ENFORCE] PATH FALLBACK: node_id=${nodeId} matched via path='${matchingPath}'`);
+                }
+            }
+        }
+
+        if (!folder) {
+            await writeJobLog(jobId, project.id, project.name, null, 'folder_missing_in_drive', 'warning', {
+                message: 'Template node not matched to any Drive folder in index',
+                template_node_id: nodeId,
             });
             continue;
         }
 
-        foldersToProcess.push({ templatePath, expectedPerms, folder });
+        // ── Orphaned mapping detection ──
+        if (folder.template_node_id && !nodeMap.has(folder.template_node_id)) {
+            await writeJobLog(jobId, project.id, project.name, folder.template_path, 'orphaned_mapping', 'warning', {
+                message: 'folder_index.template_node_id references a node not in the active template',
+                drive_folder_id: folder.drive_folder_id,
+                template_node_id: folder.template_node_id,
+            });
+        }
+
+        const displayPath = folder.normalized_template_path || folder.template_path;
+        foldersToProcess.push({ templatePath: displayPath, expectedPerms, folder });
     }
 
     await writeJobLog(jobId, project.id, project.name, null, 'folders_to_process', 'info', {
         count: foldersToProcess.length,
         scope
     });
+
 
     // ╔══════════════════════════════════════════════════════════════════╗
     // ║  PASS 1: GLOBAL RESET — Clean ALL folders first               ║

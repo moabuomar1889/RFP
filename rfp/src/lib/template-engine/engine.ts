@@ -559,22 +559,31 @@ export function deserializeTemplate(
     const rootIds: string[] = [];
     let idCounter = 0;
 
-    function generateId(): string {
+    // runtime ID — ephemeral, used only for in-memory tree navigation
+    function generateRuntimeId(): string {
         return `node_${++idCounter}`;
     }
 
     function processNode(raw: RawTemplateNode, parentId: string | null): string {
-        const id = generateId();
+        const id = generateRuntimeId();
+
+        // STABLE node_id: use the persisted UUID from JSON if it exists,
+        // otherwise generate a new UUID. On next serialize() this UUID will be
+        // written back to JSON and persisted forever.
+        const node_id = raw.node_id && raw.node_id.length > 8
+            ? raw.node_id
+            : crypto.randomUUID();
 
         const explicitPolicy: ExplicitPolicy = {
             limitedAccess: raw.limitedAccess, // undefined if absent
             groups: raw.groups ?? [],
             users: raw.users ?? [],
-            overrides: raw.overrides, // NEW: read overrides
+            overrides: raw.overrides,
         };
 
         nodes[id] = {
             id,
+            node_id,
             name: raw.name,
             parentId,
             childrenIds: [],
@@ -638,6 +647,10 @@ export function serializeTemplate(state: TemplateTreeState): RawTemplateNode[] {
         const node = state.nodes[nodeId];
 
         const raw: RawTemplateNode = {
+            // ALWAYS write node_id — this is what makes the binding stable.
+            // If de-serialized from old JSON without node_id, a UUID was generated
+            // and will now be persisted permanently.
+            node_id: node.node_id,
             name: node.name,
         };
 

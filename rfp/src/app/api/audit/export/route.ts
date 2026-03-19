@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getDriveClient } from '@/server/google-drive';
+import { buildNodeMap, buildEffectivePermissionsMap } from '@/server/audit-helpers';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -51,22 +52,9 @@ interface ExportFolder {
     actual_permissions: EnhancedPermission[];
 }
 
-// Build permissions map from template
-function buildPermissionsMap(nodes: any[], parentPath = ''): Record<string, any> {
-    const map: Record<string, any> = {};
-    for (const node of nodes) {
-        const currentPath = parentPath ? `${parentPath}/${node.name}` : node.name;
-        map[currentPath] = {
-            groups: node.groups || [],
-            users: node.users || [],
-            limitedAccess: node.limitedAccess || false
-        };
-        if (node.children && node.children.length > 0) {
-            Object.assign(map, buildPermissionsMap(node.children, currentPath));
-        }
-    }
-    return map;
-}
+// NOTE: The legacy path-based buildPermissionsMap is no longer the primary source of truth.
+// It is kept here only as a diagnostic/display aid.
+// The PRIMARY lookup is now: folder_index.template_node_id → nodeMap.get(nodeId)
 
 // Enhanced permissions fetcher with all required fields
 async function getEnhancedPermissions(folderId: string): Promise<{
@@ -324,7 +312,22 @@ export async function GET(request: NextRequest) {
         const templateNodes = Array.isArray(template.template_json)
             ? template.template_json
             : template.template_json.template || [];
-        const permissionsMap = buildPermissionsMap(templateNodes);
+
+        // PRIMARY: Build nodeMap keyed by stable node_id UUID
+        const nodeMap = new Map<string, any>();
+        // FALLBACK: Build path-based map for folders not yet stamped
+        const pathFallbackMap: Record<string, any> = {};
+        for (const topNode of templateNodes) {
+            const name = topNode.name || topNode.text || '';
+            if (!name) continue;
+            const children = topNode.children || topNode.nodes || [];
+            // Primary: collect all node_id → permissions
+            const phaseNodeMap = buildNodeMap(children);
+            for (const [nid, perms] of phaseNodeMap) nodeMap.set(nid, perms);
+            // Fallback: collect path → permissions
+            const phasePerms = buildEffectivePermissionsMap(children);
+            Object.assign(pathFallbackMap, phasePerms);
+        }
 
         // Get folders
         const { data: folders } = await supabaseAdmin.rpc('list_project_folders', {
@@ -332,15 +335,59 @@ export async function GET(request: NextRequest) {
         });
 
         if (!folders || folders.length === 0) {
+            if (format === 'json') {
+                return NextResponse.json({
+                    export_version: 'v3',
+                    exported_at: new Date().toISOString(),
+                    projects: [{
+                        project_code: project.pr_number,
+                        project_name: project.name,
+                        folders: [],
+                        unmapped: [],
+                        orphaned: [],
+                        summary: { totalFolders: 0, mapped: 0, unmapped: 0, orphaned: 0 }
+                    }]
+                });
+            }
             return NextResponse.json({ error: 'No folders' }, { status: 404 });
         }
 
         const exportData: ExportFolder[] = [];
+        const unmappedFolders: any[] = [];
+        const orphanedFolders: any[] = [];
 
         for (const folder of folders) {
             const templatePath = folder.normalized_template_path || folder.template_path;
-            const expectedPerms = permissionsMap[templatePath];
-            if (!expectedPerms) continue;
+
+            // ── Check for unmapped ──
+            if (!folder.template_node_id) {
+                unmappedFolders.push({
+                    drive_folder_id: folder.drive_folder_id,
+                    path: templatePath,
+                    status: 'unmapped',
+                    hint: 'No template_node_id binding. Use /folder-mapping UI or run stamp-node-ids + rebuild index.',
+                });
+                continue; // skip enforcement/audit for unmanaged folders
+            }
+
+            // ── Primary lookup by node_id ──
+            let expectedPerms = nodeMap.get(folder.template_node_id);
+
+            // ── Orphaned check: node_id exists in index but not in current template ──
+            if (!expectedPerms) {
+                orphanedFolders.push({
+                    drive_folder_id: folder.drive_folder_id,
+                    path: templatePath,
+                    template_node_id: folder.template_node_id,
+                    status: 'orphaned_mapping',
+                    hint: 'template_node_id found in folder_index but not in active template. Template may have changed.',
+                });
+
+                // Fallback: try path-based resolution (shows best-effort data)
+                const normPath = templatePath.replace(/^(Bidding|Project Delivery)\//, '');
+                expectedPerms = pathFallbackMap[normPath] || pathFallbackMap[templatePath];
+                if (!expectedPerms) continue;
+            }
 
             const { permissions, actualLimitedAccess } = await getEnhancedPermissions(folder.drive_folder_id);
             const analysis = analyzeFolder(expectedPerms, permissions, actualLimitedAccess);
@@ -384,10 +431,11 @@ export async function GET(request: NextRequest) {
         }
 
         if (format === 'json') {
-            // JSON v2 export
+            // JSON v3 export — uses node_id as primary identity
             const jsonExport = {
-                export_version: 'v2',
+                export_version: 'v3',
                 exported_at: new Date().toISOString(),
+                identity_model: 'template_node_id (UUID) is the primary binding key, not path text',
                 policy: {
                     protected_principals: ['mo.abuomar@dtgsa.com'],
                     inheritance_rules: 'limitedAccess=true blocks inheritance; limitedAccess=false allows inheritance'
@@ -428,13 +476,20 @@ export async function GET(request: NextRequest) {
                         totalFolders: exportData.length,
                         exactMatch: exportData.filter(f => f.status === 'exact_match').length,
                         compliant: exportData.filter(f => f.status === 'compliant_inheritance_allowed').length,
-                        nonCompliant: exportData.filter(f => f.status === 'non_compliant').length
-                    }
+                        nonCompliant: exportData.filter(f => f.status === 'non_compliant').length,
+                        unmapped: unmappedFolders.length,
+                        orphaned: orphanedFolders.length,
+                    },
+                    unmapped: unmappedFolders,     // drive folders with no template binding
+                    orphaned: orphanedFolders,     // stale bindings pointing to removed template nodes
                 }],
                 summary: {
                     totalProjects: 1,
-                    totalFolders: exportData.length
+                    totalFolders: exportData.length,
+                    totalUnmapped: unmappedFolders.length,
+                    totalOrphaned: orphanedFolders.length,
                 }
+
             };
 
             return NextResponse.json(jsonExport);
