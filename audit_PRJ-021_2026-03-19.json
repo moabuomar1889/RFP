@@ -1,0 +1,4001 @@
+{
+  "export_version": "v3-client",
+  "exported_at": "2026-03-19T02:28:53.672Z",
+  "project": {
+    "id": "14465822-019e-427d-8478-e08962ced3cc",
+    "name": "aa",
+    "code": "PRJ-021",
+    "phase": "execution"
+  },
+  "summary": {
+    "total_folders": 63,
+    "match": 0,
+    "extra": 0,
+    "missing": 253,
+    "mismatch": 0,
+    "exact_match_folders": 2,
+    "compliant_folders": 0,
+    "non_compliant_folders": 61
+  },
+  "folders": [
+    {
+      "folder_path": "PRJ-021/Commercial Proposal",
+      "normalized_path": "Project Delivery/Commercial Proposal",
+      "drive_folder_id": "1tOPxOYc9k_TTver0_c3EISyNVhZU3ZK9",
+      "drive_url": "https://drive.google.com/drive/folders/1tOPxOYc9k_TTver0_c3EISyNVhZU3ZK9",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 1,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 1,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-managers@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Commercial Proposal/Admin Only",
+      "normalized_path": "Project Delivery/Commercial Proposal/Admin Only",
+      "drive_folder_id": "1h6Ixa9a4gFYg-2uPUmnkjhKk_l4v4HSa",
+      "drive_url": "https://drive.google.com/drive/folders/1h6Ixa9a4gFYg-2uPUmnkjhKk_l4v4HSa",
+      "status": "exact_match",
+      "status_label": "Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 0,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 0,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [],
+      "permissions": [
+        {
+          "type": "user",
+          "identifier": "mo.abuomar@dtgsa.com",
+          "expected_role": null,
+          "actual_role": "owner",
+          "diff_status": "extra",
+          "inherited": true,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control",
+      "normalized_path": "Project Delivery/Document Control",
+      "drive_folder_id": "1hljfW_YgygdHJLNNRUIqwRtmAPpLIqsS",
+      "drive_url": "https://drive.google.com/drive/folders/1hljfW_YgygdHJLNNRUIqwRtmAPpLIqsS",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Forms",
+      "normalized_path": "Project Delivery/Document Control/Forms",
+      "drive_folder_id": "1yVbC5XVkZjosnZV2OBV9YF2R1_ftxTqj",
+      "drive_url": "https://drive.google.com/drive/folders/1yVbC5XVkZjosnZV2OBV9YF2R1_ftxTqj",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/MDR",
+      "normalized_path": "Project Delivery/Document Control/MDR",
+      "drive_folder_id": "1ds2DE78OW9qJTNZuXF75gpx-supBGL0p",
+      "drive_url": "https://drive.google.com/drive/folders/1ds2DE78OW9qJTNZuXF75gpx-supBGL0p",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals",
+      "normalized_path": "Project Delivery/Document Control/Submittals",
+      "drive_folder_id": "1YAEXD96iQ6HzksMExKKsJNE00XnKV_KV",
+      "drive_url": "https://drive.google.com/drive/folders/1YAEXD96iQ6HzksMExKKsJNE00XnKV_KV",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Ongoing",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Ongoing",
+      "drive_folder_id": "15XN8XuotWP0Kc1eJdO-fbhFBokIjeigQ",
+      "drive_url": "https://drive.google.com/drive/folders/15XN8XuotWP0Kc1eJdO-fbhFBokIjeigQ",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Ongoing/Construction",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Ongoing/Construction",
+      "drive_folder_id": "1eBKR3sEYiA_jVbAdamvhRep47TFqHFwg",
+      "drive_url": "https://drive.google.com/drive/folders/1eBKR3sEYiA_jVbAdamvhRep47TFqHFwg",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Ongoing/EHS",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Ongoing/EHS",
+      "drive_folder_id": "1HyYUDYDMWYnV4DtFw5-rf9waWYiwr1-8",
+      "drive_url": "https://drive.google.com/drive/folders/1HyYUDYDMWYnV4DtFw5-rf9waWYiwr1-8",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: hse-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "hse-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Ongoing/Letters",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Ongoing/Letters",
+      "drive_folder_id": "18rTAOr1_yoYRdTVm4U-ADIgGo4wKYg4k",
+      "drive_url": "https://drive.google.com/drive/folders/18rTAOr1_yoYRdTVm4U-ADIgGo4wKYg4k",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 4,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 4,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Ongoing/Minutes of Meetings",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Ongoing/Minutes of Meetings",
+      "drive_folder_id": "1LiVt2YE7c2UXoNv5_bhi-MlwYwiFwUqS",
+      "drive_url": "https://drive.google.com/drive/folders/1LiVt2YE7c2UXoNv5_bhi-MlwYwiFwUqS",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Ongoing/Procurement",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Ongoing/Procurement",
+      "drive_folder_id": "1cv0ZKOG92IPaDnQrF_jRzS21vrmgX0qc",
+      "drive_url": "https://drive.google.com/drive/folders/1cv0ZKOG92IPaDnQrF_jRzS21vrmgX0qc",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Ongoing/Project Control",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Ongoing/Project Control",
+      "drive_folder_id": "1PlRbVYM6j81QKJMHPVErllTFJ_kJo0er",
+      "drive_url": "https://drive.google.com/drive/folders/1PlRbVYM6j81QKJMHPVErllTFJ_kJo0er",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Ongoing/Quality Control",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Ongoing/Quality Control",
+      "drive_folder_id": "1gUDbQStsk9GWd32WajYurffK-5dIiR25",
+      "drive_url": "https://drive.google.com/drive/folders/1gUDbQStsk9GWd32WajYurffK-5dIiR25",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Ongoing/SI & CCCOR",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Ongoing/SI & CCCOR",
+      "drive_folder_id": "19U5ElqtsT87nuRbo5Yx9p_FbJiX6pMH1",
+      "drive_url": "https://drive.google.com/drive/folders/19U5ElqtsT87nuRbo5Yx9p_FbJiX6pMH1",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 3,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 3,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: dc-team@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Received",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Received",
+      "drive_folder_id": "1XttiF-0oNxgS_6WYDwO7rYpMFMaO8iJ5",
+      "drive_url": "https://drive.google.com/drive/folders/1XttiF-0oNxgS_6WYDwO7rYpMFMaO8iJ5",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Received/Construction",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Received/Construction",
+      "drive_folder_id": "1jWx7Mn51GJKWRghVgFJv3nm8g_UdARsH",
+      "drive_url": "https://drive.google.com/drive/folders/1jWx7Mn51GJKWRghVgFJv3nm8g_UdARsH",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Received/EHS",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Received/EHS",
+      "drive_folder_id": "1Kloz0EvwkGwhA1b4zwuEygAp26U2d4sV",
+      "drive_url": "https://drive.google.com/drive/folders/1Kloz0EvwkGwhA1b4zwuEygAp26U2d4sV",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 5,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 5,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Received/Letters",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Received/Letters",
+      "drive_folder_id": "1WfiBF413NDY821HK4-KJWlZxSNH2UGZU",
+      "drive_url": "https://drive.google.com/drive/folders/1WfiBF413NDY821HK4-KJWlZxSNH2UGZU",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 4,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 4,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Received/Minutes of Meetings",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Received/Minutes of Meetings",
+      "drive_folder_id": "16yimAclrx_DhXTAah1NFsq69Ag9QYJBY",
+      "drive_url": "https://drive.google.com/drive/folders/16yimAclrx_DhXTAah1NFsq69Ag9QYJBY",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Received/Procurement",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Received/Procurement",
+      "drive_folder_id": "1t2F4DsUMnHNJTwkT75kZMD7liTU-7FiO",
+      "drive_url": "https://drive.google.com/drive/folders/1t2F4DsUMnHNJTwkT75kZMD7liTU-7FiO",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Received/Project Control",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Received/Project Control",
+      "drive_folder_id": "1FOPsau_-WU-zUEcfTBKdA0EaBlRXtDBJ",
+      "drive_url": "https://drive.google.com/drive/folders/1FOPsau_-WU-zUEcfTBKdA0EaBlRXtDBJ",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 5,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 5,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Received/Quality Control",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Received/Quality Control",
+      "drive_folder_id": "1beX_VV09hFA_nY0k46oK5-BcIwtlN0_0",
+      "drive_url": "https://drive.google.com/drive/folders/1beX_VV09hFA_nY0k46oK5-BcIwtlN0_0",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Submittals/Received/SI & CCCOR",
+      "normalized_path": "Project Delivery/Document Control/Submittals/Received/SI & CCCOR",
+      "drive_folder_id": "1wDJH-wI1Ryppsc2RB62IeyIPJrwIb2DP",
+      "drive_url": "https://drive.google.com/drive/folders/1wDJH-wI1Ryppsc2RB62IeyIPJrwIb2DP",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 4,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 4,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Transmittals",
+      "normalized_path": "Project Delivery/Document Control/Transmittals",
+      "drive_folder_id": "1dOoq0taZK0Z2rJOA-1yUkrC8liKolxR2",
+      "drive_url": "https://drive.google.com/drive/folders/1dOoq0taZK0Z2rJOA-1yUkrC8liKolxR2",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Transmittals/Received",
+      "normalized_path": "Project Delivery/Document Control/Transmittals/Received",
+      "drive_folder_id": "1F8MMB81Xto6bF9t55SuwRBV3r4hPNWoF",
+      "drive_url": "https://drive.google.com/drive/folders/1F8MMB81Xto6bF9t55SuwRBV3r4hPNWoF",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Document Control/Transmittals/Sent",
+      "normalized_path": "Project Delivery/Document Control/Transmittals/Sent",
+      "drive_folder_id": "1UkX5YUXqMy5-ffGkk1cz1jiVpks_XXjH",
+      "drive_url": "https://drive.google.com/drive/folders/1UkX5YUXqMy5-ffGkk1cz1jiVpks_XXjH",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: dc-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Engineering (EPC ONLY)",
+      "normalized_path": "Project Delivery/Engineering (EPC ONLY)",
+      "drive_folder_id": "1dQno7q5ejbv78lUAwhhMkYOuO6MPPHNl",
+      "drive_url": "https://drive.google.com/drive/folders/1dQno7q5ejbv78lUAwhhMkYOuO6MPPHNl",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 7,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 7,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: dc-team@dtgsa.com",
+        "Missing: operation-team@dtgsa.com",
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: survey-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "operation-team@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "survey-team@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/HSE",
+      "normalized_path": "Project Delivery/HSE",
+      "drive_folder_id": "1hJmd_5l0G1TlcCm0tiIQPg5xlGofPBeQ",
+      "drive_url": "https://drive.google.com/drive/folders/1hJmd_5l0G1TlcCm0tiIQPg5xlGofPBeQ",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 4,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 4,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: technical-team@dtgsa.com",
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: hse-team@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "hse-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/IFC Drawings",
+      "normalized_path": "Project Delivery/IFC Drawings",
+      "drive_folder_id": "1bUIhl0JA6wKN5Jz5JQEY8gbByP3WvhoT",
+      "drive_url": "https://drive.google.com/drive/folders/1bUIhl0JA6wKN5Jz5JQEY8gbByP3WvhoT",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: operation-team@dtgsa.com",
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: survey-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "operation-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "survey-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Operation",
+      "normalized_path": "Project Delivery/Operation",
+      "drive_folder_id": "1uYvecbnjnDZeDBo1ESya9-6j1XI1fL2f",
+      "drive_url": "https://drive.google.com/drive/folders/1uYvecbnjnDZeDBo1ESya9-6j1XI1fL2f",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 5,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 5,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: operation-team@dtgsa.com",
+        "Missing: hse-team@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: survey-team@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "operation-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "hse-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "survey-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Project Control",
+      "normalized_path": "Project Delivery/Project Control",
+      "drive_folder_id": "1cA_V9E6El2I1c19D-6pXrsLm6wkfdvYm",
+      "drive_url": "https://drive.google.com/drive/folders/1cA_V9E6El2I1c19D-6pXrsLm6wkfdvYm",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Project Control/Commercial",
+      "normalized_path": "Project Delivery/Project Control/Commercial",
+      "drive_folder_id": "165fE9i8WGCb2DOWiNJ6mZ1-hg0gaP8YZ",
+      "drive_url": "https://drive.google.com/drive/folders/165fE9i8WGCb2DOWiNJ6mZ1-hg0gaP8YZ",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Project Control/Commercial/Agreements",
+      "normalized_path": "Project Delivery/Project Control/Commercial/Agreements",
+      "drive_folder_id": "1sEJDFZ2v3m4td23WXRZ480z7RD0IkI0D",
+      "drive_url": "https://drive.google.com/drive/folders/1sEJDFZ2v3m4td23WXRZ480z7RD0IkI0D",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 4,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 4,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: muath@dtgsa.com",
+        "Missing: qandil@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "muath@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "qandil@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Project Control/Commercial/Agreements/Change Orders",
+      "normalized_path": "Project Delivery/Project Control/Commercial/Agreements/Change Orders",
+      "drive_folder_id": "1e1PW_uYpIjYhJxmv4r14XOLe-0RPPvM8",
+      "drive_url": "https://drive.google.com/drive/folders/1e1PW_uYpIjYhJxmv4r14XOLe-0RPPvM8",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 4,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 4,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: muath@dtgsa.com",
+        "Missing: qandil@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "muath@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "qandil@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Project Control/Commercial/Agreements/Contract & PO",
+      "normalized_path": "Project Delivery/Project Control/Commercial/Agreements/Contract & PO",
+      "drive_folder_id": "151kdPJnV8ndObNXPmux386xgFsL1g2dF",
+      "drive_url": "https://drive.google.com/drive/folders/151kdPJnV8ndObNXPmux386xgFsL1g2dF",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 4,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 4,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: muath@dtgsa.com",
+        "Missing: qandil@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "muath@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "qandil@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Project Control/Commercial/Invoices",
+      "normalized_path": "Project Delivery/Project Control/Commercial/Invoices",
+      "drive_folder_id": "1TppPlLCOJd4SHZUoaeDtoMtYjhXMiYEw",
+      "drive_url": "https://drive.google.com/drive/folders/1TppPlLCOJd4SHZUoaeDtoMtYjhXMiYEw",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Project Control/Planning",
+      "normalized_path": "Project Delivery/Project Control/Planning",
+      "drive_folder_id": "16z7zcLXl9VnEjdwrqDNEObh4MKzOhyL9",
+      "drive_url": "https://drive.google.com/drive/folders/16z7zcLXl9VnEjdwrqDNEObh4MKzOhyL9",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Project Control/Planning/Planning Deliverables",
+      "normalized_path": "Project Delivery/Project Control/Planning/Planning Deliverables",
+      "drive_folder_id": "1n1Z8Zk6qZYkiYHMhStxoRcicWz5aAJZd",
+      "drive_url": "https://drive.google.com/drive/folders/1n1Z8Zk6qZYkiYHMhStxoRcicWz5aAJZd",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Project Control/Planning/Reports",
+      "normalized_path": "Project Delivery/Project Control/Planning/Reports",
+      "drive_folder_id": "144KgjJGo7xvd3Gvqb0PMkabCUznCPgLx",
+      "drive_url": "https://drive.google.com/drive/folders/144KgjJGo7xvd3Gvqb0PMkabCUznCPgLx",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Quality Control",
+      "normalized_path": "Project Delivery/Quality Control",
+      "drive_folder_id": "1QPUAGivzY7CA-iDASg91J7BNRquUgd_X",
+      "drive_url": "https://drive.google.com/drive/folders/1QPUAGivzY7CA-iDASg91J7BNRquUgd_X",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 5,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 5,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: dc-team@dtgsa.com",
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: technical-team@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Quantity Survey",
+      "normalized_path": "Project Delivery/Quantity Survey",
+      "drive_folder_id": "1ov1FXe1W_MM3j8jx-aDyUuJ3s8bk3vuG",
+      "drive_url": "https://drive.google.com/drive/folders/1ov1FXe1W_MM3j8jx-aDyUuJ3s8bk3vuG",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 6,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 6,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: operation-team@dtgsa.com",
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: survey-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "operation-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "survey-team@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/SOW",
+      "normalized_path": "Project Delivery/SOW",
+      "drive_folder_id": "1qDswvVQeu4EYZDJe9fWmv3vz467L4vjE",
+      "drive_url": "https://drive.google.com/drive/folders/1qDswvVQeu4EYZDJe9fWmv3vz467L4vjE",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 5,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 5,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: dc-team@dtgsa.com",
+        "Missing: hse-team@dtgsa.com",
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: technical-team@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "hse-team@dtgsa.com",
+          "expected_role": "Viewer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Survey",
+      "normalized_path": "Project Delivery/Survey",
+      "drive_folder_id": "1A_ZD-mYAdfR4lZIauED_f9OnSHA8PnhR",
+      "drive_url": "https://drive.google.com/drive/folders/1A_ZD-mYAdfR4lZIauED_f9OnSHA8PnhR",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 7,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 7,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: dc-team@dtgsa.com",
+        "Missing: operation-team@dtgsa.com",
+        "Missing: projects-control@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: quality-control@dtgsa.com",
+        "Missing: survey-team@dtgsa.com",
+        "Missing: technical-team@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "operation-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "quality-control@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "survey-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Contributor",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Technical Proposal",
+      "normalized_path": "Project Delivery/Technical Proposal",
+      "drive_folder_id": "1DZyLfte4yX1eLe124WkcF1gBXMDAL8wP",
+      "drive_url": "https://drive.google.com/drive/folders/1DZyLfte4yX1eLe124WkcF1gBXMDAL8wP",
+      "status": "exact_match",
+      "status_label": "Compliant",
+      "limited_access_expected": false,
+      "counts": {
+        "expected": 0,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 0,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [],
+      "permissions": [
+        {
+          "type": "user",
+          "identifier": "mo.abuomar@dtgsa.com",
+          "expected_role": null,
+          "actual_role": "owner",
+          "diff_status": "extra",
+          "inherited": true,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Technical Proposal/TBE",
+      "normalized_path": "Project Delivery/Technical Proposal/TBE",
+      "drive_folder_id": "11RrE8AvLH3ZUf7uE_-5wa4FWzjPaS4vI",
+      "drive_url": "https://drive.google.com/drive/folders/11RrE8AvLH3ZUf7uE_-5wa4FWzjPaS4vI",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 4,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 4,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: technical-team@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: projects-control@dtgsa.com",
+        "Missing: marwan@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "marwan@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Technical Proposal/Technical Submittal",
+      "normalized_path": "Project Delivery/Technical Proposal/Technical Submittal",
+      "drive_folder_id": "1qKzMFTN4fNz8hz6o0-Xgqvc63JrDk1pY",
+      "drive_url": "https://drive.google.com/drive/folders/1qKzMFTN4fNz8hz6o0-Xgqvc63JrDk1pY",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 5,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 5,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: technical-team@dtgsa.com",
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com",
+        "Missing: abed.ahmad@dtgsa.com",
+        "Missing: waseem@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "abed.ahmad@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "waseem@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Vendors Quotations",
+      "normalized_path": "Project Delivery/Vendors Quotations",
+      "drive_folder_id": "1blq_LwtLTotZ-uDDL7JTDmcsJh_fnUQz",
+      "drive_url": "https://drive.google.com/drive/folders/1blq_LwtLTotZ-uDDL7JTDmcsJh_fnUQz",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Vendors Quotations/Civil and Finishes",
+      "normalized_path": "Project Delivery/Vendors Quotations/Civil and Finishes",
+      "drive_folder_id": "1Xuo4RKn8tNFZA41gRE5Ka2hgjgDNDCmc",
+      "drive_url": "https://drive.google.com/drive/folders/1Xuo4RKn8tNFZA41gRE5Ka2hgjgDNDCmc",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Vendors Quotations/E&I",
+      "normalized_path": "Project Delivery/Vendors Quotations/E&I",
+      "drive_folder_id": "1Y4m7EL8Tca1Z8aSWE7LzNpfVzUaPNJLK",
+      "drive_url": "https://drive.google.com/drive/folders/1Y4m7EL8Tca1Z8aSWE7LzNpfVzUaPNJLK",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Vendors Quotations/IT",
+      "normalized_path": "Project Delivery/Vendors Quotations/IT",
+      "drive_folder_id": "1tBg5NzK29jRYBVt9jD9G_So83qY8upkH",
+      "drive_url": "https://drive.google.com/drive/folders/1tBg5NzK29jRYBVt9jD9G_So83qY8upkH",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "PRJ-021/Vendors Quotations/Mechanical",
+      "normalized_path": "Project Delivery/Vendors Quotations/Mechanical",
+      "drive_folder_id": "1MK0LkqOgpxYsxfGjRVCqKW4ulHSwiLr-",
+      "drive_url": "https://drive.google.com/drive/folders/1MK0LkqOgpxYsxfGjRVCqKW4ulHSwiLr-",
+      "status": "non_compliant",
+      "status_label": "Non-Compliant",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Missing: projects-managers@dtgsa.com",
+        "Missing: a.albaz@dtgsa.com"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "Content Manager",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Commercial Proposal",
+      "normalized_path": "Bidding/Commercial Proposal",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 1,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 1,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Commercial Proposal/Admin Only",
+      "normalized_path": "Bidding/Commercial Proposal/Admin Only",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 0,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 0,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": []
+    },
+    {
+      "folder_path": "Bidding/Vendors Quotations",
+      "normalized_path": "Bidding/Vendors Quotations",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Vendors Quotations/Civil and Finishes",
+      "normalized_path": "Bidding/Vendors Quotations/Civil and Finishes",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Vendors Quotations/IT",
+      "normalized_path": "Bidding/Vendors Quotations/IT",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Vendors Quotations/E&I",
+      "normalized_path": "Bidding/Vendors Quotations/E&I",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Vendors Quotations/Mechanical",
+      "normalized_path": "Bidding/Vendors Quotations/Mechanical",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Technical Proposal",
+      "normalized_path": "Bidding/Technical Proposal",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": false,
+      "counts": {
+        "expected": 0,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 0,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": []
+    },
+    {
+      "folder_path": "Bidding/Technical Proposal/TBE",
+      "normalized_path": "Bidding/Technical Proposal/TBE",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 4,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 4,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "Marwan@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Technical Proposal/Technical Submittal",
+      "normalized_path": "Bidding/Technical Proposal/Technical Submittal",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 5,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 5,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "abed.ahmad@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "Waseem@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/SOW",
+      "normalized_path": "Bidding/SOW",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 5,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 5,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "reader",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "hse-team@dtgsa.com",
+          "expected_role": "reader",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "writer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    }
+  ]
+}

@@ -548,3 +548,175 @@ export function buildFolderDebugPayload(
         counts: { direct, inherited, inherited_non_removable: inheritedNonRemovable },
     };
 }
+
+// ─── Strict Permission Comparison (shared by Enforce Verify + Audit) ─────────
+
+/**
+ * Classification of a single principal comparison result.
+ *
+ * EXACT_MATCH              — principal present at exactly the expected role
+ * MISSING                  — expected but absent in actual
+ * EXTRA                    — in actual but not expected (and not non-removable)
+ * STRONGER_THAN_TEMPLATE   — present but at a higher role than expected
+ * WEAKER_THAN_TEMPLATE     — present but at a lower role than expected
+ * NON_REMOVABLE_MEMBERSHIP — Shared Drive inherited, cannot be removed by API
+ * LIMITED_ACCESS_MISMATCH  — folder-level Limited Access flag differs
+ */
+export type PermComparisonStatus =
+    | 'EXACT_MATCH'
+    | 'MISSING'
+    | 'EXTRA'
+    | 'STRONGER_THAN_TEMPLATE'
+    | 'WEAKER_THAN_TEMPLATE'
+    | 'NON_REMOVABLE_MEMBERSHIP'
+    | 'LIMITED_ACCESS_MISMATCH';
+
+export interface PermComparison {
+    principal: string;
+    principalType: 'group' | 'user' | 'la_flag' | 'unknown';
+    status: PermComparisonStatus;
+    expectedRole?: string;
+    actualRole?: string;
+    reason?: string;
+}
+
+export interface ActualPermission {
+    emailAddress?: string;
+    role?: string;
+    type?: string;
+    inherited?: boolean;
+    permissionDetails?: any[];
+    inheritedFrom?: string;
+    id?: string;
+}
+
+/**
+ * Compare expected template permissions vs actual Drive permissions for one folder.
+ *
+ * - expected: output of computeDesiredEffectivePolicy() (after overrides applied)
+ * - actual:   raw permission list from Drive API (listPermissions)
+ * - expectedLimitedAccess: from template node
+ * - actualLimitedAccess: from Drive API (files.get copyRequiresWriterPermission)
+ * - driveId: the Shared Drive ID (for accurate NON_REMOVABLE classification)
+ *
+ * Returns one PermComparison entry per principal discrepancy plus a LA entry if needed.
+ * Compliant principals (EXACT_MATCH) are also included for completeness.
+ */
+export function comparePermissions(
+    expected: DesiredPrincipal[],
+    actual: ActualPermission[],
+    expectedLimitedAccess: boolean,
+    actualLimitedAccess: boolean | null,
+    driveId?: string,
+): PermComparison[] {
+    const results: PermComparison[] = [];
+
+    // ── 1. Limited Access mismatch check ──
+    if (actualLimitedAccess !== null && actualLimitedAccess !== expectedLimitedAccess) {
+        results.push({
+            principal: '__limited_access__',
+            principalType: 'la_flag',
+            status: 'LIMITED_ACCESS_MISMATCH',
+            expectedRole: expectedLimitedAccess ? 'enabled' : 'disabled',
+            actualRole: actualLimitedAccess ? 'enabled' : 'disabled',
+        });
+    }
+
+    // ── 2. Build lookup maps ──
+    // Expected: email → { role, overrideAction }
+    const expectedMap = new Map<string, DesiredPrincipal>();
+    for (const p of expected) {
+        if (p.overrideAction === 'removed') continue; // explicitly removed, shouldn't appear
+        expectedMap.set(p.identifier.toLowerCase(), p);
+    }
+
+    // Actual: email → { role, classification }
+    const actualMap = new Map<string, { role: string; cls: InheritedClassification; type: string }>();
+    for (const perm of actual) {
+        if (!perm.emailAddress) continue;
+        const key = perm.emailAddress.toLowerCase();
+        const cls = classifyInheritedPermission(perm, driveId);
+        const role = normalizeRole(perm.role || 'reader');
+        // Keep the highest-ranked role if a principal appears multiple times
+        const existing = actualMap.get(key);
+        if (!existing || (CANONICAL_RANK[role] ?? 0) > (CANONICAL_RANK[existing.role] ?? 0)) {
+            actualMap.set(key, { role, cls, type: perm.type || 'unknown' });
+        }
+    }
+
+    // ── 3. Check each expected principal ──
+    for (const [email, exp] of expectedMap.entries()) {
+        const act = actualMap.get(email);
+        if (!act) {
+            results.push({
+                principal: email,
+                principalType: exp.type,
+                status: 'MISSING',
+                expectedRole: exp.role,
+                actualRole: undefined,
+            });
+            continue;
+        }
+
+        // Non-removable drive membership — acknowledge but don't treat as violation
+        if (act.cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') {
+            const expRank = CANONICAL_RANK[exp.role] ?? 0;
+            const actRank = CANONICAL_RANK[act.role] ?? 0;
+            results.push({
+                principal: email,
+                principalType: exp.type,
+                status: 'NON_REMOVABLE_MEMBERSHIP',
+                expectedRole: exp.role,
+                actualRole: act.role,
+                reason: actRank >= expRank ? 'drive_membership_covers_expected' : 'drive_membership_weaker_than_expected',
+            });
+            continue;
+        }
+
+        const expRank = CANONICAL_RANK[exp.role] ?? 0;
+        const actRank = CANONICAL_RANK[act.role] ?? 0;
+
+        if (act.role === exp.role) {
+            results.push({ principal: email, principalType: exp.type, status: 'EXACT_MATCH', expectedRole: exp.role, actualRole: act.role });
+        } else if (actRank > expRank) {
+            results.push({ principal: email, principalType: exp.type, status: 'STRONGER_THAN_TEMPLATE', expectedRole: exp.role, actualRole: act.role });
+        } else {
+            results.push({ principal: email, principalType: exp.type, status: 'WEAKER_THAN_TEMPLATE', expectedRole: exp.role, actualRole: act.role });
+        }
+    }
+
+    // ── 4. Check for EXTRA principals (in actual, not in expected) ──
+    for (const [email, act] of actualMap.entries()) {
+        if (expectedMap.has(email)) continue; // already handled above
+
+        if (act.cls === 'NON_REMOVABLE_DRIVE_MEMBERSHIP') {
+            results.push({
+                principal: email,
+                principalType: act.type as any,
+                status: 'NON_REMOVABLE_MEMBERSHIP',
+                actualRole: act.role,
+                reason: 'drive_membership_not_in_template',
+            });
+        } else {
+            results.push({
+                principal: email,
+                principalType: act.type as any,
+                status: 'EXTRA',
+                actualRole: act.role,
+            });
+        }
+    }
+
+    return results;
+}
+
+/**
+ * Returns true if all comparisons are fully compliant.
+ * NON_REMOVABLE_MEMBERSHIP is NOT treated as a violation.
+ */
+export function isFullyCompliant(comparisons: PermComparison[]): boolean {
+    return comparisons.every(c =>
+        c.status === 'EXACT_MATCH' || c.status === 'NON_REMOVABLE_MEMBERSHIP'
+    );
+}
+
