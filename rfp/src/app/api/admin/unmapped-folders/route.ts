@@ -9,11 +9,11 @@ const supabaseAdmin = createClient(
 
 /**
  * GET /api/admin/unmapped-folders?projectId=...
- * ADMIN ONLY — requires valid admin Bearer token.
+ * ADMIN ONLY — accepts Bearer token OR Supabase session cookie.
  *
- * Returns folder_index entries where template_node_id IS NULL
- * (folders that are indexed but not bound to a template node).
- * Used by the /folder-mapping UI for Option B manual mapping.
+ * Returns:
+ *   - folders[]: rows from folder_index WHERE template_node_id IS NULL
+ *   - stats: { total, bound, unbound } across ALL folder_index rows
  */
 export async function GET(request: NextRequest) {
     const auth = await requireAdminAuth(request);
@@ -23,10 +23,11 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const projectId = searchParams.get('projectId');
 
+        // ── Fetch unmapped folders ──
         let query = supabaseAdmin
             .schema('rfp')
             .from('folder_index')
-            .select('id, project_id, drive_folder_id, template_path, normalized_template_path, created_at, updated_at')
+            .select('id, project_id, drive_folder_id, template_path, normalized_template_path, template_node_id, created_at, updated_at')
             .is('template_node_id', null)
             .order('template_path');
 
@@ -34,12 +35,26 @@ export async function GET(request: NextRequest) {
             query = query.eq('project_id', projectId);
         }
 
-        const { data, error } = await query;
+        const { data: unmappedRows, error } = await query;
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Enrich with project info
+        // ── Fetch global stats (total / bound / unbound) ──
+        const { data: statsRows, error: statsErr } = await supabaseAdmin
+            .schema('rfp')
+            .from('folder_index')
+            .select('template_node_id');
+
+        if (statsErr) {
+            return NextResponse.json({ error: statsErr.message }, { status: 500 });
+        }
+
+        const total = statsRows?.length ?? 0;
+        const bound = statsRows?.filter((r: any) => r.template_node_id !== null).length ?? 0;
+        const unbound = total - bound;
+
+        // ── Enrich with project info ──
         const { data: projects } = await supabaseAdmin
             .schema('rfp')
             .from('projects')
@@ -47,13 +62,17 @@ export async function GET(request: NextRequest) {
 
         const projectMap = new Map((projects || []).map((p: any) => [p.id, p]));
 
-        const enriched = (data || []).map((row: any) => ({
+        const enriched = (unmappedRows || []).map((row: any) => ({
             ...row,
             project_name: projectMap.get(row.project_id)?.name ?? 'Unknown',
             project_code: projectMap.get(row.project_id)?.pr_number ?? '',
         }));
 
-        return NextResponse.json({ success: true, folders: enriched, total: enriched.length });
+        return NextResponse.json({
+            success: true,
+            folders: enriched,
+            stats: { total, bound, unbound },
+        });
 
     } catch (err: any) {
         return NextResponse.json({ error: err.message }, { status: 500 });
