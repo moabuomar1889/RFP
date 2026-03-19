@@ -212,15 +212,16 @@ export async function searchProjectFoldersByPattern(
 }
 
 /**
- * Get or create the _REPAIR_QUARANTINE folder at the Shared Drive root.
+ * Get or create the _REPAIR_QUARANTINE folder under the specified parent folder.
  */
 export async function getOrCreateQuarantineFolder(
+    parentId: string,
     driveId: string = APP_CONFIG.sharedDriveId
 ): Promise<string> {
     const drive = await getDriveClient();
 
     const resp = await drive.files.list({
-        q: `name = '_REPAIR_QUARANTINE' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        q: `name = '_REPAIR_QUARANTINE' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
         driveId,
@@ -236,7 +237,7 @@ export async function getOrCreateQuarantineFolder(
         requestBody: {
             name: '_REPAIR_QUARANTINE',
             mimeType: 'application/vnd.google-apps.folder',
-            parents: [driveId],
+            parents: [parentId],
         },
         supportsAllDrives: true,
         fields: 'id',
