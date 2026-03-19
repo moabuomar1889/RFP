@@ -364,28 +364,10 @@ export async function GET(request: NextRequest) {
         console.log(`[AUDIT] nodeMap size: ${nodeMap.size}, permissionsMap size: ${Object.keys(permissionsMap).length}`);
 
         // Get indexed folders for this project
-        const { data: rawFolders } = await supabaseAdmin.rpc('list_project_folders', {
+        const { data: rawFoldersData } = await supabaseAdmin.rpc('list_project_folders', {
             p_project_id: projectId
         });
-
-        if (!rawFolders || rawFolders.length === 0) {
-            return NextResponse.json({
-                success: true,
-                result: {
-                    projectId: project.id,
-                    projectName: project.name,
-                    projectCode: project.pr_number,
-                    phase: projectPhase,
-                    phaseLabels: phasesToAudit,
-                    totalFolders: 0,
-                    matchCount: 0,
-                    extraCount: 0,
-                    missingCount: 0,
-                    mismatchCount: 0,
-                    comparisons: []
-                }
-            });
-        }
+        const rawFolders = rawFoldersData || [];
 
         // Deduplicate folders by drive_folder_id
         const folderMap = new Map<string, any>();

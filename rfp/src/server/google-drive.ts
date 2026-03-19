@@ -145,17 +145,39 @@ export async function listFolders(
     driveId: string = APP_CONFIG.sharedDriveId
 ): Promise<drive_v3.Schema$File[]> {
     const drive = await getDriveClient();
+    const query = `'${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
 
-    const response = await drive.files.list({
-        q: `'${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-        driveId,
-        corpora: 'drive',
-        fields: 'files(id, name, parents, mimeType, createdTime, modifiedTime)',
-    });
+    try {
+        const response = await drive.files.list({
+            q: query,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true,
+            driveId,
+            corpora: 'drive',
+            fields: 'files(id, name, parents, mimeType, createdTime, modifiedTime)',
+        });
 
-    return response.data.files || [];
+        return response.data.files || [];
+    } catch (error: any) {
+        const message = error?.message || '';
+        const shouldFallback =
+            !driveId ||
+            message.includes('Shared drive not found') ||
+            message.includes('driveId parameter must be specified') ||
+            message.includes('teamDriveIdRequiresTeamDriveCorpora');
+
+        if (!shouldFallback) throw error;
+
+        const fallbackResponse = await drive.files.list({
+            q: query,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true,
+            corpora: 'allDrives',
+            fields: 'files(id, name, parents, mimeType, createdTime, modifiedTime)',
+        });
+
+        return fallbackResponse.data.files || [];
+    }
 }
 
 /**

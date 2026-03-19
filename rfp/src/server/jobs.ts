@@ -1104,7 +1104,7 @@ async function createMissingFoldersFromTemplate(
             const templateName = pathParts[pathParts.length - 1];
             // Apply project naming convention: PRJ-017-PD-{TemplateName}
             const folderName = prCode ? `${prCode}-${phaseSuffix}-${templateName}` : templateName;
-            let parentId = project.google_folder_id; // Default to project root
+            let parentId = project.google_folder_id || project.drive_folder_id || project.driveFolderId; // Default to project root
 
             if (pathParts.length > 1) {
                 // Find parent in existing folders
