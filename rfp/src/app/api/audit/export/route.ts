@@ -21,6 +21,7 @@ interface EnhancedPermission {
     type: string;
     identifier: string; // email, domain, or "anyone"
     role: string;
+    view?: string;
     displayName?: string;
     isInherited: boolean;
     inheritedFrom?: string;
@@ -105,7 +106,7 @@ async function getEnhancedPermissions(folderId: string): Promise<{
     const response = await drive.permissions.list({
         fileId: folderId,
         supportsAllDrives: true,
-        fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,allowFileDiscovery,permissionDetails)',
+        fields: 'permissions(id,type,role,emailAddress,domain,displayName,deleted,allowFileDiscovery,view,permissionDetails)',
     });
 
     const permissions = (response.data.permissions || []).map((p: any) => {
@@ -122,6 +123,7 @@ async function getEnhancedPermissions(folderId: string): Promise<{
             type: p.type,
             identifier,
             role: p.role,
+            view: p.view,
             displayName: p.displayName,
             isInherited,
             inheritedFrom,
@@ -145,6 +147,7 @@ interface ExportAnalysis {
     weakerThanTemplate: string[];   // WEAKER_THAN_TEMPLATE
     extra: string[];                // EXTRA (removable principals not in template)
     nonRemovable: string[];         // NON_REMOVABLE_MEMBERSHIP (Shared Drive memberships)
+    metadataOnly: string[];         // LIMITED_ACCESS_METADATA_ONLY
     limitedAccessMismatch: boolean; // LIMITED_ACCESS_MISMATCH
     domains: string[];
     anyone: string[];
@@ -178,6 +181,7 @@ function analyzeFolder(
             role: p.role,
             type: p.type,
             id: p.permissionId,
+            view: p.view,
             inherited: p.isInherited,
             permissionDetails: p.isInherited
                 ? [{ inherited: true, inheritedFrom: p.inheritedFrom }]
@@ -200,6 +204,7 @@ function analyzeFolder(
     const weakerThanTemplate: string[] = [];
     const extra: string[] = [];
     const nonRemovable: string[] = [];
+    const metadataOnly: string[] = [];
     let limitedAccessMismatch = false;
     const protectedFound: string[] = [];
 
@@ -230,6 +235,9 @@ function analyzeFolder(
                 break;
             case 'NON_REMOVABLE_MEMBERSHIP':
                 nonRemovable.push(`${c.principal}(${c.actualRole ?? '?'})`);
+                break;
+            case 'LIMITED_ACCESS_METADATA_ONLY':
+                metadataOnly.push(`${c.principal}(${c.actualRole ?? '?'})`);
                 break;
             // EXACT_MATCH: nothing to report
         }
@@ -280,6 +288,7 @@ function analyzeFolder(
         weakerThanTemplate,
         extra,
         nonRemovable,
+        metadataOnly,
         limitedAccessMismatch,
         domains: domainPerms.map(p => `${p.identifier}(${p.role})`),
         anyone: anyonePerms.map(p => `${p.identifier}(${p.role})`),

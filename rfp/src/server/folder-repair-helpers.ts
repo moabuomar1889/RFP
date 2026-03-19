@@ -209,15 +209,28 @@ export async function searchProjectFoldersByPattern(
     let pageToken: string | undefined;
 
     do {
-        const resp = await drive.files.list({
-            q: `name contains '${prCode}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-            supportsAllDrives: true,
-            includeItemsFromAllDrives: true,
-            driveId,
-            corpora: 'drive',
-            fields: 'nextPageToken, files(id, name, parents)',
-            pageToken,
-        });
+        let resp;
+        try {
+            resp = await drive.files.list({
+                q: `name contains '${prCode}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+                supportsAllDrives: true,
+                includeItemsFromAllDrives: true,
+                ...(driveId ? { driveId, corpora: 'drive' as const } : { corpora: 'allDrives' as const }),
+                fields: 'nextPageToken, files(id, name, parents)',
+                pageToken,
+            });
+        } catch (err: any) {
+            const msg = err?.message || '';
+            if (!driveId || !msg.includes('Shared drive not found')) throw err;
+            resp = await drive.files.list({
+                q: `name contains '${prCode}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+                supportsAllDrives: true,
+                includeItemsFromAllDrives: true,
+                corpora: 'allDrives',
+                fields: 'nextPageToken, files(id, name, parents)',
+                pageToken,
+            });
+        }
         for (const f of resp.data.files || []) {
             if (f.id && f.name) {
                 results.push({ id: f.id, name: f.name, parents: f.parents || [] });
@@ -238,14 +251,26 @@ export async function getOrCreateQuarantineFolder(
 ): Promise<string> {
     const drive = await getDriveClient();
 
-    const resp = await drive.files.list({
-        q: `name = '_REPAIR_QUARANTINE' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-        driveId,
-        corpora: 'drive',
-        fields: 'files(id)',
-    });
+    let resp;
+    try {
+        resp = await drive.files.list({
+            q: `name = '_REPAIR_QUARANTINE' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true,
+            ...(driveId ? { driveId, corpora: 'drive' as const } : { corpora: 'allDrives' as const }),
+            fields: 'files(id)',
+        });
+    } catch (err: any) {
+        const msg = err?.message || '';
+        if (!driveId || !msg.includes('Shared drive not found')) throw err;
+        resp = await drive.files.list({
+            q: `name = '_REPAIR_QUARANTINE' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true,
+            corpora: 'allDrives',
+            fields: 'files(id)',
+        });
+    }
 
     if (resp.data.files && resp.data.files.length > 0) {
         return resp.data.files[0].id!;

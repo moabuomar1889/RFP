@@ -242,6 +242,20 @@ function comparePermissions(
                     inherited: true,
                 });
                 break;
+
+            case 'LIMITED_ACCESS_METADATA_ONLY':
+                rows.push({
+                    type: principalType,
+                    identifier: c.principal,
+                    expectedRole: null,
+                    expectedRoleRaw: null,
+                    actualRole: actualRoleLabel,
+                    actualRoleRaw: c.actualRole ?? null,
+                    status: 'no_effective_access',
+                    tags: ['Metadata Only', 'Limited Access Artifact'],
+                    inherited: false,
+                });
+                break;
         }
     }
 

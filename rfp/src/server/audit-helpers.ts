@@ -569,6 +569,7 @@ export type PermComparisonStatus =
     | 'STRONGER_THAN_TEMPLATE'
     | 'WEAKER_THAN_TEMPLATE'
     | 'NON_REMOVABLE_MEMBERSHIP'
+    | 'LIMITED_ACCESS_METADATA_ONLY'
     | 'LIMITED_ACCESS_MISMATCH';
 
 export interface PermComparison {
@@ -584,6 +585,7 @@ export interface ActualPermission {
     emailAddress?: string;
     role?: string;
     type?: string;
+    view?: string;
     inherited?: boolean;
     permissionDetails?: any[];
     inheritedFrom?: string;
@@ -631,7 +633,7 @@ export function comparePermissions(
     }
 
     // Actual: email → { role, classification }
-    const actualMap = new Map<string, { role: string; cls: InheritedClassification; type: string }>();
+    const actualMap = new Map<string, { role: string; cls: InheritedClassification; type: string; view?: string }>();
     for (const perm of actual) {
         if (!perm.emailAddress) continue;
         const key = perm.emailAddress.toLowerCase();
@@ -640,7 +642,7 @@ export function comparePermissions(
         // Keep the highest-ranked role if a principal appears multiple times
         const existing = actualMap.get(key);
         if (!existing || (CANONICAL_RANK[role] ?? 0) > (CANONICAL_RANK[existing.role] ?? 0)) {
-            actualMap.set(key, { role, cls, type: perm.type || 'unknown' });
+            actualMap.set(key, { role, cls, type: perm.type || 'unknown', view: perm.view });
         }
     }
 
@@ -697,6 +699,14 @@ export function comparePermissions(
                 actualRole: act.role,
                 reason: 'drive_membership_not_in_template',
             });
+        } else if (expectedLimitedAccess && act.view === 'metadata') {
+            results.push({
+                principal: email,
+                principalType: act.type as any,
+                status: 'LIMITED_ACCESS_METADATA_ONLY',
+                actualRole: act.role,
+                reason: 'limited_access_metadata_only',
+            });
         } else {
             results.push({
                 principal: email,
@@ -716,7 +726,9 @@ export function comparePermissions(
  */
 export function isFullyCompliant(comparisons: PermComparison[]): boolean {
     return comparisons.every(c =>
-        c.status === 'EXACT_MATCH' || c.status === 'NON_REMOVABLE_MEMBERSHIP'
+        c.status === 'EXACT_MATCH' ||
+        c.status === 'NON_REMOVABLE_MEMBERSHIP' ||
+        c.status === 'LIMITED_ACCESS_METADATA_ONLY'
     );
 }
 

@@ -721,29 +721,15 @@ export async function isProtectedPermission(
  * Get all projects (folders in the Projects folder)
  */
 export async function getAllProjects(): Promise<drive_v3.Schema$File[]> {
-    const drive = await getDriveClient();
-
     // Use projectsFolderId as the parent for project folders
     const parentFolderId = APP_CONFIG.projectsFolderId;
 
     console.log('getAllProjects: Starting with projectsFolderId:', parentFolderId);
     console.log('getAllProjects: sharedDriveId:', APP_CONFIG.sharedDriveId);
-
-    const response = await drive.files.list({
-        q: `'${parentFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-        driveId: APP_CONFIG.sharedDriveId,
-        corpora: 'drive',
-        orderBy: 'name',
-        pageSize: 1000,
-        fields: 'files(id, name, parents, createdTime, modifiedTime)',
-    });
-
-    console.log('getAllProjects: Raw response files count:', response.data.files?.length || 0);
+    const allFolders = await listFolders(parentFolderId);
+    console.log('getAllProjects: Raw response files count:', allFolders.length || 0);
 
     // Log first few folder names for debugging
-    const allFolders = response.data.files || [];
     console.log('getAllProjects: First 5 folder names:', allFolders.slice(0, 5).map(f => f.name));
 
     // Filter to only project folders (matching PRJ-XXX pattern)

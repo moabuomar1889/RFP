@@ -11,6 +11,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
     comparePermissions,
     computeDesiredEffectivePolicy,
+    isFullyCompliant,
 } from '@/server/audit-helpers';
 import { enforceFolder, type DriveEnforceAPI } from '@/server/enforce-engine';
 
@@ -123,6 +124,28 @@ describe('Gap B — Limited Access field correctness via comparePermissions', ()
         const laRow = results.find(r => r.status === 'LIMITED_ACCESS_MISMATCH');
 
         expect(laRow).toBeUndefined();
+    });
+
+    it('B3: metadata-only visibility on a limited-access folder is compliant, not EXTRA', () => {
+        const desired = computeDesiredEffectivePolicy({
+            groups: [],
+            users: [],
+            limitedAccess: true,
+        });
+        const actual = [{
+            emailAddress: 'quality-control@example.com',
+            role: 'reader',
+            type: 'group',
+            view: 'metadata',
+            permissionDetails: [{ inherited: false }],
+        }];
+
+        const results = comparePermissions(desired, actual, true, true, DRIVE_ID);
+        const row = results.find(r => r.principal === 'quality-control@example.com');
+
+        expect(row).toBeDefined();
+        expect(row!.status).toBe('LIMITED_ACCESS_METADATA_ONLY');
+        expect(isFullyCompliant(results)).toBe(true);
     });
 });
 
