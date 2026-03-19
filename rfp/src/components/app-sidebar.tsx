@@ -31,6 +31,7 @@ import {
     AlertTriangle,
     CheckSquare,
     Palette,
+    Link2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -48,6 +49,7 @@ const menuItems = [
     { title: "Jobs", icon: History, href: "/jobs" },
     { title: "Audit Log", icon: ClipboardList, href: "/audit" },
     { title: "Permission Audit", icon: ShieldCheck, href: "/permission-audit" },
+    { title: "Folder Mapping", icon: Link2, href: "/folder-mapping" },
     { title: "Settings", icon: Cog, href: "/settings" },
     { title: "Theme", icon: Palette, href: "/settings/theme" },
 ];
