@@ -5,6 +5,7 @@ import {
     CheckCircle2,
     ChevronDown,
     ChevronRight,
+    Download,
     FolderX,
     HelpCircle,
     Loader2,
@@ -202,7 +203,7 @@ export default function FolderRepairPage() {
         } finally {
             setScanning(false);
         }
-    }, [projectFilter, toast]);
+    }, [projectFilter]);
 
     const handleQuarantine = useCallback(async () => {
         if (selectedProjects.size === 0) return;
@@ -229,7 +230,7 @@ export default function FolderRepairPage() {
         } finally {
             setQuarantining(false);
         }
-    }, [selectedProjects, toast]);
+    }, [selectedProjects]);
 
     const handleRecover = useCallback(async () => {
         if (selectedProjects.size === 0) return;
@@ -254,7 +255,29 @@ export default function FolderRepairPage() {
         } finally {
             setRecovering(false);
         }
-    }, [selectedProjects, toast]);
+    }, [selectedProjects]);
+
+    const handleExportJson = useCallback(() => {
+        if (results.length === 0) return;
+        const payload = {
+            exportedAt: new Date().toISOString(),
+            totalProjects: results.length,
+            summary: {
+                correct: results.reduce((s, r) => s + r.correctCount, 0),
+                misplaced: results.reduce((s, r) => s + r.misplacedCount, 0),
+                ambiguous: results.reduce((s, r) => s + r.ambiguousCount, 0),
+            },
+            projects: results,
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `folder-repair-scan-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success('JSON exported');
+    }, [results]);
 
     const toggleSelect = (projectCode: string) => {
         setSelectedProjects(previous => {
@@ -303,6 +326,12 @@ export default function FolderRepairPage() {
                             {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                             {scanning ? 'Scanning...' : 'Run Dry-Run Scan'}
                         </Button>
+                        {results.length > 0 && (
+                            <Button variant="outline" onClick={handleExportJson} className="shrink-0 gap-2">
+                                <Download className="h-4 w-4" />
+                                Export JSON
+                            </Button>
+                        )}
                     </div>
 
                     {results.length > 0 ? (
