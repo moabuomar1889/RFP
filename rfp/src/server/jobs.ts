@@ -1119,7 +1119,12 @@ async function createMissingFoldersFromTemplate(
             const newFolder = await createFolder(folderName, parentId);
             await sleep(RATE_LIMIT_DELAY);
 
-            // Immediately index the new folder (avoids needing a full rebuild later)
+            // Immediately index the new folder with:
+            // - drive_folder_id: the real Google Drive ID
+            // - normalized_template_path: for path-based lookup
+            // - template_node_id: from the template node (stable UUID) for identity-based lookup
+            // IMPORTANT: node.node_id must be stamped here so the enforce engine
+            //            can resolve this folder by node identity in the same run.
             const prNum = project.prNumber || project.pr_number || '';
             const client = getRawSupabaseAdmin();
             await client.rpc('upsert_folder_index', {
@@ -1127,6 +1132,7 @@ async function createMissingFoldersFromTemplate(
                 p_template_path: `${prNum}/${path}`,
                 p_drive_folder_id: newFolder.id,
                 p_normalized_template_path: path,
+                p_template_node_id: node.node_id || null,  // ← stamp stable UUID immediately
             });
 
             // Also add to existingFolders so child folders can find their parent
@@ -1303,10 +1309,40 @@ async function enforceProjectPermissionsWithReset(
         await writeJobLog(jobId, project.id, project.name, null, 'folders_created', 'success', {
             count: created, phase: projectPhase
         });
-        const { data: updatedFolders } = await supabaseAdmin.rpc('list_project_folders', {
+
+        // CRITICAL FIX: After folder creation, the folder_index rows exist in DB but
+        // may have been written with Drive IDs that need confirmation, and the rebuild
+        // will also capture any Shared Drive metadata (driveId) needed for classification.
+        // Re-run the index rebuild so every newly created folder is fully indexed
+        // with correct metadata before the enforce engine tries to resolve them.
+        console.log(`[ENFORCE] Step 3.6: Re-indexing after folder creation (${created} new folders)...`);
+        await writeJobLog(jobId, project.id, project.name, null, 'post_creation_reindex_start', 'info', {
+            message: `Re-indexing after creating ${created} new folders`,
+        });
+        try {
+            const postCreateRebuild = await rebuildFolderIndexForProject(project);
+            await writeJobLog(jobId, project.id, project.name, null, 'post_creation_reindex_complete', 'success', {
+                foldersFound: postCreateRebuild.foldersFound,
+                foldersIndexed: postCreateRebuild.foldersUpserted,
+            });
+        } catch (rebuildErr: any) {
+            console.warn(`[ENFORCE] Post-creation re-index warning (non-fatal):`, rebuildErr.message);
+            await writeJobLog(jobId, project.id, project.name, null, 'post_creation_reindex_warning', 'warning', {
+                message: 'Post-creation re-index failed — using inline-upserted rows (may degrade classify accuracy)',
+                error: rebuildErr.message,
+            });
+        }
+
+        // Reload rawFolders from the now-fresh DB snapshot.
+        // This is the critical step: previously the code re-read the DB here but got
+        // rows without template_node_id (they were upserted inside createMissing without it).
+        // After the fix above + this re-read, newly created folders now appear in
+        // nodeIdToFolder and are enforceable in the same run.
+        const { data: freshFolders } = await supabaseAdmin.rpc('list_project_folders', {
             p_project_id: project.id
         });
-        rawFolders = updatedFolders || rawFolders;
+        rawFolders = freshFolders || rawFolders;
+        console.log(`[ENFORCE] rawFolders refreshed after folder creation: ${rawFolders.length} total`);
     }
 
     if (createErrors > 0) errors += createErrors;

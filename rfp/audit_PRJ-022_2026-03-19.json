@@ -1,0 +1,509 @@
+{
+  "export_version": "v3-client",
+  "exported_at": "2026-03-19T04:20:14.932Z",
+  "project": {
+    "id": "320ad776-753d-4bdc-b652-bfef17fadab8",
+    "name": "test",
+    "code": "PRJ-022",
+    "phase": "bidding"
+  },
+  "summary": {
+    "total_folders": 11,
+    "match": 0,
+    "extra": 0,
+    "missing": 25,
+    "mismatch": 0,
+    "exact_match_folders": 0,
+    "compliant_folders": 0,
+    "non_compliant_folders": 11
+  },
+  "folders": [
+    {
+      "folder_path": "Bidding/Commercial Proposal",
+      "normalized_path": "Bidding/Commercial Proposal",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 1,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 1,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Commercial Proposal/Admin Only",
+      "normalized_path": "Bidding/Commercial Proposal/Admin Only",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 0,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 0,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": []
+    },
+    {
+      "folder_path": "Bidding/Vendors Quotations",
+      "normalized_path": "Bidding/Vendors Quotations",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Vendors Quotations/Civil and Finishes",
+      "normalized_path": "Bidding/Vendors Quotations/Civil and Finishes",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Vendors Quotations/IT",
+      "normalized_path": "Bidding/Vendors Quotations/IT",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Vendors Quotations/E&I",
+      "normalized_path": "Bidding/Vendors Quotations/E&I",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Vendors Quotations/Mechanical",
+      "normalized_path": "Bidding/Vendors Quotations/Mechanical",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 2,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 2,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Technical Proposal",
+      "normalized_path": "Bidding/Technical Proposal",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": false,
+      "counts": {
+        "expected": 0,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 0,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": []
+    },
+    {
+      "folder_path": "Bidding/Technical Proposal/TBE",
+      "normalized_path": "Bidding/Technical Proposal/TBE",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 4,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 4,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "Marwan@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/Technical Proposal/Technical Submittal",
+      "normalized_path": "Bidding/Technical Proposal/Technical Submittal",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 5,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 5,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "a.albaz@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "abed.ahmad@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "user",
+          "identifier": "Waseem@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "folder_path": "Bidding/SOW",
+      "normalized_path": "Bidding/SOW",
+      "drive_folder_id": "",
+      "drive_url": "https://drive.google.com/drive/folders/",
+      "status": "non_compliant",
+      "status_label": "Not Indexed",
+      "limited_access_expected": true,
+      "counts": {
+        "expected": 5,
+        "direct": 0,
+        "inherited": 0,
+        "total": 0,
+        "missing": 5,
+        "extra": 0,
+        "mismatch": 0,
+        "match": 0
+      },
+      "discrepancies": [
+        "Folder not found in index — run Rebuild Index"
+      ],
+      "permissions": [
+        {
+          "type": "group",
+          "identifier": "dc-team@dtgsa.com",
+          "expected_role": "reader",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "hse-team@dtgsa.com",
+          "expected_role": "reader",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-control@dtgsa.com",
+          "expected_role": "writer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "projects-managers@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        },
+        {
+          "type": "group",
+          "identifier": "technical-team@dtgsa.com",
+          "expected_role": "fileOrganizer",
+          "actual_role": null,
+          "diff_status": "missing",
+          "inherited": false,
+          "tags": []
+        }
+      ]
+    }
+  ]
+}
