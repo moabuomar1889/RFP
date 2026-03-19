@@ -25,6 +25,7 @@ interface MisplacedEntry {
     normalizedPath: string;
     reason: string;
     confidence: string;
+    descendantCount: number;
     matchedCorrectFolderId?: string;
     matchedCorrectPath?: string;
 }
@@ -33,6 +34,14 @@ interface AmbiguousEntry {
     folderId: string;
     folderName: string;
     normalizedPath: string;
+    reason: string;
+    coveredByRootId?: string;
+}
+
+interface CoveredEntry {
+    folderId: string;
+    folderName: string;
+    coveredByRootId: string;
     reason: string;
 }
 
@@ -43,9 +52,11 @@ interface ProjectResult {
     correctCount: number;
     misplacedCount: number;
     ambiguousCount: number;
+    coveredByRootCount: number;
     scanDurationMs: number;
     misplaced: MisplacedEntry[];
     ambiguous: AmbiguousEntry[];
+    coveredByRoot: CoveredEntry[];
 }
 
 function StatusBadge({ count, label, color }: { count: number; label: string; color: string }) {
@@ -101,9 +112,10 @@ function ProjectRow({
                 </button>
                 <div className="flex flex-shrink-0 items-center gap-2">
                     <StatusBadge count={result.correctCount} label="correct" color="green" />
-                    {hasMisplaced ? <StatusBadge count={result.misplacedCount} label="misplaced" color="red" /> : null}
+                    {hasMisplaced ? <StatusBadge count={result.misplacedCount} label="misplaced roots" color="red" /> : null}
+                    {result.coveredByRootCount > 0 ? <StatusBadge count={result.coveredByRootCount} label="covered" color="blue" /> : null}
                     {hasAmbiguous ? <StatusBadge count={result.ambiguousCount} label="ambiguous" color="amber" /> : null}
-                    {!hasMisplaced && !hasAmbiguous ? <StatusBadge count={0} label="issues" color="green" /> : null}
+                    {!hasMisplaced && !hasAmbiguous && result.coveredByRootCount === 0 ? <StatusBadge count={0} label="issues" color="green" /> : null}
                 </div>
             </div>
 
@@ -112,7 +124,7 @@ function ProjectRow({
                     {result.misplaced.length > 0 ? (
                         <div>
                             <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-red-400">
-                                <FolderX className="h-3.5 w-3.5" /> High-confidence misplaced roots
+                                <FolderX className="h-3.5 w-3.5" /> HIGH-confidence misplaced roots
                             </p>
                             <div className="space-y-1">
                                 {result.misplaced.map(item => (
@@ -122,10 +134,14 @@ function ProjectRow({
                                     >
                                         <div className="truncate font-mono text-red-300">{item.folderName}</div>
                                         <div className="mt-0.5 text-muted-foreground">{item.reason}</div>
+                                        {item.descendantCount > 0 && (
+                                            <div className="mt-0.5 text-blue-400">
+                                                📁 {item.descendantCount} descendant(s) quarantined automatically with this root
+                                            </div>
+                                        )}
                                         {item.matchedCorrectPath ? (
                                             <div className="mt-0.5 text-emerald-400">
-                                                Confirmed in-root equivalent:{' '}
-                                                <span className="font-mono">{item.matchedCorrectPath}</span>
+                                                ✓ In-root equivalent: <span className="font-mono">{item.matchedCorrectPath}</span>
                                             </div>
                                         ) : null}
                                     </div>
