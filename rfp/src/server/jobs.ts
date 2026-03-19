@@ -1521,7 +1521,7 @@ async function enforceProjectPermissionsWithReset(
         // continue without driveId — classification falls back to heuristic
     }
 
-    const BATCH_SIZE = 3;
+    const BATCH_SIZE = 15;
     const enforceResults: import('@/server/enforce-engine').FolderEnforceResult[] = [];
 
     for (let i = 0; i < foldersToProcess.length; i += BATCH_SIZE) {
