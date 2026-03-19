@@ -71,11 +71,14 @@ interface ExportFolder {
 async function getEnhancedPermissions(folderId: string): Promise<{
     permissions: EnhancedPermission[];
     actualLimitedAccess: boolean | null;
+    driveId: string | null;  // Live Shared Drive ID from Google metadata — primary source for NON_REMOVABLE classification
 }> {
     const drive = await getDriveClient();
 
     // Get folder metadata to check inheritedPermissionsDisabled (Limited Access status)
+    // and driveId (needed for NON_REMOVABLE_MEMBERSHIP classification)
     let actualLimitedAccess: boolean | null = null;
+    let driveId: string | null = null;
     try {
         const folderRes = await drive.files.get({
             fileId: folderId,
@@ -86,11 +89,16 @@ async function getEnhancedPermissions(folderId: string): Promise<{
         // inheritedPermissionsDisabled is a direct field on the file resource
         // When true, it means Limited Access is enabled (inheritance blocked)
         actualLimitedAccess = folderRes.data.inheritedPermissionsDisabled ?? false;
+        // driveId identifies the Shared Drive this folder belongs to.
+        // Used by classifyInheritedPermission to distinguish NON_REMOVABLE_MEMBERSHIP
+        // (inherited from Shared Drive root, cannot be removed) from EXTRA (direct, removable).
+        driveId = (folderRes.data as any).driveId ?? null;
     } catch (err) {
         console.error(`Failed to get folder metadata for ${folderId}:`, err);
         // CRITICAL: Keep null to indicate unreadable, not false
         // This triggers status="unknown" and recommendedAction="verify_drive_truth"
         actualLimitedAccess = null;
+        driveId = null;
     }
 
     // Get permissions with all fields
@@ -122,7 +130,7 @@ async function getEnhancedPermissions(folderId: string): Promise<{
         };
     });
 
-    return { permissions, actualLimitedAccess };
+    return { permissions, actualLimitedAccess, driveId };
 }
 
 // ─── Strict Export Analysis (shared model) ───────────────────────────────────
@@ -396,9 +404,11 @@ export async function GET(request: NextRequest) {
                 if (!expectedPerms) continue;
             }
 
-            const { permissions, actualLimitedAccess } = await getEnhancedPermissions(folder.drive_folder_id);
-            // driveId from folder metadata (for NON_REMOVABLE_MEMBERSHIP classification)
-            const driveId = folder.shared_drive_id || undefined;
+            const { permissions, actualLimitedAccess, driveId: liveDriveId } = await getEnhancedPermissions(folder.drive_folder_id);
+            // PRIMARY: use live driveId from Google metadata for correct NON_REMOVABLE_MEMBERSHIP classification.
+            // If the live fetch failed (liveDriveId=null), fall back to the DB field as a best-effort heuristic.
+            // The DB field (shared_drive_id) may be stale — this fallback is documented intentionally.
+            const driveId = liveDriveId ?? folder.shared_drive_id ?? undefined;
             const analysis = analyzeFolder(expectedPerms, permissions, actualLimitedAccess, driveId);
 
 
