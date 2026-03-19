@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getDriveClient } from '@/server/google-drive';
-import { buildNodeMap, buildEffectivePermissionsMap } from '@/server/audit-helpers';
+import {
+    buildNodeMap,
+    buildEffectivePermissionsMap,
+    comparePermissions as sharedComparePermissions,
+    computeDesiredEffectivePolicy,
+    classifyInheritedPermission,
+    isFullyCompliant,
+    type PermComparison,
+} from '@/server/audit-helpers';
 
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,23 +36,26 @@ interface ExportFolder {
     drive_url: string;
     expected_limited_access: boolean;
     actual_limited_access: boolean | null;
+    limited_access_mismatch: boolean;
     status: string;
     expected_count: number;
     actual_total_count: number;
     actual_direct_count: number;
     actual_inherited_count: number;
     missing_count: number;
-    role_mismatch_count: number;
-    extra_direct_count: number;
-    extra_inherited_count: number;
+    stronger_count: number;
+    weaker_count: number;
+    extra_count: number;
+    non_removable_count: number;
     domain_count: number;
     anyone_count: number;
     protected_present: boolean;
     protected_list: string;
     missing_list: string;
-    role_mismatch_list: string;
-    extra_direct_list: string;
-    extra_inherited_list: string;
+    stronger_list: string;
+    weaker_list: string;
+    extra_list: string;
+    non_removable_list: string;
     domain_list: string;
     anyone_list: string;
     recommended_action: string;
@@ -114,43 +125,19 @@ async function getEnhancedPermissions(folderId: string): Promise<{
     return { permissions, actualLimitedAccess };
 }
 
-/**
- * Normalize roles for comparison to reduce noise from Shared Drive role mapping.
- * 
- * Google Shared Drives map "organizer" permissions to "fileOrganizer" role,
- * which causes false role mismatches when comparing template (organizer) 
- * vs actual Drive permissions (fileOrganizer).
- * 
- * Normalization rules:
- * - organizer → fileOrganizer (for groups in Shared Drives)
- * - fileOrganizer → fileOrganizer (already normalized)
- * - All other roles unchanged
- * 
- * Unit test coverage:
- * - normalizeRole('organizer') === 'fileOrganizer'
- * - normalizeRole('fileOrganizer') === 'fileOrganizer'
- * - normalizeRole('writer') === 'writer'
- * - normalizeRole('reader') === 'reader'
- */
-function normalizeRole(role: string): string {
-    // Treat organizer and fileOrganizer as equivalent for Shared Drives
-    if (role === 'organizer' || role === 'fileOrganizer') {
-        return 'fileOrganizer';
-    }
-    return role;
-}
+// ─── Strict Export Analysis (shared model) ───────────────────────────────────
+// Replaces local normalizeRole + analyzeFolder with shared comparePermissions.
+// Export, audit, and enforce now all classify using identical semantics.
 
-// Comprehensive comparison logic
-function analyzeFolder(
-    expected: { groups: any[]; users: any[]; limitedAccess: boolean },
-    actual: EnhancedPermission[],
-    actualLimitedAccess: boolean | null
-): {
-    status: string;
-    missing: string[];
-    roleMismatches: string[];
-    extraDirect: string[];
-    extraInherited: string[];
+interface ExportAnalysis {
+    status: 'exact_match' | 'compliant_inheritance_allowed' | 'non_compliant';
+    // Buckets — strict names matching shared PermComparisonStatus
+    missing: string[];              // MISSING
+    strongerThanTemplate: string[]; // STRONGER_THAN_TEMPLATE
+    weakerThanTemplate: string[];   // WEAKER_THAN_TEMPLATE
+    extra: string[];                // EXTRA (removable principals not in template)
+    nonRemovable: string[];         // NON_REMOVABLE_MEMBERSHIP (Shared Drive memberships)
+    limitedAccessMismatch: boolean; // LIMITED_ACCESS_MISMATCH
     domains: string[];
     anyone: string[];
     protected: string[];
@@ -163,122 +150,142 @@ function analyzeFolder(
         anyone: number;
     };
     recommendedAction: string;
-} {
+    // Raw comparisons for JSON export
+    comparisons: PermComparison[];
+}
+
+function analyzeFolder(
+    expected: { groups: any[]; users: any[]; limitedAccess: boolean; overrides?: any },
+    actual: EnhancedPermission[],
+    actualLimitedAccess: boolean | null,
+    driveId?: string,
+): ExportAnalysis {
     const protectedEmails = ['mo.abuomar@dtgsa.com'];
 
-    // Build expected set (with normalized roles)
-    const expectedMap = new Map<string, string>();
-    for (const g of expected.groups) {
-        if (g.email) expectedMap.set(g.email.toLowerCase(), normalizeRole(g.role || 'reader'));
-    }
-    for (const u of expected.users) {
-        if (u.email) expectedMap.set(u.email.toLowerCase(), normalizeRole(u.role || 'reader'));
+    // Convert EnhancedPermission → ActualPermission (shared type)
+    const actualForShared = actual
+        .filter(p => !p.deleted)
+        .map(p => ({
+            emailAddress: p.identifier,
+            role: p.role,
+            type: p.type,
+            id: p.permissionId,
+            inherited: p.isInherited,
+            permissionDetails: p.isInherited
+                ? [{ inherited: true, inheritedFrom: p.inheritedFrom }]
+                : [{ inherited: false }],
+        }));
+
+    // Run shared strict comparison
+    const desired = computeDesiredEffectivePolicy(expected);
+    const comparisons = sharedComparePermissions(
+        desired,
+        actualForShared,
+        expected.limitedAccess,
+        actualLimitedAccess,
+        driveId,
+    );
+
+    // Bucket the results
+    const missing: string[] = [];
+    const strongerThanTemplate: string[] = [];
+    const weakerThanTemplate: string[] = [];
+    const extra: string[] = [];
+    const nonRemovable: string[] = [];
+    let limitedAccessMismatch = false;
+    const protectedFound: string[] = [];
+
+    for (const c of comparisons) {
+        if (c.status === 'LIMITED_ACCESS_MISMATCH') {
+            limitedAccessMismatch = true;
+            continue;
+        }
+        if (!c.principal || c.principal === '__limited_access__') continue;
+        if (protectedEmails.includes(c.principal)) {
+            const act = actual.find(p => p.identifier === c.principal);
+            if (act) protectedFound.push(`${c.principal}(${act.role})`);
+            continue;
+        }
+
+        switch (c.status) {
+            case 'MISSING':
+                missing.push(`${c.principal}(${c.expectedRole ?? '?'})`);
+                break;
+            case 'STRONGER_THAN_TEMPLATE':
+                strongerThanTemplate.push(`${c.principal}(expected=${c.expectedRole},actual=${c.actualRole})`);
+                break;
+            case 'WEAKER_THAN_TEMPLATE':
+                weakerThanTemplate.push(`${c.principal}(expected=${c.expectedRole},actual=${c.actualRole})`);
+                break;
+            case 'EXTRA':
+                extra.push(`${c.principal}(${c.actualRole ?? '?'})`);
+                break;
+            case 'NON_REMOVABLE_MEMBERSHIP':
+                nonRemovable.push(`${c.principal}(${c.actualRole ?? '?'})`);
+                break;
+            // EXACT_MATCH: nothing to report
+        }
     }
 
-    // Categorize actual
-    const directPerms = actual.filter(p => !p.isInherited && !p.deleted);
-    const inheritedPerms = actual.filter(p => p.isInherited && !p.deleted);
+    // Count breakdown using classifyInheritedPermission for direct/inherited split
+    const directPerms = actualForShared.filter(p => {
+        const cls = classifyInheritedPermission(p, driveId);
+        return cls === 'NOT_INHERITED' && !protectedEmails.includes(p.emailAddress ?? '');
+    });
+    const inheritedPerms = actualForShared.filter(p => {
+        const cls = classifyInheritedPermission(p, driveId);
+        return cls !== 'NOT_INHERITED' && !protectedEmails.includes(p.emailAddress ?? '');
+    });
     const domainPerms = actual.filter(p => p.type === 'domain' && !p.deleted);
     const anyonePerms = actual.filter(p => p.type === 'anyone' && !p.deleted);
 
-    // Find protected
-    const protectedList: string[] = [];
-    for (const p of actual) {
-        if (protectedEmails.includes(p.identifier)) {
-            protectedList.push(`${p.identifier}(${p.role})`);
-        }
-    }
+    // Status from shared comparisons
+    const isNonCompliant = missing.length > 0 || strongerThanTemplate.length > 0 ||
+        weakerThanTemplate.length > 0 || extra.length > 0 || limitedAccessMismatch;
+    const hasInheritance = inheritedPerms.length > 0 || domainPerms.length > 0;
 
-    // Find missing
-    const missing: string[] = [];
-    const actualSet = new Set(actual.map(p => p.identifier));
-    for (const [email, role] of expectedMap) {
-        if (!actualSet.has(email)) {
-            missing.push(`${email}(${role})`);
-        }
-    }
-
-    // Find role mismatches (with normalized role comparison)
-    const roleMismatches: string[] = [];
-    for (const p of actual) {
-        if (expectedMap.has(p.identifier)) {
-            const expectedRole = expectedMap.get(p.identifier)!;
-            const actualRole = normalizeRole(p.role);
-            if (actualRole !== expectedRole) {
-                roleMismatches.push(`${p.identifier}(${expectedRole}→${actualRole})`);
-            }
-        }
-    }
-
-    // Find extra direct
-    const extraDirect: string[] = [];
-    for (const p of directPerms) {
-        if (!expectedMap.has(p.identifier) && !protectedEmails.includes(p.identifier)) {
-            if (p.type === 'domain' || p.type === 'anyone') {
-                if (expected.limitedAccess) {
-                    extraDirect.push(`${p.identifier}(${p.role})`);
-                }
-            } else {
-                extraDirect.push(`${p.identifier}(${p.role})`);
-            }
-        }
-    }
-
-    // Find extra inherited
-    const extraInherited: string[] = [];
-    for (const p of inheritedPerms) {
-        if (!expectedMap.has(p.identifier) && !protectedEmails.includes(p.identifier)) {
-            const fromPart = p.inheritedFrom ? ` from ${p.inheritedFrom}` : '';
-            extraInherited.push(`${p.identifier}(${p.role})${fromPart}`);
-        }
-    }
-
-    // Domains and anyone
-    const domains = domainPerms.map(p => `${p.identifier}(${p.role})`);
-    const anyone = anyonePerms.map(p => `${p.identifier}(${p.role})`);
-
-    // Determine status
-    let status = 'exact_match';
-    if (missing.length > 0 || roleMismatches.length > 0 || extraDirect.length > 0) {
+    let status: ExportAnalysis['status'];
+    if (isNonCompliant) {
         status = 'non_compliant';
-    } else if (expected.limitedAccess && extraInherited.length > 0) {
-        status = 'non_compliant';
-    } else if (!expected.limitedAccess && (inheritedPerms.length > 0 || domainPerms.length > 0)) {
+    } else if (!expected.limitedAccess && hasInheritance) {
         status = 'compliant_inheritance_allowed';
+    } else {
+        status = 'exact_match';
     }
 
     // Recommended action
     let recommendedAction = 'none';
     if (actualLimitedAccess === null) {
         recommendedAction = 'verify_drive_truth';
-    } else if (expected.limitedAccess && !actualLimitedAccess) {
+    } else if (limitedAccessMismatch && expected.limitedAccess && !actualLimitedAccess) {
         recommendedAction = 'enable_limited_access';
-    } else if (!expected.limitedAccess && actualLimitedAccess) {
+    } else if (limitedAccessMismatch && !expected.limitedAccess && actualLimitedAccess) {
         recommendedAction = 'fix_template';
-    } else if (missing.length > 0 || extraDirect.length > 0) {
+    } else if (missing.length > 0 || extra.length > 0 || weakerThanTemplate.length > 0 || strongerThanTemplate.length > 0) {
         recommendedAction = 'reset_to_template';
-    } else if (extraInherited.length > 0 && expected.limitedAccess) {
-        recommendedAction = 'remove_extras';
     }
 
     return {
         status,
         missing,
-        roleMismatches,
-        extraDirect,
-        extraInherited,
-        domains,
-        anyone,
-        protected: protectedList,
+        strongerThanTemplate,
+        weakerThanTemplate,
+        extra,
+        nonRemovable,
+        limitedAccessMismatch,
+        domains: domainPerms.map(p => `${p.identifier}(${p.role})`),
+        anyone: anyonePerms.map(p => `${p.identifier}(${p.role})`),
+        protected: protectedFound,
         counts: {
-            expected: expectedMap.size,
-            actualTotal: actual.filter(p => !p.deleted && !protectedEmails.includes(p.identifier)).length,
-            actualDirect: directPerms.filter(p => !protectedEmails.includes(p.identifier)).length,
-            actualInherited: inheritedPerms.filter(p => !protectedEmails.includes(p.identifier)).length,
+            expected: desired.filter(p => p.overrideAction !== 'removed').length,
+            actualTotal: actualForShared.filter(p => !protectedEmails.includes(p.emailAddress ?? '')).length,
+            actualDirect: directPerms.length,
+            actualInherited: inheritedPerms.length,
             domain: domainPerms.length,
-            anyone: anyonePerms.length
+            anyone: anyonePerms.length,
         },
-        recommendedAction
+        recommendedAction,
+        comparisons,
     };
 }
 
@@ -390,7 +397,10 @@ export async function GET(request: NextRequest) {
             }
 
             const { permissions, actualLimitedAccess } = await getEnhancedPermissions(folder.drive_folder_id);
-            const analysis = analyzeFolder(expectedPerms, permissions, actualLimitedAccess);
+            // driveId from folder metadata (for NON_REMOVABLE_MEMBERSHIP classification)
+            const driveId = folder.shared_drive_id || undefined;
+            const analysis = analyzeFolder(expectedPerms, permissions, actualLimitedAccess, driveId);
+
 
             const expectedPrincipals = [
                 ...expectedPerms.groups.map((g: any) => ({ type: 'group', identifier: g.email.toLowerCase(), role: g.role || 'reader' })),
@@ -405,29 +415,33 @@ export async function GET(request: NextRequest) {
                 drive_url: `https://drive.google.com/drive/folders/${folder.drive_folder_id}`,
                 expected_limited_access: expectedPerms.limitedAccess,
                 actual_limited_access: actualLimitedAccess,
+                limited_access_mismatch: analysis.limitedAccessMismatch,
                 status: analysis.status,
                 expected_count: analysis.counts.expected,
                 actual_total_count: analysis.counts.actualTotal,
                 actual_direct_count: analysis.counts.actualDirect,
                 actual_inherited_count: analysis.counts.actualInherited,
                 missing_count: analysis.missing.length,
-                role_mismatch_count: analysis.roleMismatches.length,
-                extra_direct_count: analysis.extraDirect.length,
-                extra_inherited_count: analysis.extraInherited.length,
+                stronger_count: analysis.strongerThanTemplate.length,
+                weaker_count: analysis.weakerThanTemplate.length,
+                extra_count: analysis.extra.length,
+                non_removable_count: analysis.nonRemovable.length,
                 domain_count: analysis.counts.domain,
                 anyone_count: analysis.counts.anyone,
                 protected_present: analysis.protected.length > 0,
                 protected_list: analysis.protected.join('; '),
                 missing_list: analysis.missing.join('; '),
-                role_mismatch_list: analysis.roleMismatches.join('; '),
-                extra_direct_list: analysis.extraDirect.join('; '),
-                extra_inherited_list: analysis.extraInherited.join('; '),
+                stronger_list: analysis.strongerThanTemplate.join('; '),
+                weaker_list: analysis.weakerThanTemplate.join('; '),
+                extra_list: analysis.extra.join('; '),
+                non_removable_list: analysis.nonRemovable.join('; '),
                 domain_list: analysis.domains.join('; '),
                 anyone_list: analysis.anyone.join('; '),
                 recommended_action: analysis.recommendedAction,
                 expected_principals: expectedPrincipals,
                 actual_permissions: permissions
             });
+
         }
 
         if (format === 'json') {
@@ -464,10 +478,12 @@ export async function GET(request: NextRequest) {
                         },
                         diff: {
                             status: f.status,
+                            limited_access_mismatch: f.limited_access_mismatch,
                             missing: f.missing_list.split('; ').filter(Boolean),
-                            roleMismatches: f.role_mismatch_list.split('; ').filter(Boolean),
-                            extraDirect: f.extra_direct_list.split('; ').filter(Boolean),
-                            extraInherited: f.extra_inherited_list.split('; ').filter(Boolean)
+                            stronger_than_template: f.stronger_list.split('; ').filter(Boolean),
+                            weaker_than_template: f.weaker_list.split('; ').filter(Boolean),
+                            extra: f.extra_list.split('; ').filter(Boolean),
+                            non_removable: f.non_removable_list.split('; ').filter(Boolean),
                         },
                         recommendedAction: f.recommended_action,
                         notes: []
@@ -498,18 +514,18 @@ export async function GET(request: NextRequest) {
             const headers = [
                 'export_version', 'exported_at', 'project_code', 'project_name',
                 'folder_path', 'drive_folder_id', 'drive_url',
-                'expected_limited_access', 'actual_limited_access', 'status',
+                'expected_limited_access', 'actual_limited_access', 'limited_access_mismatch', 'status',
                 'expected_count', 'actual_total_count', 'actual_direct_count', 'actual_inherited_count',
-                'missing_count', 'role_mismatch_count', 'extra_direct_count', 'extra_inherited_count',
+                'missing_count', 'stronger_count', 'weaker_count', 'extra_count', 'non_removable_count',
                 'domain_count', 'anyone_count',
                 'protected_present', 'protected_list',
-                'missing_list', 'role_mismatch_list', 'extra_direct_list', 'extra_inherited_list',
+                'missing_list', 'stronger_list', 'weaker_list', 'extra_list', 'non_removable_list',
                 'domain_list', 'anyone_list',
                 'recommended_action'
             ];
 
             const rows = exportData.map(f => [
-                'v2',
+                'v3',
                 new Date().toISOString(),
                 f.project_code,
                 f.project_name,
@@ -518,23 +534,26 @@ export async function GET(request: NextRequest) {
                 f.drive_url,
                 f.expected_limited_access.toString(),
                 String(f.actual_limited_access ?? 'null'),
+                f.limited_access_mismatch.toString(),
                 f.status,
                 f.expected_count.toString(),
                 f.actual_total_count.toString(),
                 f.actual_direct_count.toString(),
                 f.actual_inherited_count.toString(),
                 f.missing_count.toString(),
-                f.role_mismatch_count.toString(),
-                f.extra_direct_count.toString(),
-                f.extra_inherited_count.toString(),
+                f.stronger_count.toString(),
+                f.weaker_count.toString(),
+                f.extra_count.toString(),
+                f.non_removable_count.toString(),
                 f.domain_count.toString(),
                 f.anyone_count.toString(),
                 f.protected_present.toString(),
                 f.protected_list,
                 f.missing_list,
-                f.role_mismatch_list,
-                f.extra_direct_list,
-                f.extra_inherited_list,
+                f.stronger_list,
+                f.weaker_list,
+                f.extra_list,
+                f.non_removable_list,
                 f.domain_list,
                 f.anyone_list,
                 f.recommended_action
@@ -547,9 +566,10 @@ export async function GET(request: NextRequest) {
             return new NextResponse(csv, {
                 headers: {
                     'Content-Type': 'text/csv',
-                    'Content-Disposition': `attachment; filename="audit_export_v2_${project.pr_number}_${new Date().toISOString().split('T')[0]}.csv"`
+                    'Content-Disposition': `attachment; filename="audit_export_v3_${project.pr_number}_${new Date().toISOString().split('T')[0]}.csv"`
                 }
             });
+
         }
     } catch (error: any) {
         console.error('Export error:', error);
