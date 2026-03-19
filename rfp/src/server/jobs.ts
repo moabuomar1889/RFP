@@ -9,10 +9,10 @@ import {
     type NormalizedProject,
     type FolderPermissions,
     buildPermissionsMap,
-    buildEffectivePermissionsMap,
     buildNodeMap,
     normalizeRole,
 } from '@/server/audit-helpers';
+
 import { CANONICAL_RANK } from '@/lib/template-engine/types';
 import {
     enforceFolder,
@@ -1253,19 +1253,36 @@ async function enforceProjectPermissionsWithReset(
         }
     }
 
-    // ── Build effectivePermissionsMap (FALLBACK — keyed by path for unmapped rows) ──
-    const effectivePermissionsMap: Record<string, any> = {};
+    // ── Build nodeIdToTemplatePath (FALLBACK — keyed by node_id for path-based resolution) ──
+    // This provides the reverse mapping: nodeId → normalized template path.
+    // Used ONLY when nodeIdToFolder misses (e.g., older index rows without template_node_id).
+    // NOTE: The old effectivePermissionsMap + === object comparison fallback was broken
+    //       because buildNodeMap and buildEffectivePermissionsMap create different object instances.
+    //       This map uses node_id strings (correct identity) instead of object references.
+    const nodeIdToTemplatePath = new Map<string, string>(); // node_id → normalized path
+
+    function collectNodePaths(node: any, parentPath = '') {
+        const name = node.text || node.name || '';
+        if (!name) return;
+        const currentPath = parentPath ? `${parentPath}/${name}` : name;
+        if (node.node_id) {
+            nodeIdToTemplatePath.set(node.node_id, currentPath);
+        }
+        for (const child of node.children || node.nodes || []) {
+            collectNodePaths(child, currentPath);
+        }
+    }
+
     for (const phaseNodeName of phaseNamesToProcess) {
         const phaseNode = templateNodes.find((n: any) =>
             (n.name || n.text || '').trim() === phaseNodeName
         );
         if (phaseNode?.children) {
-            const phasePerms = buildEffectivePermissionsMap(phaseNode.children);
-            Object.assign(effectivePermissionsMap, phasePerms);
+            for (const child of phaseNode.children) collectNodePaths(child, '');
         }
     }
 
-    console.log(`[ENFORCE] nodeMap: ${nodeMap.size} nodes. Path fallback map: ${Object.keys(effectivePermissionsMap).length} paths`);
+    console.log(`[ENFORCE] nodeMap: ${nodeMap.size} nodes. nodeIdToTemplatePath: ${nodeIdToTemplatePath.size} paths`);
 
     // Step 2: Get scope from event metadata directly
     const scope = eventMetadata?.scope || 'full';
@@ -1414,17 +1431,15 @@ async function enforceProjectPermissionsWithReset(
         // ── Primary lookup: by node_id ──
         let folder = nodeIdToFolder.get(nodeId);
 
-        // ── Fallback: by path for rows not yet stamped ──
+        // ── Fallback: by path for rows not yet stamped with template_node_id ──
+        // Uses nodeIdToTemplatePath (node_id → path string) → pathToFolder.
+        // This is reliable because it uses string equality, not object reference comparison.
         if (!folder) {
-            // Find the path entry corresponding to this node via effectivePermissionsMap
-            // The path was computed from the same phaseNode children so it should align
-            const matchingPath = Object.keys(effectivePermissionsMap).find(
-                p => effectivePermissionsMap[p] === expectedPerms
-            );
-            if (matchingPath) {
-                folder = pathToFolder.get(matchingPath);
+            const templatePath = nodeIdToTemplatePath.get(nodeId);
+            if (templatePath) {
+                folder = pathToFolder.get(templatePath);
                 if (folder) {
-                    console.log(`[ENFORCE] PATH FALLBACK: node_id=${nodeId} matched via path='${matchingPath}'`);
+                    console.log(`[ENFORCE] PATH FALLBACK: node_id=${nodeId} matched via path='${templatePath}'`);
                 }
             }
         }
