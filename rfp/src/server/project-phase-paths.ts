@@ -11,6 +11,47 @@ export function getPhaseCodeForName(phaseName: string): PhaseCode {
     return phaseName === 'Bidding' ? 'RFP' : 'PD';
 }
 
+export function getProjectCode(prNumber: string): string {
+    return /^PRJ-/i.test(prNumber) ? prNumber : `PRJ-${prNumber}`;
+}
+
+export function getPhaseRootFolderName(projectCode: string, phaseName: string): string {
+    return `${getProjectCode(projectCode)}-${getPhaseCodeForName(phaseName)}`;
+}
+
+export function resolveDrivePlacementForTemplatePath(
+    projectCode: string,
+    normalizedTemplatePath: string
+): {
+    phaseName: PhaseName;
+    folderName: string;
+    parentNormalizedPath: string | null;
+    isPhaseRoot: boolean;
+} {
+    const parts = normalizedTemplatePath.split('/').filter(Boolean);
+    const phaseName = parts[0] as PhaseName | undefined;
+
+    if (!phaseName || (phaseName !== 'Bidding' && phaseName !== 'Project Delivery')) {
+        throw new Error(`Unsupported template path '${normalizedTemplatePath}'`);
+    }
+
+    if (parts.length === 1) {
+        return {
+            phaseName,
+            folderName: getPhaseRootFolderName(projectCode, phaseName),
+            parentNormalizedPath: null,
+            isPhaseRoot: true,
+        };
+    }
+
+    return {
+        phaseName,
+        folderName: parts[parts.length - 1],
+        parentNormalizedPath: parts.slice(0, -1).join('/'),
+        isPhaseRoot: false,
+    };
+}
+
 export function stripProjectPhasePrefix(segment: string, projectCode: string): {
     cleaned: string;
     phaseName: PhaseName | null;
@@ -53,4 +94,3 @@ export function normalizeIndexedDrivePath(drivePath: string, projectCode: string
     if (!phaseName) return innerPath;
     return innerPath ? `${phaseName}/${innerPath}` : phaseName;
 }
-

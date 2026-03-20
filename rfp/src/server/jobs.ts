@@ -25,6 +25,7 @@ import {
     normalizeFolderPath,
     createFolder,
     getFolder,
+    listFolders,
     renameFolder,
     listPermissions,
     addPermission,
@@ -36,9 +37,11 @@ import {
 } from '@/server/google-drive';
 import { JOB_STATUS, TASK_STATUS } from '@/lib/config';
 import {
-    getPhaseCodeForName,
+    getPhaseRootFolderName,
     getPhaseNamesForProject,
+    getProjectCode,
     normalizeIndexedDrivePath,
+    resolveDrivePlacementForTemplatePath,
     type PhaseName,
 } from '@/server/project-phase-paths';
 
@@ -1009,6 +1012,18 @@ async function rebuildFolderIndexForProject(
     return { foldersFound: folders.length, foldersUpserted: upsertedCount, unmappedCount };
 }
 
+async function ensureNamedChildFolder(parentId: string, childName: string): Promise<{ id: string }> {
+    const children = await listFolders(parentId);
+    const existing = children.find(folder => folder.name === childName);
+    if (existing?.id) {
+        return { id: existing.id };
+    }
+
+    const created = await createFolder(childName, parentId);
+    await sleep(RATE_LIMIT_DELAY);
+    return { id: created.id! };
+}
+
 /**
  * Auto-create missing folders from template (respects project phase)
  * - Bidding project → Creates Bidding folders only
@@ -1038,8 +1053,8 @@ async function createMissingFoldersFromTemplate(
         return { created: 0, errors: 0 };
     }
 
-    // Build list of ALL expected folders from template
-    const expectedFolders = new Map<string, { node: any; phaseName: PhaseName }>(); // phase/path -> templateNode
+    // Build list of ALL expected folders from template, including the phase roots.
+    const expectedFolders = new Map<string, { node: any; phaseName: PhaseName }>(); // normalized path -> templateNode
 
     function collectTemplateFolders(node: any, phaseName: PhaseName, parentPath = '') {
         const nodeName = node.name || node.text || '';
@@ -1056,6 +1071,7 @@ async function createMissingFoldersFromTemplate(
     // Collect all folders from the selected phase(s)
     for (const phaseNode of phaseNodes) {
         const phaseName = (phaseNode.name || phaseNode.text || '').trim() as PhaseName;
+        expectedFolders.set(phaseName, { node: phaseNode, phaseName });
         for (const child of phaseNode.children || []) {
             collectTemplateFolders(child, phaseName, '');
         }
@@ -1090,33 +1106,30 @@ async function createMissingFoldersFromTemplate(
         return depthA - depthB;
     });
 
-    // Create each missing folder with project naming convention
-    // e.g. "PRJ-017-PD-Construction" not bare "Construction"
-    const prCode = project.prNumber || project.pr_number || project.project_code || '';
+    // Create each missing folder with the correct phase-root placement:
+    // - Phase roots: PRJ-017-RFP / PRJ-017-PD directly under the project root
+    // - Children: created INSIDE those phase roots using the plain template folder name
+    const prCode = getProjectCode(project.prNumber || project.pr_number || project.project_code || '');
 
     for (const { path, node, phaseName } of missingFolders) {
         try {
-            // Find parent folder ID
-            const pathParts = path.split('/');
-            const innerParts = pathParts.slice(1);
-            const templateName = innerParts[innerParts.length - 1];
-            const phaseSuffix = getPhaseCodeForName(phaseName);
-            // Apply project naming convention: PRJ-017-PD-{TemplateName}
-            const folderName = prCode ? `${prCode}-${phaseSuffix}-${templateName}` : templateName;
-            let parentId = project.google_folder_id || project.drive_folder_id || project.driveFolderId; // Default to project root
+            const placement = resolveDrivePlacementForTemplatePath(prCode, path);
+            let parentId = project.google_folder_id || project.drive_folder_id || project.driveFolderId;
 
-            if (innerParts.length > 1) {
-                // Find parent in existing folders
-                const parentPath = [phaseName, ...innerParts.slice(0, -1)].join('/');
+            if (placement.parentNormalizedPath) {
                 const parentFolder = (existingFolders || []).find(
-                    (f: any) => (f.normalized_template_path || f.template_path) === parentPath
+                    (f: any) => (f.normalized_template_path || f.template_path) === placement.parentNormalizedPath
                 );
                 parentId = parentFolder?.drive_folder_id || parentFolder?.google_folder_id || parentId;
             }
 
-            // Create folder in Google Drive with project-prefixed name
-            const newFolder = await createFolder(folderName, parentId);
-            await sleep(RATE_LIMIT_DELAY);
+            const newFolder = placement.isPhaseRoot
+                ? await ensureNamedChildFolder(parentId, placement.folderName)
+                : await createFolder(placement.folderName, parentId);
+
+            if (!placement.isPhaseRoot) {
+                await sleep(RATE_LIMIT_DELAY);
+            }
 
             // Immediately index the new folder with:
             // - drive_folder_id: the real Google Drive ID
@@ -1131,7 +1144,7 @@ async function createMissingFoldersFromTemplate(
                 p_template_path: `${prNum}/${path}`,
                 p_drive_folder_id: newFolder.id,
                 p_normalized_template_path: path,
-                p_template_node_id: node.node_id || null,  // ← stamp stable UUID immediately
+                p_template_node_id: node?.node_id || null,
             });
 
             // Also add to existingFolders so child folders can find their parent
@@ -1763,8 +1776,9 @@ export const createProject = inngest.createFunction(
             return { success: false, error: 'Projects folder parent not configured' };
         }
 
+        const projectCode = getProjectCode(prNumber);
         // Create main project folder
-        const projectFolderName = `PRJ-${prNumber}-${projectName.replace(/\s+/g, '-')}`;
+        const projectFolderName = `${projectCode}-${projectName.replace(/\s+/g, '-')}`;
 
         const projectFolder = await step.run('create-project-folder', async () => {
             const folder = await createFolder(projectFolderName, projectsFolderId);
@@ -1795,11 +1809,13 @@ export const createProject = inngest.createFunction(
 
         if (biddingTemplate) {
             await step.run('create-bidding-folders', async () => {
-                await createSubfoldersFromTemplate(
+                const rfpRoot = await ensureNamedChildFolder(
                     projectFolder.id!,
-                    biddingTemplate.folders || biddingTemplate.nodes || [],
-                    prNumber,
-                    'RFP'
+                    getPhaseRootFolderName(projectCode, 'Bidding')
+                );
+                await createSubfoldersFromTemplate(
+                    rfpRoot.id,
+                    biddingTemplate.folders || biddingTemplate.nodes || []
                 );
             });
         }
@@ -1825,7 +1841,7 @@ export const createProject = inngest.createFunction(
                     action: 'project_created',
                     entity_type: 'project',
                     entity_id: projectId,
-                    details: { prNumber, projectName, folderId: projectFolder.id },
+                    details: { prNumber: projectCode, projectName, folderId: projectFolder.id },
                     performed_by: 'system',
                 });
         });
@@ -1883,19 +1899,21 @@ export const upgradeToProjectDelivery = inngest.createFunction(
             return { success: false, error: 'No active template found' };
         }
 
-        // Create Project Delivery subfolders directly under the project root.
-        // The managed structure uses phase-coded top-level folders (PRJ-XXX-PD-*)
-        // rather than a separate "Project Delivery" container folder.
+        // Create the dedicated Project Delivery phase root (PRJ-XXX-PD)
+        // and place all PD template folders inside it.
         const templateJson = template.template_json;
         const pdTemplate = templateJson.phases?.project_delivery || templateJson[1]; // Support both formats
 
         if (pdTemplate) {
             await step.run('create-pd-subfolders', async () => {
-                await createSubfoldersFromTemplate(
+                const projectCode = getProjectCode(project.pr_number);
+                const pdRoot = await ensureNamedChildFolder(
                     project.drive_folder_id,
-                    pdTemplate.folders || pdTemplate.nodes || [],
-                    project.pr_number,
-                    'PD'
+                    getPhaseRootFolderName(projectCode, 'Project Delivery')
+                );
+                await createSubfoldersFromTemplate(
+                    pdRoot.id,
+                    pdTemplate.folders || pdTemplate.nodes || []
                 );
             });
         }
@@ -1934,15 +1952,10 @@ export const upgradeToProjectDelivery = inngest.createFunction(
 async function createSubfoldersFromTemplate(
     parentId: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    folders: any[],
-    prNumber: string,
-    phasePrefix: string,
-    depth: number = 0
+    folders: any[]
 ): Promise<void> {
     for (const folderDef of folders) {
-        const folderName = depth === 0
-            ? `PRJ-${prNumber}-${phasePrefix}-${folderDef.name || folderDef.text}`
-            : folderDef.name || folderDef.text;
+        const folderName = folderDef.name || folderDef.text;
 
         try {
             const newFolder = await createFolder(folderName, parentId);
@@ -1952,7 +1965,7 @@ async function createSubfoldersFromTemplate(
             // Recursively create children
             const children = folderDef.folders || folderDef.nodes || [];
             if (children.length > 0 && newFolder.id) {
-                await createSubfoldersFromTemplate(newFolder.id, children, prNumber, phasePrefix, depth + 1);
+                await createSubfoldersFromTemplate(newFolder.id, children);
             }
 
             // Apply group permissions from template

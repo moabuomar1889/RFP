@@ -826,7 +826,8 @@ interface CreatedFolder {
 
 /**
  * Create project folder structure from template
- * All folders get the naming convention: PRJ-XXX-RFP-FolderName or PRJ-XXX-PD-FolderName
+ * Phase roots are named PRJ-XXX-RFP / PRJ-XXX-PD.
+ * All child folders live INSIDE those roots using their template names.
  * 
  * @param projectRootFolderId - The root folder (PRJ-001-ProjectName) ID
  * @param templateJson - Template with folder structure
@@ -926,7 +927,7 @@ export async function createProjectFolderStructure(
             const nodeName = node.text || node.name;
             if (!nodeName) continue;
 
-            const folderName = `${prefix}-${nodeName}`;
+            const folderName = nodeName;
             const templatePath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
 
             console.log(`\n=== Creating folder: ${folderName} ===`);
