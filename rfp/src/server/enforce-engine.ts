@@ -123,7 +123,7 @@ export interface FolderEnforceResult {
 export interface DriveEnforceAPI {
     listPermissions(folderId: string): Promise<ActualPermission[]>;
     addPermission(folderId: string, type: string, role: string, email: string): Promise<void>;
-    removePermission(folderId: string, permissionId: string): Promise<void>;
+    removePermission(folderId: string, permissionId: string): Promise<boolean>;
     setLimitedAccess(folderId: string, enabled: boolean): Promise<void>;
     getLimitedAccessState(folderId: string): Promise<boolean>;
     isProtectedPrincipal(email: string): boolean;
@@ -222,6 +222,10 @@ export async function enforceFolder(
                     persistent: !removeResult.isTransient,
                 });
             }
+        } else if (removeResult.result === false) {
+            // The lower layer determined this permission was not directly removable
+            // (for example: inherited-only after a composite direct+inherited check).
+            reset.nonRemovable++;
         } else {
             reset.removed++;
         }

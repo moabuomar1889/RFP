@@ -501,17 +501,28 @@ export async function removePermission(
                 drive.permissions.get({
                     fileId: folderId,
                     permissionId,
-                    fields: 'permissionDetails',
+                    fields: 'inherited,permissionDetails',
                     supportsAllDrives: true
                 }),
                 API_TIMEOUT_MS,
                 `getPermission(${folderId}, ${permissionId})`
             );
 
-            const isInherited = perm.data.permissionDetails?.some(d => d.inherited) ?? false;
+            const details = perm.data.permissionDetails ?? [];
+            const hasDirectComponent = details.length > 0
+                ? details.some(d => d.inherited === false)
+                : (perm.data as any).inherited !== true;
+            const isInheritedOnly = !hasDirectComponent && (
+                details.some(d => d.inherited) ||
+                (perm.data as any).inherited === true
+            );
             const inheritedFrom = perm.data.permissionDetails?.find(d => d.inherited)?.inheritedFrom;
 
-            if (isInherited) {
+            // A permission can contain BOTH:
+            // - an inherited component (from parent/root)
+            // - a direct component (on this folder)
+            // In that case we must still delete it, because the direct grant is removable.
+            if (isInheritedOnly) {
                 if (options.logSkipped) {
                     console.warn(
                         `⚠️  SKIPPED: Cannot remove inherited permission ${permissionId} ` +

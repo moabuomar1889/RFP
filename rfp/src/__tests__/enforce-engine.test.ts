@@ -15,7 +15,7 @@ function makeApi(overrides: Partial<DriveEnforceAPI> = {}): DriveEnforceAPI {
     return {
         listPermissions: vi.fn(async () => []),
         addPermission: vi.fn(async () => {}),
-        removePermission: vi.fn(async () => {}),
+        removePermission: vi.fn(async () => true),
         setLimitedAccess: vi.fn(async () => {}),
         getLimitedAccessState: vi.fn(async () => false),
         isProtectedPrincipal: vi.fn(() => false),
@@ -309,5 +309,43 @@ describe('Test 10: override downgrade applied correctly', () => {
         expect(teamACalls.length).toBeGreaterThan(0);
         // Role should be 'reader' (downgraded), not 'organizer'
         expect(teamACalls[0][2]).toBe('reader');
+    });
+});
+
+// —— Test 11: skipped removal must not count as removed —— 
+describe('Test 11: skipped inherited-only removal is not counted as removed', () => {
+    it('treats removePermission=false as non-removable instead of successful removal', async () => {
+        const api = makeApi({
+            listPermissions: vi.fn()
+                .mockResolvedValueOnce([
+                    {
+                        emailAddress: 'team-a@example.com',
+                        role: 'fileOrganizer',
+                        id: 'perm-composite',
+                        permissionDetails: [
+                            { inherited: false },
+                            { inherited: true, inheritedFrom: DRIVE_ID },
+                        ],
+                    },
+                ])
+                .mockResolvedValueOnce([
+                    {
+                        emailAddress: 'team-a@example.com',
+                        role: 'fileOrganizer',
+                        id: 'perm-composite',
+                        permissionDetails: [
+                            { inherited: false },
+                            { inherited: true, inheritedFrom: DRIVE_ID },
+                        ],
+                    },
+                ]),
+            removePermission: vi.fn(async () => false),
+        });
+
+        const result = await enforceFolder(FOLDER_ID, TEMPLATE_PATH, basePerms, new Map(), DRIVE_ID, api);
+
+        expect(result.reset.removed).toBe(0);
+        expect(result.reset.nonRemovable).toBe(1);
+        expect(result.verify.compliant).toBe(false);
     });
 });

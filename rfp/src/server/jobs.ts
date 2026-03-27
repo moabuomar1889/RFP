@@ -1530,7 +1530,7 @@ async function enforceProjectPermissionsWithReset(
         },
 
         removePermission: async (folderId, permId) => {
-            await removePermission(folderId, permId);
+            return removePermission(folderId, permId);
         },
 
         setLimitedAccess: async (folderId, enabled) => {
