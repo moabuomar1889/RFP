@@ -358,17 +358,17 @@ export async function GET(request: NextRequest) {
                 return nodeName === phaseNodeName;
             });
 
-            if (phaseNode?.children) {
+            if (phaseNode) {
                 // node_id map (primary)
-                const phaseNodeMap = buildNodeMap(phaseNode.children);
+                const phaseNodeMap = buildNodeMap([phaseNode]);
                 for (const [nid, perms] of phaseNodeMap) {
                     nodeMap.set(nid, perms);
                 }
                 // path map (fallback)
-                const phaseMap = buildEffectivePermissionsMap(phaseNode.children);
-                templateFolderCounts.push({ phase: phaseNodeName, count: Object.keys(phaseMap).length + 1 });
+                const phaseMap = buildEffectivePermissionsMap([phaseNode]);
+                templateFolderCounts.push({ phase: phaseNodeName, count: Object.keys(phaseMap).length });
                 for (const [path, perms] of Object.entries(phaseMap)) {
-                    permissionsMap[`${phaseNodeName}/${path}`] = perms;
+                    permissionsMap[path] = perms;
                 }
             } else {
                 console.warn(`[AUDIT] Phase node '${phaseNodeName}' not found`);
@@ -447,12 +447,17 @@ export async function GET(request: NextRequest) {
                 ? nodeMap.get(folder.template_node_id)
                 : null;
 
-            let pathWithoutPhase = templatePath.replace(/^(Bidding|Project Delivery)\//, '');
+            let pathWithoutPhase = templatePath;
+            if (templatePath === folderPhase) {
+                pathWithoutPhase = '';
+            } else {
+                pathWithoutPhase = templatePath.replace(/^(Bidding|Project Delivery)\//, '');
+            }
 
             // ─── FALLBACK LOOKUP: path-based ─────────────────
             // Used when template_node_id is null (not yet stamped or manually mapped)
             if (!expectedPerms) {
-                const prefixedPath = `${folderPhase}/${pathWithoutPhase}`;
+                const prefixedPath = pathWithoutPhase ? `${folderPhase}/${pathWithoutPhase}` : folderPhase;
                 expectedPerms = permissionsMap[prefixedPath];
 
                 // If no match, try normalizing as a Drive-style path

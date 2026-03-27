@@ -5,6 +5,7 @@ import {
     getPhaseNamesForProject,
     getProjectCode,
     normalizeIndexedDrivePath,
+    rankDrivePathCandidateForTemplatePath,
     resolveDrivePlacementForTemplatePath,
 } from '@/server/project-phase-paths';
 
@@ -53,6 +54,19 @@ describe('project-phase-paths helpers', () => {
             parentNormalizedPath: 'Project Delivery',
             isPhaseRoot: false,
         });
+    });
+
+    it('prefers structurally correct drive candidates over root-level polluted siblings', () => {
+        const wrong = rankDrivePathCandidateForTemplatePath(
+            'PRJ-002-RFP-Commercial Proposal',
+            'Bidding/Commercial Proposal'
+        );
+        const correct = rankDrivePathCandidateForTemplatePath(
+            'PRJ-002-RFP/PRJ-002-RFP-Commercial Proposal',
+            'Bidding/Commercial Proposal'
+        );
+
+        expect(correct.depthDelta).toBeLessThan(wrong.depthDelta);
     });
 
     it('normalizes RFP-prefixed folders into the Bidding namespace', () => {

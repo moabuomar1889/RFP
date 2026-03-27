@@ -41,6 +41,7 @@ import {
     getPhaseNamesForProject,
     getProjectCode,
     normalizeIndexedDrivePath,
+    rankDrivePathCandidateForTemplatePath,
     resolveDrivePlacementForTemplatePath,
     type PhaseName,
 } from '@/server/project-phase-paths';
@@ -932,8 +933,8 @@ async function rebuildFolderIndexForProject(
                 return nodeName === phaseNodeName;
             });
 
-            if (phaseNode?.children) {
-                for (const child of phaseNode.children) collectPathsAndIds(child, phaseNodeName);
+            if (phaseNode) {
+                collectPathsAndIds(phaseNode, '');
             } else {
                 console.warn(`[rebuildFolderIndex] Phase '${phaseNodeName}' not found for ${prNumber}`);
             }
@@ -964,9 +965,10 @@ async function rebuildFolderIndexForProject(
     }
 
     // ── Step G: Upsert matched folders ──
-    let upsertedCount = 0;
-    let unmappedCount = 0;
-    const seenNormalized = new Set<string>();
+    const candidatesByTemplatePath = new Map<string, Array<{
+        folder: { id: string; name: string; path: string; parentId: string };
+        match: { path: string; nodeId: string | null };
+    }>>();
 
     for (const folder of folders) {
         const normalized = normalizeDrivePath(folder.path);
@@ -980,8 +982,32 @@ async function rebuildFolderIndexForProject(
             continue;
         }
 
-        if (seenNormalized.has(match.path)) continue;
-        seenNormalized.add(match.path);
+        const bucket = candidatesByTemplatePath.get(match.path) || [];
+        bucket.push({ folder, match });
+        candidatesByTemplatePath.set(match.path, bucket);
+    }
+
+    let upsertedCount = 0;
+    let unmappedCount = 0;
+
+    for (const [templatePath, candidates] of candidatesByTemplatePath.entries()) {
+        const selected = [...candidates].sort((a, b) => {
+            const aRank = rankDrivePathCandidateForTemplatePath(a.folder.path, templatePath);
+            const bRank = rankDrivePathCandidateForTemplatePath(b.folder.path, templatePath);
+            if (aRank.depthDelta !== bRank.depthDelta) return aRank.depthDelta - bRank.depthDelta;
+            if (aRank.driveDepth !== bRank.driveDepth) return bRank.driveDepth - aRank.driveDepth;
+            return a.folder.path.localeCompare(b.folder.path);
+        })[0];
+
+        if (!selected) continue;
+
+        const { folder, match } = selected;
+
+        if (candidates.length > 1) {
+            console.log(
+                `[rebuildFolderIndex] MULTI-MATCH '${templatePath}' => chose '${folder.path}' from ${candidates.length} candidates`
+            );
+        }
 
         // Determine template_node_id:
         // 1. Use previously saved binding (Option B manual mapping or prior run)
@@ -1241,13 +1267,13 @@ async function enforceProjectPermissionsWithReset(
             const nodeName = (n.name || n.text || '').trim();
             return nodeName === phaseNodeName;
         });
-        if (phaseNode?.children) {
-            const phaseNodeMap = buildNodeMap(phaseNode.children);
+        if (phaseNode) {
+            const phaseNodeMap = buildNodeMap([phaseNode]);
             for (const [nid, perms] of phaseNodeMap) {
                 nodeMap.set(nid, perms);
             }
             phasesFound++;
-            console.log(`[ENFORCE] nodeMap phase '${phaseNodeName}': ${phaseNode.children.length} root folders`);
+            console.log(`[ENFORCE] nodeMap phase '${phaseNodeName}': included phase root + descendants`);
         } else {
             console.warn(`[ENFORCE] Template phase '${phaseNodeName}' not found`);
         }
@@ -1256,7 +1282,7 @@ async function enforceProjectPermissionsWithReset(
     if (phasesFound === 0) {
         console.warn(`[ENFORCE] No phase nodes found, using all template nodes`);
         for (const topNode of templateNodes) {
-            const fallbackMap = buildNodeMap(topNode.children || topNode.nodes || []);
+            const fallbackMap = buildNodeMap([topNode]);
             for (const [nid, perms] of fallbackMap) {
                 nodeMap.set(nid, perms);
             }
@@ -1287,8 +1313,8 @@ async function enforceProjectPermissionsWithReset(
         const phaseNode = templateNodes.find((n: any) =>
             (n.name || n.text || '').trim() === phaseNodeName
         );
-        if (phaseNode?.children) {
-            for (const child of phaseNode.children) collectNodePaths(child, phaseNodeName);
+        if (phaseNode) {
+            collectNodePaths(phaseNode, '');
         }
     }
 

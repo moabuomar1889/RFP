@@ -52,6 +52,19 @@ export function resolveDrivePlacementForTemplatePath(
     };
 }
 
+export function rankDrivePathCandidateForTemplatePath(
+    drivePath: string,
+    normalizedTemplatePath: string
+): { depthDelta: number; driveDepth: number } {
+    const driveDepth = drivePath.split('/').filter(Boolean).length;
+    const templateDepth = normalizedTemplatePath.split('/').filter(Boolean).length;
+
+    return {
+        depthDelta: Math.abs(driveDepth - templateDepth),
+        driveDepth,
+    };
+}
+
 export function stripProjectPhasePrefix(segment: string, projectCode: string): {
     cleaned: string;
     phaseName: PhaseName | null;

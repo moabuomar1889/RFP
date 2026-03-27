@@ -344,12 +344,11 @@ export async function GET(request: NextRequest) {
         for (const topNode of templateNodes) {
             const name = topNode.name || topNode.text || '';
             if (!name) continue;
-            const children = topNode.children || topNode.nodes || [];
             // Primary: collect all node_id → permissions
-            const phaseNodeMap = buildNodeMap(children);
+            const phaseNodeMap = buildNodeMap([topNode]);
             for (const [nid, perms] of phaseNodeMap) nodeMap.set(nid, perms);
             // Fallback: collect path → permissions
-            const phasePerms = buildEffectivePermissionsMap(children);
+            const phasePerms = buildEffectivePermissionsMap([topNode]);
             Object.assign(pathFallbackMap, phasePerms);
         }
 
@@ -409,7 +408,7 @@ export async function GET(request: NextRequest) {
 
                 // Fallback: try path-based resolution (shows best-effort data)
                 const normPath = templatePath.replace(/^(Bidding|Project Delivery)\//, '');
-                expectedPerms = pathFallbackMap[normPath] || pathFallbackMap[templatePath];
+                expectedPerms = pathFallbackMap[templatePath] || pathFallbackMap[normPath];
                 if (!expectedPerms) continue;
             }
 
