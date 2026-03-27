@@ -1450,7 +1450,7 @@ async function enforceProjectPermissionsWithReset(
     // ╔══════════════════════════════════════════════════════════════════╗
     // ║  Build list of folder entries to process (nodeMap → Drive)    ║
     // ╚══════════════════════════════════════════════════════════════════╝
-    const foldersToProcess: Array<{ templatePath: string; expectedPerms: any; folder: any }> = [];
+    const foldersToProcess: Array<{ templatePath: string; expectedPerms: any; folder: any; depth: number }> = [];
 
     for (const [nodeId, expectedPerms] of nodeMap.entries()) {
         // ── Scope filtering by node identity ──
@@ -1498,11 +1498,53 @@ async function enforceProjectPermissionsWithReset(
         }
 
         const displayPath = folder.normalized_template_path || folder.template_path;
-        foldersToProcess.push({ templatePath: displayPath, expectedPerms, folder });
+        const depth = displayPath.split('/').filter(Boolean).length;
+        foldersToProcess.push({ templatePath: displayPath, expectedPerms, folder, depth });
     }
 
+    const rootExpectedPerms = { groups: [], users: [], limitedAccess: false, overrides: undefined };
+    const orderedFolders: typeof foldersToProcess = [];
+    const seenDriveFolderIds = new Set<string>();
+
+    const pushUnique = (entry: typeof foldersToProcess[number] | null | undefined) => {
+        if (!entry?.folder?.drive_folder_id) return;
+        if (seenDriveFolderIds.has(entry.folder.drive_folder_id)) return;
+        seenDriveFolderIds.add(entry.folder.drive_folder_id);
+        orderedFolders.push(entry);
+    };
+
+    pushUnique({
+        templatePath: 'Project Root',
+        expectedPerms: rootExpectedPerms,
+        folder: {
+            drive_folder_id: project.drive_folder_id,
+            template_path: 'Project Root',
+            normalized_template_path: 'Project Root',
+        },
+        depth: 0,
+    });
+
+    if ((scope === 'single' || scope === 'branch') && targetPath) {
+        const phaseRootPath = targetPath.startsWith('Bidding/') || targetPath === 'Bidding'
+            ? 'Bidding'
+            : 'Project Delivery';
+        const phaseRootFolder = pathToFolder.get(phaseRootPath);
+        if (phaseRootFolder && permissionsMap[phaseRootPath]) {
+            pushUnique({
+                templatePath: phaseRootPath,
+                expectedPerms: permissionsMap[phaseRootPath],
+                folder: phaseRootFolder,
+                depth: 1,
+            });
+        }
+    }
+
+    foldersToProcess
+        .sort((a, b) => a.depth - b.depth || a.templatePath.localeCompare(b.templatePath))
+        .forEach(pushUnique);
+
     await writeJobLog(jobId, project.id, project.name, null, 'folders_to_process', 'info', {
-        count: foldersToProcess.length,
+        count: orderedFolders.length,
         scope
     });
 
@@ -1519,7 +1561,7 @@ async function enforceProjectPermissionsWithReset(
 
     await writeJobLog(jobId, project.id, project.name, null, 'pass1_start', 'info', {
         message: 'PASS 1: GLOBAL RESET — Disabling Limited Access and removing all direct permissions',
-        folderCount: foldersToProcess.length
+        folderCount: orderedFolders.length
     });
 
     // Build the Drive API adapter (wraps the existing functions and protectedPrincipals)
@@ -1559,10 +1601,14 @@ async function enforceProjectPermissionsWithReset(
 
     const BATCH_SIZE = 15;
     const enforceResults: import('@/server/enforce-engine').FolderEnforceResult[] = [];
+    const depthLevels = Array.from(new Set(orderedFolders.map(f => f.depth))).sort((a, b) => a - b);
+    let processedCount = 0;
 
-    for (let i = 0; i < foldersToProcess.length; i += BATCH_SIZE) {
-        const batch = foldersToProcess.slice(i, i + BATCH_SIZE);
-        const batchResults = await Promise.all(batch.map(async ({ templatePath, expectedPerms, folder }) => {
+    for (const depth of depthLevels) {
+        const levelFolders = orderedFolders.filter(f => f.depth === depth);
+        for (let i = 0; i < levelFolders.length; i += BATCH_SIZE) {
+            const batch = levelFolders.slice(i, i + BATCH_SIZE);
+            const batchResults = await Promise.all(batch.map(async ({ templatePath, expectedPerms, folder }) => {
             // inheritedRoles is per-folder — reset each call
             const inheritedRoles = new Map<string, number>();
             const result = await enforceFolder(
@@ -1632,17 +1678,19 @@ async function enforceProjectPermissionsWithReset(
             );
 
             return result;
-        }));
+            }));
 
-        for (const r of batchResults) {
-            enforceResults.push(r);
-            added += r.apply.added;
-            removed += r.reset.removed;
-            errors += r.reset.removeErrors.length + r.apply.addErrors.length;
+            for (const r of batchResults) {
+                enforceResults.push(r);
+                added += r.apply.added;
+                removed += r.reset.removed;
+                errors += r.reset.removeErrors.length + r.apply.addErrors.length;
+            }
+
+            processedCount += batch.length;
+            const progress = Math.round((processedCount / orderedFolders.length) * 100);
+            await updateJobProgress(jobId, progress, processedCount, orderedFolders.length, JOB_STATUS.RUNNING);
         }
-
-        const progress = Math.round(((i + batch.length) / foldersToProcess.length) * 100);
-        await updateJobProgress(jobId, progress, i + batch.length, foldersToProcess.length, JOB_STATUS.RUNNING);
     }
 
     await writeJobLog(jobId, project.id, project.name, null, 'pass1_complete', 'success', {
