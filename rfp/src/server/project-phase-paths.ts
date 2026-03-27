@@ -1,6 +1,15 @@
 export type PhaseName = 'Bidding' | 'Project Delivery';
 export type PhaseCode = 'RFP' | 'PD';
 
+// Historical system-created typos seen repeatedly across many projects.
+// Keep this list intentionally small and exact so we do not rewrite arbitrary user content.
+const MANAGED_SEGMENT_ALIASES = new Map<string, string>([
+    ['technical propsal', 'Technical Proposal'],
+    ['commercial propsal', 'Commercial Proposal'],
+    ['quantity survuy', 'Quantity Survey'],
+    ['procurment', 'Procurement'],
+]);
+
 export function getPhaseNamesForProject(projectPhase: string | null | undefined): PhaseName[] {
     return projectPhase === 'bidding'
         ? ['Bidding']
@@ -71,6 +80,8 @@ export function stripProjectPhasePrefix(segment: string, projectCode: string): {
 } {
     const escaped = projectCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const patterns = [
+        new RegExp(`^\\d+-${escaped}-(RFP|PD)$`, 'i'),
+        new RegExp(`^${escaped}-(RFP|PD)$`, 'i'),
         new RegExp(`^\\d+-${escaped}-(RFP|PD)-`, 'i'),
         new RegExp(`^${escaped}-(RFP|PD)-`, 'i'),
     ];
@@ -78,14 +89,21 @@ export function stripProjectPhasePrefix(segment: string, projectCode: string): {
     for (const pattern of patterns) {
         const match = segment.match(pattern);
         if (match) {
+            const exactRoot = match[0].length === segment.length;
             return {
-                cleaned: segment.replace(pattern, ''),
+                cleaned: exactRoot ? '' : segment.replace(pattern, ''),
                 phaseName: match[1].toUpperCase() === 'RFP' ? 'Bidding' : 'Project Delivery',
             };
         }
     }
 
     return { cleaned: segment, phaseName: null };
+}
+
+export function normalizeManagedSegmentAlias(segment: string): string {
+    const trimmed = segment.trim();
+    if (!trimmed) return trimmed;
+    return MANAGED_SEGMENT_ALIASES.get(trimmed.toLowerCase()) ?? trimmed;
 }
 
 export function normalizeIndexedDrivePath(drivePath: string, projectCode: string): string {
@@ -99,7 +117,7 @@ export function normalizeIndexedDrivePath(drivePath: string, projectCode: string
             phaseName = normalized.phaseName;
         }
         if (normalized.cleaned) {
-            cleanedSegments.push(normalized.cleaned);
+            cleanedSegments.push(normalizeManagedSegmentAlias(normalized.cleaned));
         }
     }
 
