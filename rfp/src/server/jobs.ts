@@ -48,6 +48,16 @@ import {
 // Rate limiting helper
 const RATE_LIMIT_DELAY = 100; // ms between API calls (reduced from 300ms for better performance)
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const JOB_RPC_TIMEOUT_MS = 5000;
+
+async function withJobRpcTimeout<T>(promise: Promise<T>, label: string, timeoutMs = JOB_RPC_TIMEOUT_MS): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+            setTimeout(() => reject(new Error(`TIMEOUT: ${label} did not respond within ${timeoutMs}ms`)), timeoutMs)
+        )
+    ]);
+}
 
 // ============= JOB LOGGING HELPERS =============
 
@@ -64,7 +74,7 @@ async function writeJobLog(
     details: Record<string, unknown> = {}
 ): Promise<void> {
     try {
-        await supabaseAdmin.rpc('insert_job_log', {
+        await withJobRpcTimeout(supabaseAdmin.rpc('insert_job_log', {
             p_job_id: jobId,
             p_project_id: projectId,
             p_project_name: projectName,
@@ -72,7 +82,7 @@ async function writeJobLog(
             p_action: action,
             p_status: status,
             p_details: details
-        });
+        }), `insert_job_log(${action})`);
     } catch (err) {
         console.error('Failed to write job log:', err);
     }
@@ -90,13 +100,13 @@ async function updateJobProgress(
 ): Promise<void> {
     try {
         const client = getRawSupabaseAdmin();
-        await client.rpc('update_job_progress', {
+        await withJobRpcTimeout(client.rpc('update_job_progress', {
             p_job_id: jobId,
             p_progress: progressPercent,
             p_completed_tasks: completedTasks,
             p_total_tasks: totalTasks,
             p_status: status || null
-        });
+        }), `update_job_progress(${jobId})`);
     } catch (err) {
         console.error('Failed to update job progress:', err);
     }
