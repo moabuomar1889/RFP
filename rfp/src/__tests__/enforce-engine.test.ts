@@ -65,7 +65,7 @@ describe('Test 1: stale direct permissions removed in reset', () => {
 
 // ─── Test 2: LA disabled before removal, re-enabled after apply ───────────────
 describe('Test 2: limited access disable/enable cycle', () => {
-    it('disables LA in reset phase and re-enables in apply phase when template requires it', async () => {
+    it('prepares LA for reset and finishes with LA enabled when template requires it', async () => {
         const setLimitedAccess = vi.fn(async () => {});
         const api = makeApi({
             setLimitedAccess,
@@ -80,9 +80,10 @@ describe('Test 2: limited access disable/enable cycle', () => {
         await enforceFolder(FOLDER_ID, TEMPLATE_PATH, laPerms, new Map(), DRIVE_ID, api);
 
         const calls = setLimitedAccess.mock.calls;
-        // First call: disable (false), Second call: enable (true)
-        expect(calls[0][1]).toBe(false);  // reset: disable
-        expect(calls[1][1]).toBe(true);   // apply: enable
+        // For managed LA folders, reset now prepares the folder with LA already ON
+        // so inherited ancestry does not block deletion of direct grants.
+        expect(calls[0][1]).toBe(true);   // reset: prepare LA
+        expect(calls[1][1]).toBe(true);   // apply: final LA state
     });
 });
 

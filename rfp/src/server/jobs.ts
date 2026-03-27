@@ -32,7 +32,6 @@ import {
     removePermission,
     isProtectedPermission,
     setLimitedAccess,
-    setLimitedAccessFast,
     hardResetPermissions,
 } from '@/server/google-drive';
 import { JOB_STATUS, TASK_STATUS } from '@/lib/config';
@@ -867,7 +866,7 @@ async function applyChangeToProject(project: any, change: any): Promise<void> {
  * - Folders with no path match → upserted with template_node_id = NULL (surfaced as unmapped).
  * - The upsert_folder_index RPC uses COALESCE so existing bindings are NEVER overwritten.
  */
-async function rebuildFolderIndexForProject(
+export async function rebuildFolderIndexForProject(
     project: any
 ): Promise<{ foldersFound: number; foldersUpserted: number; unmappedCount: number }> {
     const client = getRawSupabaseAdmin();
@@ -1208,7 +1207,7 @@ async function createMissingFoldersFromTemplate(
  * PHASE 2: Clear Limited Access  
  * PHASE 3: Apply template from scratch
  */
-async function enforceProjectPermissionsWithReset(
+export async function enforceProjectPermissionsWithReset(
     project: any,
     protectedPrincipals: string[],
     jobId: string,
@@ -1217,6 +1216,7 @@ async function enforceProjectPermissionsWithReset(
     let removed = 0;
     let added = 0;
     let errors = 0;
+    const projectRootFolderId = project.driveFolderId || project.drive_folder_id || project.google_folder_id || '';
 
 
     console.log(`\n========== RESET-THEN-APPLY ENFORCEMENT FOR ${project.prNumber || project.pr_number} ==========`);
@@ -1517,7 +1517,7 @@ async function enforceProjectPermissionsWithReset(
         templatePath: 'Project Root',
         expectedPerms: rootExpectedPerms,
         folder: {
-            drive_folder_id: project.drive_folder_id,
+            drive_folder_id: projectRootFolderId,
             template_path: 'Project Root',
             normalized_template_path: 'Project Root',
         },
@@ -1576,7 +1576,7 @@ async function enforceProjectPermissionsWithReset(
         },
 
         setLimitedAccess: async (folderId, enabled) => {
-            await setLimitedAccessFast(folderId, enabled);
+            await setLimitedAccess(folderId, enabled);
         },
         getLimitedAccessState: async (folderId) => {
             // Verify Limited Access state via the correct Drive field: inheritedPermissionsDisabled
@@ -1593,7 +1593,7 @@ async function enforceProjectPermissionsWithReset(
     // Resolve driveId for accurate NON_REMOVABLE classification
     let sharedDriveId: string | undefined;
     try {
-        const rootFile = await getFolder(project.drive_folder_id);
+        const rootFile = projectRootFolderId ? await getFolder(projectRootFolderId) : null;
         sharedDriveId = rootFile?.driveId ?? undefined;
     } catch {
         // continue without driveId — classification falls back to heuristic
@@ -1623,6 +1623,7 @@ async function enforceProjectPermissionsWithReset(
             // Log reset summary
             await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_reset_summary', 'success', {
                 laDisabled: result.reset.laDisabled,
+                laPreparedState: result.reset.laPreparedState,
                 removed: result.reset.removed,
                 nonRemovable: result.reset.nonRemovable,
                 removeErrors: result.reset.removeErrors.length,
@@ -1690,6 +1691,13 @@ async function enforceProjectPermissionsWithReset(
             processedCount += batch.length;
             const progress = Math.round((processedCount / orderedFolders.length) * 100);
             await updateJobProgress(jobId, progress, processedCount, orderedFolders.length, JOB_STATUS.RUNNING);
+        }
+
+        // Drive inheritance/limited-access changes can take a moment to propagate
+        // from parents to descendants. Pause briefly between depth levels so child
+        // resets see the latest ancestor state.
+        if (depth !== depthLevels[depthLevels.length - 1]) {
+            await sleep(1500);
         }
     }
 

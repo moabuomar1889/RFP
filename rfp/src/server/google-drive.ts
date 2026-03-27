@@ -501,7 +501,10 @@ export async function removePermission(
                 drive.permissions.get({
                     fileId: folderId,
                     permissionId,
-                    fields: 'inherited,permissionDetails',
+                    // permissionDetails is the reliable source for inherited/direct
+                    // components on Drive permissions. Top-level "inherited" is not
+                    // a valid fields selector here and causes the lookup to fail.
+                    fields: 'permissionDetails',
                     supportsAllDrives: true
                 }),
                 API_TIMEOUT_MS,
@@ -511,10 +514,9 @@ export async function removePermission(
             const details = perm.data.permissionDetails ?? [];
             const hasDirectComponent = details.length > 0
                 ? details.some(d => d.inherited === false)
-                : (perm.data as any).inherited !== true;
+                : true;
             const isInheritedOnly = !hasDirectComponent && (
-                details.some(d => d.inherited) ||
-                (perm.data as any).inherited === true
+                details.some(d => d.inherited)
             );
             const inheritedFrom = perm.data.permissionDetails?.find(d => d.inherited)?.inheritedFrom;
 

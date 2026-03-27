@@ -88,6 +88,7 @@ async function withRetry<T>(
 
 export interface ResetResult {
     laDisabled: boolean;
+    laPreparedState?: boolean;
     laDisableError?: string;
     removed: number;
     nonRemovable: number;
@@ -150,21 +151,26 @@ export async function enforceFolder(
 
     const reset: ResetResult = {
         laDisabled: false,
+        laPreparedState: expectedPerms.limitedAccess,
         removed: 0,
         nonRemovable: 0,
         removeErrors: [],
     };
 
-    // 1a. Disable Limited Access (so parent-inherited perms become removable)
+    // 1a. Prepare Limited Access for reset.
+    // For managed limited-access folders, keep/enable LA during reset so inherited
+    // ancestry does not block deletion of direct grants on the child.
+    // For non-LA folders, disable it so the folder returns to an expansive state.
+    const resetLimitedAccessState = expectedPerms.limitedAccess;
     const laDisableResult = await withRetry(
-        () => api.setLimitedAccess(folderId, false),
-        `LA disable ${folderId}`
+        () => api.setLimitedAccess(folderId, resetLimitedAccessState),
+        `LA prepare ${folderId} => ${resetLimitedAccessState}`
     );
     if (laDisableResult.error) {
         reset.laDisableError = laDisableResult.error.message;
-        // Non-fatal: continue — Drive may already have LA off, or it may be unneeded
+        // Non-fatal: continue — Drive may already be in the required state.
     } else {
-        reset.laDisabled = true;
+        reset.laDisabled = resetLimitedAccessState === false;
     }
 
     // 1b. List current permissions and remove all removable direct permissions
