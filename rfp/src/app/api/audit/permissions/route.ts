@@ -528,7 +528,7 @@ export async function GET(request: NextRequest) {
 
             comparisons.push({
                 folderPath: folder.template_path,
-                normalizedPath: `${folderPhase}/${pathWithoutPhase}`,
+                normalizedPath: pathWithoutPhase ? `${folderPhase}/${pathWithoutPhase}` : folderPhase,
                 driveFolderId: folder.drive_folder_id,
                 expectedGroups: (expectedPerms.groups || []).map((g: any) => ({
                     email: g.email,
