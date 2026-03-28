@@ -17,12 +17,9 @@ export async function GET(
         const { projectId } = await params;
         const supabase = getSupabaseAdmin();
 
-        const { data, error } = await supabase
-            .schema('rfp')
-            .from('folder_index')
-            .select('*')
-            .eq('project_id', projectId)
-            .order('template_path');
+        const { data, error } = await supabase.rpc('list_project_folders', {
+            p_project_id: projectId,
+        });
 
         if (error) {
             console.error('Error fetching folders:', error);
@@ -65,10 +62,10 @@ interface FolderRecord {
     id: string;
     project_id: string;
     template_path: string;
+    normalized_template_path?: string | null;
     drive_folder_id: string;
-    drive_folder_name: string;
-    limited_access_enabled: boolean;
-    permissions_hash: string | null;
+    expected_limited_access?: boolean | null;
+    actual_limited_access?: boolean | null;
     last_verified_at: string | null;
 }
 
@@ -83,14 +80,53 @@ interface TreeNode {
 }
 
 function buildFolderTree(folders: FolderRecord[]): TreeNode[] {
-    // For now, return flat list as tree nodes (no parent-child in current schema)
-    return folders.map(folder => ({
-        id: folder.id,
-        name: folder.drive_folder_name,
-        path: folder.template_path,
-        driveId: folder.drive_folder_id,
-        limitedAccess: folder.limited_access_enabled || false,
-        synced: !!folder.last_verified_at,
-        children: [],
-    }));
+    const sortedFolders = [...folders].sort((a, b) => {
+        const aPath = getDisplayPath(a);
+        const bPath = getDisplayPath(b);
+        const depthDiff = aPath.split('/').length - bPath.split('/').length;
+        return depthDiff !== 0 ? depthDiff : aPath.localeCompare(bPath);
+    });
+
+    const nodeMap = new Map<string, TreeNode>();
+    const roots: TreeNode[] = [];
+
+    for (const folder of sortedFolders) {
+        const path = getDisplayPath(folder);
+        const name = getDisplayName(path);
+        const node: TreeNode = {
+            id: folder.id,
+            name,
+            path,
+            driveId: folder.drive_folder_id,
+            limitedAccess: folder.actual_limited_access ?? folder.expected_limited_access ?? false,
+            synced: !!folder.last_verified_at,
+            children: [],
+        };
+
+        nodeMap.set(path, node);
+
+        const parentPath = getParentPath(path);
+        if (parentPath && nodeMap.has(parentPath)) {
+            nodeMap.get(parentPath)!.children.push(node);
+        } else {
+            roots.push(node);
+        }
+    }
+
+    return roots;
+}
+
+function getDisplayPath(folder: FolderRecord): string {
+    return folder.normalized_template_path?.trim() || folder.template_path.trim();
+}
+
+function getDisplayName(path: string): string {
+    const segments = path.split('/').filter(Boolean);
+    return segments[segments.length - 1] || path;
+}
+
+function getParentPath(path: string): string | null {
+    const segments = path.split('/').filter(Boolean);
+    if (segments.length <= 1) return null;
+    return segments.slice(0, -1).join('/');
 }
