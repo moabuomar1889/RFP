@@ -28,6 +28,14 @@ export function getPhaseRootFolderName(projectCode: string, phaseName: string): 
     return `${getProjectCode(projectCode)}-${getPhaseCodeForName(phaseName)}`;
 }
 
+export function getManagedPhaseChildFolderName(
+    projectCode: string,
+    phaseName: string,
+    folderSegment: string
+): string {
+    return `${getPhaseRootFolderName(projectCode, phaseName)}-${folderSegment}`;
+}
+
 export function resolveDrivePlacementForTemplatePath(
     projectCode: string,
     normalizedTemplatePath: string
@@ -55,7 +63,7 @@ export function resolveDrivePlacementForTemplatePath(
 
     return {
         phaseName,
-        folderName: parts[parts.length - 1],
+        folderName: getManagedPhaseChildFolderName(projectCode, phaseName, parts[parts.length - 1]),
         parentNormalizedPath: parts.slice(0, -1).join('/'),
         isPhaseRoot: false,
     };

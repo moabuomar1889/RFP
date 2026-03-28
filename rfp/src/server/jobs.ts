@@ -1143,7 +1143,8 @@ async function createMissingFoldersFromTemplate(
 
     // Create each missing folder with the correct phase-root placement:
     // - Phase roots: PRJ-017-RFP / PRJ-017-PD directly under the project root
-    // - Children: created INSIDE those phase roots using the plain template folder name
+    // - Children: created INSIDE those phase roots using the managed prefixed
+    //   naming style too (e.g. PRJ-017-RFP-SOW)
     const prCode = getProjectCode(project.prNumber || project.pr_number || project.project_code || '');
 
     for (const { path, node, phaseName } of missingFolders) {
@@ -1925,7 +1926,9 @@ export const createProject = inngest.createFunction(
                 );
                 await createSubfoldersFromTemplate(
                     rfpRoot.id,
-                    biddingTemplate.folders || biddingTemplate.nodes || []
+                    biddingTemplate.folders || biddingTemplate.nodes || [],
+                    projectCode,
+                    'Bidding'
                 );
             });
         }
@@ -2023,7 +2026,9 @@ export const upgradeToProjectDelivery = inngest.createFunction(
                 );
                 await createSubfoldersFromTemplate(
                     pdRoot.id,
-                    pdTemplate.folders || pdTemplate.nodes || []
+                    pdTemplate.folders || pdTemplate.nodes || [],
+                    projectCode,
+                    'Project Delivery'
                 );
             });
         }
@@ -2062,10 +2067,15 @@ export const upgradeToProjectDelivery = inngest.createFunction(
 async function createSubfoldersFromTemplate(
     parentId: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    folders: any[]
+    folders: any[],
+    projectCode: string,
+    parentTemplatePath = ''
 ): Promise<void> {
     for (const folderDef of folders) {
-        const folderName = folderDef.name || folderDef.text;
+        const nodeName = folderDef.name || folderDef.text;
+        if (!nodeName) continue;
+        const templatePath = parentTemplatePath ? `${parentTemplatePath}/${nodeName}` : nodeName;
+        const folderName = resolveDrivePlacementForTemplatePath(projectCode, templatePath).folderName;
 
         try {
             const newFolder = await createFolder(folderName, parentId);
@@ -2075,7 +2085,7 @@ async function createSubfoldersFromTemplate(
             // Recursively create children
             const children = folderDef.folders || folderDef.nodes || [];
             if (children.length > 0 && newFolder.id) {
-                await createSubfoldersFromTemplate(newFolder.id, children);
+                await createSubfoldersFromTemplate(newFolder.id, children, projectCode, templatePath);
             }
 
             // Apply group permissions from template

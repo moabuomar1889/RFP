@@ -3,6 +3,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { GOOGLE_CONFIG, APP_CONFIG, DriveRole, PermissionType } from '@/lib/config';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { decrypt, encrypt } from '@/lib/crypto';
+import { resolveDrivePlacementForTemplatePath } from '@/server/project-phase-paths';
 
 // ─── Timeout utility ─────────────────────────────────────────────────
 // Google Drive API can hang indefinitely when rate-limited.
@@ -840,7 +841,8 @@ interface CreatedFolder {
 /**
  * Create project folder structure from template
  * Phase roots are named PRJ-XXX-RFP / PRJ-XXX-PD.
- * All child folders live INSIDE those roots using their template names.
+ * All managed child folders inside those roots keep the historical prefixed
+ * naming style too, e.g. PRJ-006-RFP-SOW and PRJ-006-PD-Document Control.
  * 
  * @param projectRootFolderId - The root folder (PRJ-001-ProjectName) ID
  * @param templateJson - Template with folder structure
@@ -940,8 +942,8 @@ export async function createProjectFolderStructure(
             const nodeName = node.text || node.name;
             if (!nodeName) continue;
 
-            const folderName = nodeName;
             const templatePath = parentPath ? `${parentPath}/${nodeName}` : nodeName;
+            const folderName = resolveDrivePlacementForTemplatePath(projectNumber, templatePath).folderName;
 
             console.log(`\n=== Creating folder: ${folderName} ===`);
 

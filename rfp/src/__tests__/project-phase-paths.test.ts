@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     getPhaseRootFolderName,
+    getManagedPhaseChildFolderName,
     getPhaseCodeForName,
     getPhaseNamesForProject,
     getProjectCode,
@@ -30,6 +31,11 @@ describe('project-phase-paths helpers', () => {
         expect(getPhaseRootFolderName('PRJ-015', 'Project Delivery')).toBe('PRJ-015-PD');
     });
 
+    it('builds the correct managed child folder names inside phase roots', () => {
+        expect(getManagedPhaseChildFolderName('PRJ-015', 'Bidding', 'Technical Proposal')).toBe('PRJ-015-RFP-Technical Proposal');
+        expect(getManagedPhaseChildFolderName('PRJ-015', 'Project Delivery', 'Document Control')).toBe('PRJ-015-PD-Document Control');
+    });
+
     it('places phase roots directly under the project root', () => {
         expect(resolveDrivePlacementForTemplatePath('PRJ-015', 'Bidding')).toEqual({
             phaseName: 'Bidding',
@@ -39,20 +45,29 @@ describe('project-phase-paths helpers', () => {
         });
     });
 
-    it('places Bidding children inside the RFP phase root with plain names', () => {
+    it('places Bidding children inside the RFP phase root with managed prefixed names', () => {
         expect(resolveDrivePlacementForTemplatePath('PRJ-015', 'Bidding/Technical Proposal')).toEqual({
             phaseName: 'Bidding',
-            folderName: 'Technical Proposal',
+            folderName: 'PRJ-015-RFP-Technical Proposal',
             parentNormalizedPath: 'Bidding',
             isPhaseRoot: false,
         });
     });
 
-    it('places PD children inside the PD phase root with plain names', () => {
+    it('places PD children inside the PD phase root with managed prefixed names', () => {
         expect(resolveDrivePlacementForTemplatePath('PRJ-015', 'Project Delivery/Document Control')).toEqual({
             phaseName: 'Project Delivery',
-            folderName: 'Document Control',
+            folderName: 'PRJ-015-PD-Document Control',
             parentNormalizedPath: 'Project Delivery',
+            isPhaseRoot: false,
+        });
+    });
+
+    it('keeps managed prefixes for nested descendants too', () => {
+        expect(resolveDrivePlacementForTemplatePath('PRJ-015', 'Bidding/Technical Proposal/TBE')).toEqual({
+            phaseName: 'Bidding',
+            folderName: 'PRJ-015-RFP-TBE',
+            parentNormalizedPath: 'Bidding/Technical Proposal',
             isPhaseRoot: false,
         });
     });
