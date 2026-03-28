@@ -28,11 +28,11 @@ const projectChartConfig = {
     },
     bidding: {
         label: "Bidding",
-        color: "hsl(var(--chart-1))",
+        color: "var(--chart-1)",
     },
     execution: {
         label: "Execution",
-        color: "hsl(var(--chart-2))",
+        color: "var(--chart-2)",
     },
 } satisfies ChartConfig
 
@@ -124,11 +124,11 @@ const complianceChartConfig = {
     },
     compliant: {
         label: "Compliant",
-        color: "hsl(var(--chart-2))", // Greenish/Teal usually
+        color: "var(--chart-2)",
     },
     non_compliant: {
         label: "Non-Compliant",
-        color: "hsl(var(--destructive))",
+        color: "var(--destructive)",
     },
 } satisfies ChartConfig
 
