@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import {
+    extractProjectNumber,
+    findNextAvailableProjectNumber,
+    formatProjectNumber,
+} from '@/server/project-numbering';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,22 +14,26 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
     try {
-        // Call public.get_next_pr_number() wrapper
-        const { data, error } = await supabaseAdmin.rpc('get_next_pr_number');
+        const [{ data: projects, error: projectsError }, { data: requests, error: requestsError }] = await Promise.all([
+            supabaseAdmin
+                .schema('rfp')
+                .from('projects')
+                .select('pr_number'),
+            supabaseAdmin
+                .schema('rfp')
+                .from('project_requests')
+                .select('pr_number')
+                .eq('status', 'pending'),
+        ]);
 
-        if (error) {
-            console.error('Error getting next PR number:', error);
-            return NextResponse.json({
-                success: true,
-                nextNumber: 'PRJ-XXX' // Fallback
-            });
-        }
+        if (projectsError) throw projectsError;
+        if (requestsError) throw requestsError;
 
-        // Convert PR-XXX to PRJ-XXX format for display
-        const prNumber = data || 'PR-001';
-        const prjNumber = prNumber.startsWith('PR-')
-            ? prNumber.replace('PR-', 'PRJ-')
-            : prNumber;
+        const usedNumbers = [...(projects ?? []), ...(requests ?? [])]
+            .map((row: any) => extractProjectNumber(row.pr_number))
+            .filter((num): num is number => num !== null);
+
+        const prjNumber = formatProjectNumber(findNextAvailableProjectNumber(usedNumbers));
 
         return NextResponse.json({
             success: true,
@@ -34,7 +43,7 @@ export async function GET() {
         console.error('Error:', error);
         return NextResponse.json({
             success: true,
-            nextNumber: 'PRJ-XXX' // Fallback
+            nextNumber: 'PRJ-XXX'
         });
     }
 }

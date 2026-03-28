@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { requireAuthenticatedAccess } from '@/server/access-control';
+import {
+    extractProjectNumber,
+    findNextAvailableProjectNumber,
+    formatProjectNumber,
+} from '@/server/project-numbering';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -83,25 +88,59 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
         }
 
-        // Create the request using RPC
-        const { data, error } = await supabase.rpc('create_project_request', {
-            p_request_type: requestType,
-            p_project_name: projectName,
-            p_requested_by: requestedBy,
-            p_project_id: projectId || null,
-        });
+        let prNumber: string | null = null;
+        if (requestType === 'new_project') {
+            const [{ data: projects, error: projectsError }, { data: requests, error: requestsError }] = await Promise.all([
+                supabase
+                    .schema('rfp')
+                    .from('projects')
+                    .select('pr_number'),
+                supabase
+                    .schema('rfp')
+                    .from('project_requests')
+                    .select('pr_number')
+                    .eq('status', 'pending'),
+            ]);
+
+            if (projectsError) {
+                console.error('Error reading existing projects for numbering:', projectsError);
+                return NextResponse.json({ error: projectsError.message }, { status: 500 });
+            }
+
+            if (requestsError) {
+                console.error('Error reading existing requests for numbering:', requestsError);
+                return NextResponse.json({ error: requestsError.message }, { status: 500 });
+            }
+
+            const usedNumbers = [...(projects ?? []), ...(requests ?? [])]
+                .map((row: any) => extractProjectNumber(row.pr_number))
+                .filter((num): num is number => num !== null);
+
+            prNumber = formatProjectNumber(findNextAvailableProjectNumber(usedNumbers));
+        }
+
+        const { data: createdRequest, error } = await supabase
+            .schema('rfp')
+            .from('project_requests')
+            .insert({
+                request_type: requestType,
+                project_name: projectName,
+                pr_number: prNumber,
+                project_id: projectId || null,
+                requested_by: requestedBy,
+            })
+            .select('id, pr_number')
+            .single();
 
         if (error) {
             console.error('Error creating request:', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        const result = data?.[0] || data;
-
         return NextResponse.json({
             success: true,
-            request: result,
-            message: `Request submitted. PR Number: ${result?.pr_number || 'N/A'}`
+            request: createdRequest,
+            message: `Request submitted. PR Number: ${createdRequest?.pr_number || 'N/A'}`
         });
     } catch (error) {
         console.error('Create request error:', error);
