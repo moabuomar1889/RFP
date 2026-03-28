@@ -108,6 +108,7 @@ export interface VerifyResult {
     compliant: boolean;
     comparisons: PermComparison[];
     limitedAccessMatch: boolean;
+    actualLimitedAccess: boolean | null;
 }
 
 export interface FolderEnforceResult {
@@ -312,6 +313,7 @@ export async function enforceFolder(
         compliant: false,
         comparisons: [],
         limitedAccessMatch: false,
+        actualLimitedAccess: null,
     };
 
     try {
@@ -334,6 +336,7 @@ export async function enforceFolder(
         verify.comparisons = comparisons;
         verify.compliant = isFullyCompliant(comparisons);
         verify.limitedAccessMatch = actualLA === null || actualLA === expectedPerms.limitedAccess;
+        verify.actualLimitedAccess = actualLA;
     } catch (err: any) {
         verify.comparisons = [{
             principal: '__verify__',
@@ -342,6 +345,7 @@ export async function enforceFolder(
             reason: `Verify phase failed: ${err.message}`,
         }];
         verify.compliant = false;
+        verify.actualLimitedAccess = null;
     }
 
     return {

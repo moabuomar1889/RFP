@@ -34,6 +34,8 @@ interface DashboardStats {
   violations: number;
   activeJobs: number;
   compliantFolders: number;
+  verifiedFolders: number;
+  unverifiedFolders: number;
 }
 
 export default function DashboardPage() {
@@ -51,6 +53,8 @@ export default function DashboardPage() {
     violations: 0,
     activeJobs: 0,
     compliantFolders: 0,
+    verifiedFolders: 0,
+    unverifiedFolders: 0,
   });
 
   const fetchStats = async () => {
@@ -315,8 +319,15 @@ export default function DashboardPage() {
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Folders requiring enforcement
+              {stats.verifiedFolders > 0
+                ? `From latest verification snapshot (${stats.verifiedFolders} verified)`
+                : 'No verified compliance snapshot yet'}
             </p>
+            {stats.unverifiedFolders > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {stats.unverifiedFolders} indexed folders not yet included in the latest snapshot
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

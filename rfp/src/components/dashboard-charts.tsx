@@ -75,6 +75,9 @@ export function ProjectDistributionChart({
                             innerRadius={60}
                             strokeWidth={5}
                         >
+                            {chartData.map((entry) => (
+                                <Cell key={entry.phase} fill={entry.fill} />
+                            ))}
                             <Label
                                 content={({ viewBox }) => {
                                     if (viewBox && "cx" in viewBox && "cy" in viewBox) {
@@ -170,6 +173,9 @@ export function ComplianceChart({
                             innerRadius={60}
                             strokeWidth={5}
                         >
+                            {chartData.map((entry) => (
+                                <Cell key={entry.status} fill={entry.fill} />
+                            ))}
                             <Label
                                 content={({ viewBox }) => {
                                     if (viewBox && "cx" in viewBox && "cy" in viewBox) {

@@ -1688,6 +1688,24 @@ export async function enforceProjectPermissionsWithReset(
                 }
             );
 
+            if (folder.id) {
+                const { error: snapshotError } = await supabaseAdmin
+                    .schema('rfp')
+                    .from('folder_index')
+                    .update({
+                        actual_limited_access: result.verify.actualLimitedAccess,
+                        last_verified_at: new Date().toISOString(),
+                        is_compliant: result.verify.compliant,
+                    })
+                    .eq('id', folder.id);
+
+                if (snapshotError) {
+                    await writeJobLog(jobId, project.id, project.name, templatePath, 'folder_snapshot_update_failed', 'warning', {
+                        error: snapshotError.message,
+                    });
+                }
+            }
+
             return result;
             }));
 
