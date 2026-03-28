@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { createFolder, createProjectFolderStructure } from '@/server/google-drive';
 import { APP_CONFIG } from '@/lib/config';
+import { requireApproverAccess } from '@/server/access-control';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,10 +16,9 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-
-        // Get session from cookie
-        const session = request.cookies.get('rfp_session');
-        const reviewedBy = session?.value || 'admin';
+        const auth = await requireApproverAccess(request);
+        if (!auth.authorized) return auth.response;
+        const reviewedBy = auth.access.email!;
 
         const supabase = getSupabaseAdmin();
 

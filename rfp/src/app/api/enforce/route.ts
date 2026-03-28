@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { inngest } from '@/lib/inngest';
 import { v4 as uuidv4 } from 'uuid';
+import { requireApproverAccess } from '@/server/access-control';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +12,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireApproverAccess(request);
+        if (!auth.authorized) return auth.response;
+
         const body = await request.json().catch(() => ({}));
-        const { projectIds, triggeredBy = 'admin' } = body;
+        const { projectIds, triggeredBy = auth.access.email } = body;
 
         const supabase = getSupabaseAdmin();
         const jobId = uuidv4();

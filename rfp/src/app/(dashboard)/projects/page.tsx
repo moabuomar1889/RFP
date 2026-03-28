@@ -60,6 +60,7 @@ interface Project {
 }
 
 export default function ProjectsPage() {
+    const [accessRole, setAccessRole] = useState<"approver" | "requester">("requester");
     const [searchQuery, setSearchQuery] = useState("");
     const [tab, setTab] = useState("all");
     const [loading, setLoading] = useState(true);
@@ -121,6 +122,13 @@ export default function ProjectsPage() {
 
     useEffect(() => {
         fetchProjects();
+        fetch('/api/auth/session')
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.authenticated && data.user?.role) {
+                    setAccessRole(data.user.role);
+                }
+            });
     }, []);
 
     const filteredProjects = projects.filter((project) => {
@@ -156,7 +164,7 @@ export default function ProjectsPage() {
                 <Button asChild>
                     <Link href="/projects/new">
                         <Plus className="mr-2 h-4 w-4" />
-                        New Project
+                        Request New Project
                     </Link>
                 </Button>
             </div>
@@ -294,14 +302,18 @@ export default function ProjectsPage() {
                                                         Open in Drive
                                                     </a>
                                                 </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    className="text-destructive focus:text-destructive"
-                                                    onClick={() => handleDeleteClick(project)}
-                                                >
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Delete Project
-                                                </DropdownMenuItem>
+                                                {accessRole === "approver" && (
+                                                    <>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            className="text-destructive focus:text-destructive"
+                                                            onClick={() => handleDeleteClick(project)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4 mr-2" />
+                                                            Delete Project
+                                                        </DropdownMenuItem>
+                                                    </>
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>

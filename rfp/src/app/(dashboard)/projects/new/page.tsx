@@ -86,12 +86,12 @@ export default function NewProjectPage() {
                             <div className="text-lg">{projectName}</div>
                         </div>
                         <p className="text-sm text-muted-foreground mb-6">
-                            You will be notified when your request is reviewed by an admin.
-                            Check the <Link href="/approvals" className="text-blue-500 underline">Approvals</Link> page to see your request.
+                            You will be notified when your request is reviewed by an approver.
+                            You can return to the Projects page and submit another request anytime.
                         </p>
                         <div className="flex gap-4 justify-center">
                             <Button variant="outline" asChild>
-                                <Link href="/approvals">View Approvals</Link>
+                                <Link href="/projects">Back to Projects</Link>
                             </Button>
                             <Button onClick={() => {
                                 setIsSubmitted(false);

@@ -19,7 +19,7 @@ function LoginContent() {
                     </div>
                     <CardTitle className="text-2xl">RFP System</CardTitle>
                     <CardDescription>
-                        Sign in to access the project management dashboard
+                        Sign in with your DTGSA Google account to request projects or manage approvals
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -55,7 +55,7 @@ function LoginContent() {
                         </a>
                     </Button>
                     <p className="text-center text-xs text-muted-foreground">
-                        Only authorized administrators can access this system
+                        Users on the approved company domain can sign in. Only designated approvers can manage the system.
                     </p>
                 </CardContent>
             </Card>

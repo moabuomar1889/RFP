@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { inngest } from '@/lib/inngest';
 import { v4 as uuidv4 } from 'uuid';
+import { requireApproverAccess } from '@/server/access-control';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireApproverAccess(request);
+        if (!auth.authorized) return auth.response;
+
         const body = await request.json();
         const { projectId, metadata } = body; // Extract metadata from request
 
@@ -34,7 +38,7 @@ export async function POST(request: NextRequest) {
             p_id: jobId,
             p_job_type: 'enforce_permissions',
             p_status: 'pending',
-            p_triggered_by: 'admin',
+            p_triggered_by: auth.access.email,
             p_job_details: jobDetails,
         });
 
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
                 jobId,
                 projectId: projectId || null,
                 metadata: metadata || {}, // Pass metadata to worker
-                triggeredBy: 'admin',
+                triggeredBy: auth.access.email,
             },
         });
 

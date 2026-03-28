@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { requireApproverAccess } from '@/server/access-control';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,8 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
+        const auth = await requireApproverAccess(request);
+        if (!auth.authorized) return auth.response;
         const body = await request.json();
         const { reason } = body;
 
@@ -20,9 +23,7 @@ export async function POST(
             return NextResponse.json({ success: false, error: 'Rejection reason is required' }, { status: 400 });
         }
 
-        // Get session from cookie
-        const session = request.cookies.get('rfp_session');
-        const reviewedBy = session?.value || 'admin';
+        const reviewedBy = auth.access.email!;
 
         const supabase = getSupabaseAdmin();
 

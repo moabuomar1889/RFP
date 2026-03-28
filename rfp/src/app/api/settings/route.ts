@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { requireApproverAccess } from '@/server/access-control';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,8 +8,11 @@ export const dynamic = 'force-dynamic';
  * GET /api/settings
  * Fetch all system settings
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const auth = await requireApproverAccess(request);
+        if (!auth.authorized) return auth.response;
+
         const supabase = getSupabaseAdmin();
 
         const { data, error } = await supabase.rpc('get_settings');
@@ -47,6 +51,9 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireApproverAccess(request);
+        if (!auth.authorized) return auth.response;
+
         const body = await request.json();
         const { settings } = body;
 
@@ -90,6 +97,9 @@ export async function POST(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
     try {
+        const auth = await requireApproverAccess(request);
+        if (!auth.authorized) return auth.response;
+
         const body = await request.json();
         const { key, value } = body;
 
@@ -105,7 +115,7 @@ export async function PATCH(request: NextRequest) {
         const { data, error } = await supabase.rpc('update_setting', {
             p_key: key,
             p_value: value,
-            p_updated_by: 'admin'
+            p_updated_by: auth.access.email
         });
 
         if (error) {

@@ -5,12 +5,14 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete('rfp_session');
+    response.cookies.delete('rfp_access');
     return response;
 }
 
 export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(new URL('/login', request.url));
     response.cookies.delete('rfp_session');
+    response.cookies.delete('rfp_access');
     return response;
 }
 

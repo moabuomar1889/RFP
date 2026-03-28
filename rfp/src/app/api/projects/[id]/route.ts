@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { moveFolder } from '@/server/google-drive';
 import { APP_CONFIG } from '@/lib/config';
+import { requireApproverAccess } from '@/server/access-control';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -17,6 +18,8 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
+        const auth = await requireApproverAccess(request);
+        if (!auth.authorized) return auth.response;
         const supabase = getSupabaseAdmin();
 
         const { data, error } = await supabase.rpc('get_project_by_id', {

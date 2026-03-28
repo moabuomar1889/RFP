@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { resolveAccessForEmail } from '@/server/access-control';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,12 +20,20 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ authenticated: false, user: null });
         }
 
+        const access = await resolveAccessForEmail(tokenData.email);
         return NextResponse.json({
             authenticated: true,
             user: {
                 email: tokenData.email,
+                role: access.role,
                 tokenExpiry: tokenData.token_expiry,
                 lastLogin: tokenData.updated_at,
+                capabilities: {
+                    canApproveRequests: access.role === 'approver',
+                    canManageSystem: access.role === 'approver',
+                    canRequestProjects: true,
+                    canRequestUpgrade: true,
+                },
             },
         });
     } catch (error) {

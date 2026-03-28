@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import {
     LayoutDashboard,
     FolderKanban,
+    FolderPlus,
     FileStack,
     Users,
     UsersRound,
@@ -36,7 +37,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 const menuItems = [
@@ -56,9 +56,14 @@ const menuItems = [
     { title: "Theme", icon: Palette, href: "/settings/theme" },
 ];
 
+const requesterMenuItems = [
+    { title: "Projects", icon: FolderKanban, href: "/projects" },
+    { title: "Request New Project", icon: FolderPlus, href: "/projects/new" },
+];
+
 export function AppSidebar({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const [user, setUser] = useState<{ email: string } | null>(null);
+    const [user, setUser] = useState<{ email: string; role?: string | null } | null>(null);
 
     useEffect(() => {
         fetch("/api/auth/session")
@@ -69,6 +74,8 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
                 }
             });
     }, []);
+
+    const navigationItems = user?.role === "approver" ? menuItems : requesterMenuItems;
 
     return (
         <SidebarProvider>
@@ -102,7 +109,7 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
                             <SidebarGroupLabel>Navigation</SidebarGroupLabel>
                             <SidebarGroupContent>
                                 <SidebarMenu>
-                                    {menuItems.map((item) => (
+                                    {navigationItems.map((item) => (
                                         <SidebarMenuItem key={item.href}>
                                             <SidebarMenuButton
                                                 asChild
@@ -131,7 +138,9 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
                                     </Avatar>
                                     <div className="flex flex-col">
                                         <span className="text-sm font-medium">{user.email}</span>
-                                        <span className="text-xs text-muted-foreground">Admin</span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {user.role === "approver" ? "Approver" : "Requester"}
+                                        </span>
                                     </div>
                                 </div>
                                 <Button variant="ghost" size="icon" asChild>

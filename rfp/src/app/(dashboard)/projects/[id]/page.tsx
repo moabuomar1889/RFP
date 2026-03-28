@@ -91,9 +91,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     const [upgradeRequested, setUpgradeRequested] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [enforcing, setEnforcing] = useState(false);
+    const [accessRole, setAccessRole] = useState<"approver" | "requester">("requester");
 
     useEffect(() => {
         fetchProjectData();
+        fetch("/api/auth/session")
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.authenticated && data.user?.role) {
+                    setAccessRole(data.user.role);
+                }
+            });
     }, [projectId]);
 
     const fetchProjectData = async () => {
@@ -264,7 +272,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                     <p className="text-muted-foreground">{project.name}</p>
                 </div>
-                {project.drive_folder_id && (
+                {project.drive_folder_id && accessRole === "approver" && (
                     <Button variant="outline" asChild>
                         <a href={driveUrl} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="mr-2 h-4 w-4" />
@@ -297,22 +305,26 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         ⏳ Upgrade Pending Approval
                     </Badge>
                 )}
-                <Button variant="outline" onClick={handleEnforceNow} disabled={enforcing}>
-                    {enforcing ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Shield className="mr-2 h-4 w-4" />
-                    )}
-                    {enforcing ? 'Enforcing...' : 'Enforce Now'}
-                </Button>
-                <Button onClick={handleSyncProject} disabled={syncing}>
-                    {syncing ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        <Play className="mr-2 h-4 w-4" />
-                    )}
-                    {syncing ? 'Syncing...' : 'Sync Project'}
-                </Button>
+                {accessRole === "approver" && (
+                    <>
+                        <Button variant="outline" onClick={handleEnforceNow} disabled={enforcing}>
+                            {enforcing ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Shield className="mr-2 h-4 w-4" />
+                            )}
+                            {enforcing ? 'Enforcing...' : 'Enforce Now'}
+                        </Button>
+                        <Button onClick={handleSyncProject} disabled={syncing}>
+                            {syncing ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Play className="mr-2 h-4 w-4" />
+                            )}
+                            {syncing ? 'Syncing...' : 'Sync Project'}
+                        </Button>
+                    </>
+                )}
             </div>
 
             {/* Upgrade to PD Card (for bidding phase) */}
@@ -398,10 +410,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 Current folder tree with sync status
                             </CardDescription>
                         </div>
-                        <Button variant="outline" size="sm">
-                            <RefreshCw className="mr-2 h-4 w-4" />
-                            Rebuild Index
-                        </Button>
+                        {accessRole === "approver" && (
+                            <Button variant="outline" size="sm">
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Rebuild Index
+                            </Button>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent>

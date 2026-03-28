@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { encrypt } from '@/lib/crypto';
+import { resolveAccessForEmail } from '@/server/access-control';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,9 +55,8 @@ export async function GET(request: NextRequest) {
         const email = userInfo.email!;
         console.log('[Auth Callback] User email:', email);
 
-        // Verify user is the admin
-        const adminEmail = process.env.ADMIN_EMAIL || 'mo.abuomar@dtgsa.com';
-        if (email.toLowerCase() !== adminEmail.toLowerCase()) {
+        const access = await resolveAccessForEmail(email);
+        if (!access.authenticated || !access.role) {
             console.error('[Auth Callback] Unauthorized user:', email);
             return NextResponse.redirect(new URL('/login?error=unauthorized', request.url));
         }
@@ -90,16 +90,23 @@ export async function GET(request: NextRequest) {
             p_performed_by: email,
         });
 
-        // Set session cookie and redirect to dashboard
-        const response = NextResponse.redirect(new URL('/dashboard', request.url));
+        // Set session cookies and redirect according to access level
+        const targetPath = access.role === 'approver' ? '/' : '/projects/new';
+        const response = NextResponse.redirect(new URL(targetPath, request.url));
         response.cookies.set('rfp_session', email, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
             maxAge: 60 * 60 * 24 * 7, // 7 days
         });
+        response.cookies.set('rfp_access', access.role, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7,
+        });
 
-        console.log('[Auth Callback] Login complete, redirecting to dashboard');
+        console.log('[Auth Callback] Login complete, redirecting to', targetPath);
         return response;
     } catch (error) {
         console.error('[Auth Callback] OAuth callback error:', error);

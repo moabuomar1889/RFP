@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { requireAuthenticatedAccess } from '@/server/access-control';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -9,8 +10,11 @@ export const fetchCache = 'force-no-store';
  * GET /api/requests
  * List project requests - returns both pending and history
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAuthenticatedAccess(request);
+        if (!auth.authorized) return auth.response;
+
         const supabase = getSupabaseAdmin();
 
         // Get pending requests
@@ -29,10 +33,18 @@ export async function GET() {
             console.error('Error fetching request history:', historyError);
         }
 
+        const isApprover = auth.access.role === 'approver';
+        const email = auth.access.email;
+
         return NextResponse.json({
             success: true,
-            pending: pending || [],
-            history: history || [],
+            pending: isApprover
+                ? pending || []
+                : (pending || []).filter((item: any) => item.requested_by?.toLowerCase() === email),
+            history: isApprover
+                ? history || []
+                : (history || []).filter((item: any) => item.requested_by?.toLowerCase() === email),
+            accessRole: auth.access.role,
         });
     } catch (error) {
         console.error('Error fetching requests:', error);
@@ -52,12 +64,13 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAuthenticatedAccess(request);
+        if (!auth.authorized) return auth.response;
+
         const body = await request.json();
         const { requestType, projectName, projectId } = body;
 
-        // Get session from cookie
-        const session = request.cookies.get('rfp_session');
-        const requestedBy = session?.value || 'anonymous';
+        const requestedBy = auth.access.email!;
 
         const supabase = getSupabaseAdmin();
 

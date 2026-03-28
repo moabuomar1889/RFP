@@ -33,7 +33,12 @@ export default function SettingsPage() {
         "mo.abuomar@dtgsa.com",
         "admins@dtgsa.com",
     ]);
+    const [requestApprovers, setRequestApprovers] = useState([
+        "mo.abuomar@dtgsa.com",
+    ]);
+    const [allowedLoginDomain, setAllowedLoginDomain] = useState("dtgsa.com");
     const [newPrincipal, setNewPrincipal] = useState("");
+    const [newApprover, setNewApprover] = useState("");
     const [strictModeEnabled, setStrictModeEnabled] = useState(true);
     const [safeTestMode, setSafeTestMode] = useState(true);
     const [bulkApproved, setBulkApproved] = useState(false);
@@ -53,6 +58,8 @@ export default function SettingsPage() {
                     if (s.strict_mode) setStrictModeEnabled(s.strict_mode.enabled ?? true);
                     if (s.bulk_approved) setBulkApproved(s.bulk_approved.approved ?? false);
                     if (s.protected_principals) setProtectedPrincipals(s.protected_principals.emails ?? []);
+                    if (s.request_approvers) setRequestApprovers(s.request_approvers.emails ?? ["mo.abuomar@dtgsa.com"]);
+                    if (s.allowed_login_domain) setAllowedLoginDomain(s.allowed_login_domain.domain ?? "dtgsa.com");
                 }
             } catch (error) {
                 console.error('Failed to load settings:', error);
@@ -75,6 +82,8 @@ export default function SettingsPage() {
                         strict_mode: { enabled: strictModeEnabled },
                         bulk_approved: { approved: bulkApproved },
                         protected_principals: { emails: protectedPrincipals },
+                        request_approvers: { emails: requestApprovers },
+                        allowed_login_domain: { domain: allowedLoginDomain.replace(/^@/, "").trim().toLowerCase() || "dtgsa.com" },
                     }
                 })
             });
@@ -102,6 +111,18 @@ export default function SettingsPage() {
     const removePrincipal = (email: string) => {
         if (email === "mo.abuomar@dtgsa.com") return;
         setProtectedPrincipals(protectedPrincipals.filter((p) => p !== email));
+    };
+
+    const addApprover = () => {
+        if (newApprover && !requestApprovers.includes(newApprover)) {
+            setRequestApprovers([...requestApprovers, newApprover]);
+            setNewApprover("");
+        }
+    };
+
+    const removeApprover = (email: string) => {
+        if (email === "mo.abuomar@dtgsa.com") return;
+        setRequestApprovers(requestApprovers.filter((p) => p !== email));
     };
 
     const scanDrive = async () => {
@@ -439,6 +460,78 @@ export default function SettingsPage() {
                             </div>
                             <p className="text-xs text-muted-foreground">
                                 Add user emails or Google Group emails that should always maintain access.
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
+                                    <CheckCircle2 className="h-5 w-5 text-blue-500" />
+                                </div>
+                                <div>
+                                    <CardTitle>Requester Access</CardTitle>
+                                    <CardDescription>
+                                        Any user on this domain can sign in as request-only unless they are listed as approvers
+                                    </CardDescription>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="allowed-domain">Allowed Login Domain</Label>
+                                <Input
+                                    id="allowed-domain"
+                                    value={allowedLoginDomain}
+                                    onChange={(e) => setAllowedLoginDomain(e.target.value)}
+                                    placeholder="dtgsa.com"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Users on this domain can sign in. Non-approvers get request-only access.
+                                </p>
+                            </div>
+
+                            <Separator />
+
+                            <div className="space-y-2">
+                                {requestApprovers.map((email) => (
+                                    <div
+                                        key={email}
+                                        className="flex items-center justify-between p-3 rounded-lg border"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Shield className="h-4 w-4 text-blue-500" />
+                                            <span className="text-sm font-medium">{email}</span>
+                                        </div>
+                                        {email !== "mo.abuomar@dtgsa.com" ? (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => removeApprover(email)}
+                                            >
+                                                <Trash2 className="h-4 w-4 text-muted-foreground" />
+                                            </Button>
+                                        ) : (
+                                            <Badge variant="secondary">Primary Approver</Badge>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="email@dtgsa.com"
+                                    value={newApprover}
+                                    onChange={(e) => setNewApprover(e.target.value)}
+                                />
+                                <Button onClick={addApprover}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add Approver
+                                </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Approvers can review requests and access the full admin system. Ask new approvers to sign out and sign in again after changes.
                             </p>
                         </CardContent>
                     </Card>
