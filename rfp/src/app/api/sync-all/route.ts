@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncUsersToDatabase, syncGroupsToDatabase } from '@/server/google-admin';
+import { syncSharedDriveVisibilityMembers } from '@/server/shared-drive-members';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,12 +23,19 @@ export async function POST(request: NextRequest) {
         const groupsResult = await syncGroupsToDatabase();
         console.log('Groups sync result:', groupsResult);
 
+        // Ensure project-related groups can see the Shared Drive itself.
+        console.log('Syncing Shared Drive visibility members...');
+        const sharedDriveResult = await syncSharedDriveVisibilityMembers();
+        console.log('Shared Drive visibility sync result:', sharedDriveResult);
+
         if (usersResult.success && groupsResult.success) {
             return NextResponse.json({
                 success: true,
-                message: `Synced ${usersResult.syncedCount} users and ${groupsResult.syncedCount} groups`,
+                message: `Synced ${usersResult.syncedCount} users, ${groupsResult.syncedCount} groups, and ${sharedDriveResult.addedGroups.length} Shared Drive memberships`,
                 users: usersResult.syncedCount,
                 groups: groupsResult.syncedCount,
+                sharedDriveMembersAdded: sharedDriveResult.addedGroups.length,
+                sharedDriveTargetGroups: sharedDriveResult.targetGroups,
             });
         } else {
             return NextResponse.json({

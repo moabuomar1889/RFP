@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { syncGroupsToDatabase } from '@/server/google-admin';
+import { syncSharedDriveVisibilityMembers } from '@/server/shared-drive-members';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,10 +52,13 @@ export async function POST(request: NextRequest) {
         console.log('Sync result:', result);
 
         if (result.success) {
+            const sharedDriveResult = await syncSharedDriveVisibilityMembers();
             return NextResponse.json({
                 success: true,
-                message: `Successfully synced ${result.syncedCount} groups from Google Workspace`,
+                message: `Successfully synced ${result.syncedCount} groups from Google Workspace and ${sharedDriveResult.addedGroups.length} Shared Drive memberships`,
                 syncedCount: result.syncedCount,
+                sharedDriveMembersAdded: sharedDriveResult.addedGroups.length,
+                sharedDriveTargetGroups: sharedDriveResult.targetGroups,
             });
         } else {
             return NextResponse.json({
