@@ -53,12 +53,15 @@ export async function POST(request: NextRequest) {
 
         if (result.success) {
             const sharedDriveResult = await syncSharedDriveVisibilityMembers();
+            const addedVisibilityMembers =
+                sharedDriveResult.addedGroups.length + sharedDriveResult.addedUsers.length;
             return NextResponse.json({
                 success: true,
-                message: `Successfully synced ${result.syncedCount} groups from Google Workspace and ${sharedDriveResult.addedGroups.length} Shared Drive memberships`,
+                message: `Successfully synced ${result.syncedCount} groups from Google Workspace and ${addedVisibilityMembers} Shared Drive visibility memberships`,
                 syncedCount: result.syncedCount,
-                sharedDriveMembersAdded: sharedDriveResult.addedGroups.length,
+                sharedDriveMembersAdded: addedVisibilityMembers,
                 sharedDriveTargetGroups: sharedDriveResult.targetGroups,
+                sharedDriveTargetUsers: sharedDriveResult.targetUsers,
             });
         } else {
             return NextResponse.json({

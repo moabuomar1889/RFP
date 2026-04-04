@@ -29,13 +29,16 @@ export async function POST(request: NextRequest) {
         console.log('Shared Drive visibility sync result:', sharedDriveResult);
 
         if (usersResult.success && groupsResult.success) {
+            const addedVisibilityMembers =
+                sharedDriveResult.addedGroups.length + sharedDriveResult.addedUsers.length;
             return NextResponse.json({
                 success: true,
-                message: `Synced ${usersResult.syncedCount} users, ${groupsResult.syncedCount} groups, and ${sharedDriveResult.addedGroups.length} Shared Drive memberships`,
+                message: `Synced ${usersResult.syncedCount} users, ${groupsResult.syncedCount} groups, and ${addedVisibilityMembers} Shared Drive visibility memberships`,
                 users: usersResult.syncedCount,
                 groups: groupsResult.syncedCount,
-                sharedDriveMembersAdded: sharedDriveResult.addedGroups.length,
+                sharedDriveMembersAdded: addedVisibilityMembers,
                 sharedDriveTargetGroups: sharedDriveResult.targetGroups,
+                sharedDriveTargetUsers: sharedDriveResult.targetUsers,
             });
         } else {
             return NextResponse.json({
