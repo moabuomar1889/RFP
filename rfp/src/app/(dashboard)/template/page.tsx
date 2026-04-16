@@ -55,6 +55,8 @@ import {
     Undo2,
     Ban,
     ArrowDown,
+    Cloud,
+    RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -296,6 +298,65 @@ const ALL_ROLES: { value: DriveRole; label: string }[] = [
     { value: 'writer', label: 'Contributor' },
     { value: 'fileOrganizer', label: 'Content Manager' },
 ];
+type SharedDriveRole = DriveRole | 'organizer';
+type SharedDrivePermissionRow = {
+    key: string;
+    type: 'group' | 'user' | 'domain' | 'anyone';
+    email: string | null;
+    displayName?: string | null;
+    actualRole: SharedDriveRole | null;
+    desiredRole: SharedDriveRole | null;
+    status: 'match' | 'missing' | 'weaker' | 'stronger' | 'unmanaged';
+    sources: string[];
+    permissionId?: string;
+};
+
+type SharedDrivePermissionState = {
+    driveId: string;
+    driveName: string | null;
+    rows: SharedDrivePermissionRow[];
+    summary: {
+        totalDesired: number;
+        match: number;
+        missing: number;
+        weaker: number;
+        stronger: number;
+        unmanaged: number;
+    };
+};
+
+const EDITABLE_SHARED_DRIVE_ROLES = ALL_ROLES;
+
+function sharedDriveRoleLabel(role: SharedDriveRole | null | undefined): string {
+    if (!role) return 'Missing';
+    return ALL_ROLES.find((item) => item.value === role)?.label || (role === 'organizer' ? 'Manager' : role);
+}
+
+function sharedDriveStatusBadge(status: SharedDrivePermissionRow['status']) {
+    switch (status) {
+        case 'match':
+            return <Badge className="bg-green-500/10 text-green-600 border-green-500/30">Match</Badge>;
+        case 'missing':
+            return <Badge variant="destructive">Missing</Badge>;
+        case 'weaker':
+            return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/30">Needs Upgrade</Badge>;
+        case 'stronger':
+            return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/30">Stronger</Badge>;
+        case 'unmanaged':
+        default:
+            return <Badge variant="secondary">Manual</Badge>;
+    }
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+    return error instanceof Error ? error.message : fallback;
+}
+
+type PrincipalDirectoryEntry = {
+    email: string;
+    name?: string;
+    display_name?: string;
+};
 
 // ─── Table B: Explicit Policy (Editable) ────────────────────
 function ExplicitPolicyTable({
@@ -893,6 +954,197 @@ function AddPrincipalDialog({
     );
 }
 
+// Shared Drive permissions panel
+function SharedDrivePermissionsPanel() {
+    const [state, setState] = useState<SharedDrivePermissionState | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+    const [savingKey, setSavingKey] = useState<string | null>(null);
+    const [draftRoles, setDraftRoles] = useState<Record<string, DriveRole>>({});
+
+    const loadSharedDrivePermissions = useCallback(async () => {
+        try {
+            setLoading(true);
+            const res = await fetch('/api/template/shared-drive-permissions');
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to load Shared Drive permissions');
+            setState(data);
+            const nextDrafts: Record<string, DriveRole> = {};
+            for (const row of data.rows || []) {
+                if ((row.type === 'group' || row.type === 'user') && (row.actualRole || row.desiredRole)) {
+                    const role = (row.actualRole || row.desiredRole) as SharedDriveRole;
+                    if (role !== 'organizer') nextDrafts[row.key] = role as DriveRole;
+                }
+            }
+            setDraftRoles(nextDrafts);
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Failed to load Shared Drive permissions'));
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadSharedDrivePermissions();
+    }, [loadSharedDrivePermissions]);
+
+    const syncWithTemplate = async () => {
+        try {
+            setSyncing(true);
+            const res = await fetch('/api/template/shared-drive-permissions', { method: 'POST' });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to sync Shared Drive permissions');
+            setState(data.state);
+            const added = (data.result?.addedGroups?.length || 0) + (data.result?.addedUsers?.length || 0);
+            const updated = (data.result?.updatedGroups?.length || 0) + (data.result?.updatedUsers?.length || 0);
+            toast.success(`Shared Drive synced: ${added} added, ${updated} upgraded`);
+            await loadSharedDrivePermissions();
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Failed to sync Shared Drive permissions'));
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    const applyRole = async (row: SharedDrivePermissionRow) => {
+        const role = draftRoles[row.key];
+        if (!role || (row.type !== 'group' && row.type !== 'user') || !row.email) return;
+
+        try {
+            setSavingKey(row.key);
+            const res = await fetch('/api/template/shared-drive-permissions', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: row.type, email: row.email, role }),
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to update Shared Drive member');
+            setState(data.state);
+            toast.success(`Updated ${row.email} to ${sharedDriveRoleLabel(role)}`);
+            await loadSharedDrivePermissions();
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Failed to update Shared Drive member'));
+        } finally {
+            setSavingKey(null);
+        }
+    };
+
+    const summary = state?.summary;
+    const needsSync = !!summary && (summary.missing + summary.weaker > 0);
+
+    return (
+        <Card>
+            <CardHeader className="py-3 px-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Cloud className="h-4 w-4 text-blue-500" />
+                            Shared Drive Access
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Baseline access for Google Drive Desktop. Folder-level Limited Access still controls sensitive folders.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {summary && (
+                            <>
+                                <Badge variant="outline">Desired {summary.totalDesired}</Badge>
+                                <Badge className="bg-green-500/10 text-green-600 border-green-500/30">Match {summary.match}</Badge>
+                                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/30">Needs Sync {summary.missing + summary.weaker}</Badge>
+                            </>
+                        )}
+                        <Button variant="outline" size="sm" onClick={loadSharedDrivePermissions} disabled={loading || syncing}>
+                            {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                            Refresh
+                        </Button>
+                        <Button size="sm" onClick={syncWithTemplate} disabled={syncing || loading || !needsSync}>
+                            {syncing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Shield className="h-4 w-4 mr-1" />}
+                            Sync With Template
+                        </Button>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+                {loading && !state ? (
+                    <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Loading Shared Drive permissions...
+                    </div>
+                ) : state ? (
+                    <ScrollArea className="max-h-[300px] rounded-md border">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Principal</TableHead>
+                                    <TableHead className="w-[140px]">Desired</TableHead>
+                                    <TableHead className="w-[160px]">Actual</TableHead>
+                                    <TableHead className="w-[130px]">Status</TableHead>
+                                    <TableHead className="w-[210px]">Edit Actual</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {state.rows.map((row) => {
+                                    const editable = (row.type === 'group' || row.type === 'user') && row.email && row.actualRole !== 'organizer';
+                                    const draftRole = draftRoles[row.key] || (row.actualRole !== 'organizer' ? row.actualRole as DriveRole : undefined) || (row.desiredRole as DriveRole | undefined) || 'reader';
+                                    const changed = editable && draftRole !== row.actualRole;
+
+                                    return (
+                                        <TableRow key={row.key}>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    {row.type === 'group' ? <Users className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+                                                    <div>
+                                                        <div className="text-sm font-medium">{row.displayName || row.email}</div>
+                                                        {row.displayName && <div className="text-xs text-muted-foreground">{row.email}</div>}
+                                                        {row.sources.length > 0 && <div className="text-xs text-muted-foreground">Source: {row.sources.join(', ')}</div>}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>{sharedDriveRoleLabel(row.desiredRole)}</TableCell>
+                                            <TableCell>{sharedDriveRoleLabel(row.actualRole)}</TableCell>
+                                            <TableCell>{sharedDriveStatusBadge(row.status)}</TableCell>
+                                            <TableCell>
+                                                {editable ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <Select
+                                                            value={draftRole}
+                                                            onValueChange={(value) => setDraftRoles((prev) => ({ ...prev, [row.key]: value as DriveRole }))}
+                                                        >
+                                                            <SelectTrigger className="h-8 w-[140px]">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {EDITABLE_SHARED_DRIVE_ROLES.map((role) => (
+                                                                    <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            disabled={!changed || savingKey === row.key}
+                                                            onClick={() => applyRole(row)}
+                                                        >
+                                                            {savingKey === row.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Apply'}
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">Managed outside template</span>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
+                ) : (
+                    <div className="py-6 text-sm text-muted-foreground">No Shared Drive permission data loaded.</div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 // ─── Save Status Indicator ──────────────────────────────────
 function SaveIndicator({
     status,
@@ -1005,7 +1257,7 @@ export default function TemplateEditorV2() {
             ]);
             if (groupsData.groups) {
                 setAllGroups(
-                    groupsData.groups.map((g: any) => ({
+                    groupsData.groups.map((g: PrincipalDirectoryEntry) => ({
                         email: g.email,
                         name: g.name || g.email,
                     }))
@@ -1013,7 +1265,7 @@ export default function TemplateEditorV2() {
             }
             if (usersData.users) {
                 setAllUsers(
-                    usersData.users.map((u: any) => ({
+                    usersData.users.map((u: PrincipalDirectoryEntry) => ({
                         email: u.email,
                         name: u.display_name || u.email,
                     }))
@@ -1110,7 +1362,7 @@ export default function TemplateEditorV2() {
                 treeState,
                 selectedNodeId,
                 addPrincipalDialog.type,
-                { email, role: role as any }
+                { email, role }
             );
             updateState(newState);
         },
@@ -1234,6 +1486,8 @@ export default function TemplateEditorV2() {
                     </Button>
                 </div>
             </div>
+
+            <SharedDrivePermissionsPanel />
 
             {/* Main Layout: Left Tree + Right Policy Panel */}
             <div className="grid gap-4 lg:grid-cols-[300px_1fr]">

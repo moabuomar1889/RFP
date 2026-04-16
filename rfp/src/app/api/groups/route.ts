@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { syncGroupsToDatabase } from '@/server/google-admin';
 import { syncSharedDriveVisibilityMembers } from '@/server/shared-drive-members';
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
  * GET /api/groups
  * Get all groups from database (cached from Google Workspace)
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         const supabase = getSupabaseAdmin();
 
@@ -30,11 +30,11 @@ export async function GET(request: NextRequest) {
             groups: groups || [],
             count: groups?.length || 0,
         });
-    } catch (error: any) {
+    } catch (error) {
         console.error('Groups API error:', error);
         return NextResponse.json({
             success: false,
-            error: error.message || 'Failed to fetch groups',
+            error: error instanceof Error ? error.message : 'Failed to fetch groups',
             groups: [],
         }, { status: 500 });
     }
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
  * POST /api/groups
  * Sync groups from Google Workspace to database
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
     try {
         console.log('=== Starting group sync from Google Workspace ===');
 
@@ -55,11 +55,14 @@ export async function POST(request: NextRequest) {
             const sharedDriveResult = await syncSharedDriveVisibilityMembers();
             const addedVisibilityMembers =
                 sharedDriveResult.addedGroups.length + sharedDriveResult.addedUsers.length;
+            const updatedVisibilityMembers =
+                sharedDriveResult.updatedGroups.length + sharedDriveResult.updatedUsers.length;
             return NextResponse.json({
                 success: true,
-                message: `Successfully synced ${result.syncedCount} groups from Google Workspace and ${addedVisibilityMembers} Shared Drive visibility memberships`,
+                message: `Successfully synced ${result.syncedCount} groups from Google Workspace and ${addedVisibilityMembers} added / ${updatedVisibilityMembers} updated Shared Drive memberships`,
                 syncedCount: result.syncedCount,
                 sharedDriveMembersAdded: addedVisibilityMembers,
+                sharedDriveMembersUpdated: updatedVisibilityMembers,
                 sharedDriveTargetGroups: sharedDriveResult.targetGroups,
                 sharedDriveTargetUsers: sharedDriveResult.targetUsers,
             });
@@ -69,11 +72,11 @@ export async function POST(request: NextRequest) {
                 error: result.error || 'Failed to sync groups - check server logs',
             }, { status: 500 });
         }
-    } catch (error: any) {
+    } catch (error) {
         console.error('Groups sync error:', error);
         return NextResponse.json({
             success: false,
-            error: error.message || 'Failed to sync groups',
+            error: error instanceof Error ? error.message : 'Failed to sync groups',
         }, { status: 500 });
     }
 }
