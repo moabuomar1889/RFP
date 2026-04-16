@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Table,
     TableBody,
@@ -1071,7 +1072,7 @@ function SharedDrivePermissionsPanel() {
                         Loading Shared Drive permissions...
                     </div>
                 ) : state ? (
-                    <ScrollArea className="max-h-[300px] rounded-md border">
+                    <ScrollArea className="h-[calc(100vh-320px)] min-h-[360px] rounded-md border">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -1487,12 +1488,18 @@ export default function TemplateEditorV2() {
                 </div>
             </div>
 
-            <SharedDrivePermissionsPanel />
+            <Tabs defaultValue="folders" className="space-y-4">
+                <TabsList>
+                    <TabsTrigger value="folders">Folder Policies</TabsTrigger>
+                    <TabsTrigger value="shared-drive">Shared Drive Access</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="folders" className="mt-0">
 
             {/* Main Layout: Left Tree + Right Policy Panel */}
             <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
                 {/* LEFT PANEL: Folder Tree (Navigation Only) */}
-                <Card className="h-[calc(100vh-200px)] flex flex-col">
+                <Card className="h-[calc(100vh-240px)] flex flex-col">
                     <CardHeader className="py-3 px-4 flex-shrink-0">
                         <CardTitle className="text-sm">Folder Tree</CardTitle>
                     </CardHeader>
@@ -1514,7 +1521,7 @@ export default function TemplateEditorV2() {
                 </Card>
 
                 {/* RIGHT PANEL: Policy Tables */}
-                <div className="h-[calc(100vh-200px)] overflow-hidden">
+                <div className="h-[calc(100vh-240px)] overflow-hidden">
                     {selectedNode ? (
                         <Card className="h-full flex flex-col">
                             <CardHeader className="py-3 px-4 flex-shrink-0 border-b">
@@ -1591,6 +1598,13 @@ export default function TemplateEditorV2() {
                     )}
                 </div>
             </div>
+
+                </TabsContent>
+
+                <TabsContent value="shared-drive" className="mt-0">
+                    <SharedDrivePermissionsPanel />
+                </TabsContent>
+            </Tabs>
 
             {/* Add Principal Dialog */}
             <AddPrincipalDialog
