@@ -962,6 +962,8 @@ function SharedDrivePermissionsPanel() {
     const [syncing, setSyncing] = useState(false);
     const [savingKey, setSavingKey] = useState<string | null>(null);
     const [draftRoles, setDraftRoles] = useState<Record<string, DriveRole>>({});
+    const [principalFilter, setPrincipalFilter] = useState<"all" | "group" | "user">("all");
+    const [permissionSearch, setPermissionSearch] = useState("");
 
     const loadSharedDrivePermissions = useCallback(async () => {
         try {
@@ -1032,6 +1034,24 @@ function SharedDrivePermissionsPanel() {
 
     const summary = state?.summary;
     const needsSync = !!summary && (summary.missing + summary.weaker > 0);
+    const sharedDriveRows = state?.rows || [];
+    const groupRowCount = sharedDriveRows.filter((row) => row.type === "group").length;
+    const userRowCount = sharedDriveRows.filter((row) => row.type === "user").length;
+    const normalizedSearch = permissionSearch.trim().toLowerCase();
+    const filteredRows = sharedDriveRows.filter((row) => {
+        if (principalFilter !== "all" && row.type !== principalFilter) return false;
+        if (!normalizedSearch) return true;
+        const searchable = [
+            row.displayName,
+            row.email,
+            row.type,
+            row.status,
+            sharedDriveRoleLabel(row.desiredRole),
+            sharedDriveRoleLabel(row.actualRole),
+            ...row.sources,
+        ];
+        return searchable.some((value) => value?.toLowerCase().includes(normalizedSearch));
+    });
 
     return (
         <Card>
@@ -1072,6 +1092,42 @@ function SharedDrivePermissionsPanel() {
                         Loading Shared Drive permissions...
                     </div>
                 ) : state ? (
+                    <>
+                        <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={principalFilter === "all" ? "default" : "outline"}
+                                onClick={() => setPrincipalFilter("all")}
+                            >
+                                All ({sharedDriveRows.length})
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={principalFilter === "group" ? "default" : "outline"}
+                                onClick={() => setPrincipalFilter("group")}
+                            >
+                                Groups ({groupRowCount})
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant={principalFilter === "user" ? "default" : "outline"}
+                                onClick={() => setPrincipalFilter("user")}
+                            >
+                                Users ({userRowCount})
+                            </Button>
+                            <span className="text-xs text-muted-foreground">Showing {filteredRows.length}</span>
+                        </div>
+                        <Input
+                            value={permissionSearch}
+                            onChange={(event) => setPermissionSearch(event.target.value)}
+                            placeholder="Search users, groups, roles, sources..."
+                            className="h-9 lg:max-w-sm"
+                        />
+                    </div>
                     <ScrollArea className="h-[calc(100vh-320px)] min-h-[360px] rounded-md border">
                         <Table>
                             <TableHeader>
@@ -1084,7 +1140,7 @@ function SharedDrivePermissionsPanel() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {state.rows.map((row) => {
+                                {filteredRows.map((row) => {
                                     const editable = (row.type === 'group' || row.type === 'user') && row.email && row.actualRole !== 'organizer';
                                     const draftRole = draftRoles[row.key] || (row.actualRole !== 'organizer' ? row.actualRole as DriveRole : undefined) || (row.desiredRole as DriveRole | undefined) || 'reader';
                                     const changed = editable && draftRole !== row.actualRole;
@@ -1136,9 +1192,17 @@ function SharedDrivePermissionsPanel() {
                                         </TableRow>
                                     );
                                 })}
+                                {filteredRows.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center text-sm text-muted-foreground">
+                                            No Shared Drive members match this filter.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </ScrollArea>
+                    </>
                 ) : (
                     <div className="py-6 text-sm text-muted-foreground">No Shared Drive permission data loaded.</div>
                 )}
