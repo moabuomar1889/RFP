@@ -2,13 +2,77 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Loader2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+
+function sanitizeClientRedirect(candidate: string | null): string | null {
+    if (!candidate) return null;
+    if (!candidate.startsWith('/') || candidate.startsWith('//')) return null;
+    if (candidate.startsWith('/api/auth/')) return null;
+    return candidate;
+}
 
 function LoginContent() {
+    const router = useRouter();
     const searchParams = useSearchParams();
     const error = searchParams.get("error");
-    const redirect = searchParams.get("redirect");
+    const redirect = useMemo(
+        () => sanitizeClientRedirect(searchParams.get("redirect")),
+        [searchParams]
+    );
+    const [checkingSession, setCheckingSession] = useState(!error);
+
+    useEffect(() => {
+        if (error) {
+            setCheckingSession(false);
+            return;
+        }
+
+        let active = true;
+
+        const checkSession = async () => {
+            try {
+                const response = await fetch('/api/auth/session', { cache: 'no-store' });
+                const data = await response.json();
+
+                if (!active) return;
+
+                if (data?.authenticated) {
+                    const target = redirect || (data?.user?.role === 'approver' ? '/' : '/projects/new');
+                    router.replace(target);
+                    return;
+                }
+            } catch (error) {
+                console.warn('[Login Page] Session check failed:', error);
+            }
+
+            if (active) {
+                setCheckingSession(false);
+            }
+        };
+
+        checkSession();
+        return () => {
+            active = false;
+        };
+    }, [error, redirect, router]);
+
+    if (checkingSession) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+                <Card className="w-full max-w-md">
+                    <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <div>
+                            <p className="font-medium">Checking your session...</p>
+                            <p className="text-sm text-muted-foreground">If you are already signed in, we will take you in directly.</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
@@ -28,7 +92,7 @@ function LoginContent() {
                             {error === "unauthorized" && "Access denied. Please contact administrator."}
                             {error === "auth_failed" && "Authentication failed. Please try again."}
                             {error === "no_code" && "No authorization code received."}
-                            {!["unauthorized", "auth_failed", "no_code"].includes(error) && `Error: ${error}`}
+                            {!['unauthorized', 'auth_failed', 'no_code'].includes(error) && `Error: ${error}`}
                         </div>
                     )}
                     <Button asChild className="w-full" size="lg">
@@ -65,11 +129,13 @@ function LoginContent() {
 
 export default function LoginPage() {
     return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-pulse">Loading...</div>
-            </div>
-        }>
+        <Suspense
+            fallback={
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="animate-pulse">Loading...</div>
+                </div>
+            }
+        >
             <LoginContent />
         </Suspense>
     );
