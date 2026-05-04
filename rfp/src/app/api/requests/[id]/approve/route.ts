@@ -165,6 +165,7 @@ export async function POST(
                         p_template_path: folder.templatePath,
                         p_drive_folder_id: folder.driveFolderId,
                         p_normalized_template_path: normalizedPath,
+                        p_template_node_id: folder.nodeId || null,
                         p_expected_limited_access: folder.limitedAccessEnabled || false,
                         p_expected_groups: folder.expectedGroups || [],
                         p_expected_users: folder.expectedUsers || [],

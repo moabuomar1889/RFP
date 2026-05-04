@@ -32,7 +32,6 @@ import {
     AlertTriangle,
     CheckSquare,
     Palette,
-    Link2,
     Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -50,7 +49,6 @@ const menuItems = [
     { title: "Jobs", icon: History, href: "/jobs" },
     { title: "Audit Log", icon: ClipboardList, href: "/audit" },
     { title: "Permission Audit", icon: ShieldCheck, href: "/permission-audit" },
-    { title: "Folder Mapping", icon: Link2, href: "/folder-mapping" },
     { title: "Folder Repair", icon: Wrench, href: "/admin/folder-repair" },
     { title: "Settings", icon: Cog, href: "/settings" },
     { title: "Theme", icon: Palette, href: "/settings/theme" },

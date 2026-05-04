@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { getAllFoldersRecursive } from '@/server/google-drive';
+import { normalizeIndexedDrivePath } from '@/server/project-phase-paths';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,14 +64,60 @@ export async function POST(
             );
         }
 
+        const { data: templateData, error: templateError } = await supabase.rpc('get_active_template');
+        if (templateError) {
+            console.error('Error loading active template:', templateError);
+            return NextResponse.json(
+                { success: false, error: 'Failed to load active template' },
+                { status: 500 }
+            );
+        }
+
+        const template = Array.isArray(templateData) ? templateData[0] : templateData;
+        const pathToNodeId = new Map<string, string>();
+        const templateNodes = Array.isArray(template?.template_json)
+            ? template.template_json
+            : template?.template_json?.template || [];
+
+        function collectTemplatePaths(nodes: any[], parentPath = '') {
+            for (const node of nodes || []) {
+                const name = node?.name || node?.text || '';
+                if (!name) continue;
+
+                const currentPath = parentPath ? `${parentPath}/${name}` : name;
+                if (node.node_id) {
+                    pathToNodeId.set(currentPath, node.node_id);
+                }
+
+                collectTemplatePaths(node.children || node.nodes || [], currentPath);
+            }
+        }
+
+        collectTemplatePaths(templateNodes);
+
+        const projectCode = project.pr_number || project.prNumber || '';
+
         // Insert/update folder index using RPC
         let indexed = 0;
         for (const folder of folders) {
             try {
+                const templatePath = normalizeIndexedDrivePath(folder.path || folder.name, projectCode);
+                let normalizedPath: string | null = templatePath;
+
+                if (normalizedPath === 'Bidding' || normalizedPath === 'Project Delivery') {
+                    normalizedPath = null;
+                } else if (normalizedPath?.startsWith('Bidding/')) {
+                    normalizedPath = normalizedPath.substring('Bidding/'.length);
+                } else if (normalizedPath?.startsWith('Project Delivery/')) {
+                    normalizedPath = normalizedPath.substring('Project Delivery/'.length);
+                }
+
                 const { error: indexError } = await supabase.rpc('upsert_folder_index', {
                     p_project_id: id,
-                    p_template_path: folder.path || folder.name,
+                    p_template_path: templatePath,
                     p_drive_folder_id: folder.id,
+                    p_normalized_template_path: normalizedPath,
+                    p_template_node_id: pathToNodeId.get(templatePath) || null,
                 });
 
                 if (indexError) {

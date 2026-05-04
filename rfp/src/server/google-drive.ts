@@ -836,6 +836,7 @@ interface CreatedFolder {
     driveFolderId: string;
     driveFolderName: string;
     limitedAccessEnabled: boolean;
+    nodeId: string | null;
 }
 
 /**
@@ -906,6 +907,7 @@ export async function createProjectFolderStructure(
         driveFolderId: phaseFolder.id!,
         driveFolderName: phaseFolderName,
         limitedAccessEnabled: phaseNode.limitedAccess || false,
+        nodeId: phaseNode.node_id || null,
     });
 
     // Apply permissions to Phase Folder (Standard)
@@ -1023,6 +1025,7 @@ export async function createProjectFolderStructure(
                 driveFolderId: folderId,
                 driveFolderName: folderName,
                 limitedAccessEnabled: node.limitedAccess || false,
+                nodeId: node.node_id || null,
             });
 
             // Recurse
